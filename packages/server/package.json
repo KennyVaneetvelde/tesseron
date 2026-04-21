@@ -3,7 +3,31 @@
   "version": "1.0.0",
   "description": "Node SDK for Tesseron. Same API as @tesseron/web but for backend services.",
   "license": "BUSL-1.1",
-  "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://brainblendai.com/"
+  },
+  "homepage": "https://github.com/KennyVaneetvelde/tesseron#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KennyVaneetvelde/tesseron.git",
+    "directory": "packages/server"
+  },
+  "bugs": {
+    "url": "https://github.com/KennyVaneetvelde/tesseron/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agents",
+    "typescript",
+    "sdk",
+    "websocket",
+    "node",
+    "tesseron"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

@@ -24,6 +24,8 @@
   <a href="https://github.com/KennyVaneetvelde/tesseron/discussions"><b>Discussions</b></a>
 </p>
 
+<a href="https://brainblendai.com/"><img src="./assets/brainblend-ai/logo.svg" width="22" height="18" align="center" alt="BrainBlend AI"></a> <sub>Built by <a href="https://brainblendai.com/"><b>BrainBlend AI</b></a></sub>
+
 </div>
 
 ---
@@ -145,4 +147,12 @@ Bug reports, protocol refinements, new framework adapters, and improvements to t
 
 Contributions are welcome under the [Developer Certificate of Origin](./CONTRIBUTING.md) — every commit must be `Signed-off-by`.
 
-© 2026 Kenny Vaneetvelde
+---
+
+<p align="center">
+  <a href="https://brainblendai.com/"><img src="./assets/brainblend-ai/logo.svg" width="32" height="27" alt="BrainBlend AI"></a>
+</p>
+<p align="center">
+  Built and maintained by <a href="https://brainblendai.com/"><b>BrainBlend AI</b></a>.<br>
+  © 2026 Kenny Vaneetvelde.
+</p>

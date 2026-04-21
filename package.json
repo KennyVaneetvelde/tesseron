@@ -4,7 +4,11 @@
   "private": true,
   "description": "Expose typed web app actions to MCP-compatible AI agents over WebSocket. SDK + matching MCP gateway.",
   "license": "BUSL-1.1",
-  "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://brainblendai.com/"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
