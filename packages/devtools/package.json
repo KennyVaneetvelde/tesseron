@@ -1,6 +1,7 @@
 {
   "name": "@tesseron/devtools",
   "version": "0.0.0",
+  "private": true,
   "description": "In-browser debug UI for Tesseron, served by the gateway at /__devtools.",
   "license": "BUSL-1.1",
   "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",

@@ -1,6 +1,7 @@
 {
   "name": "create-tesseron",
   "version": "0.0.0",
+  "private": true,
   "description": "Scaffolder for Tesseron projects. Run with `npm create tesseron@latest`.",
   "license": "BUSL-1.1",
   "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
