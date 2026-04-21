@@ -32,11 +32,7 @@
   "bin": {
     "tesseron-mcp": "./src/cli.ts"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
