@@ -5,7 +5,7 @@
   <img src="./assets/logo/tesseron-smallcaps-light.png" alt="Tesseron" width="520">
 </picture>
 
-### Typed web-app actions for MCP-compatible AI agents, over WebSocket.
+### Typed live-app actions for MCP-compatible AI agents, over WebSocket.
 
 <p>
   <a href="https://github.com/BrainBlend-AI/tesseron/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/BrainBlend-AI/tesseron?style=flat-square&color=f59e0b&logo=github&labelColor=0b1220"></a>
@@ -30,7 +30,7 @@
 
 ---
 
-Web apps declare actions with a Zod-style builder; agents (Claude Code, Claude Desktop, Cursor, Copilot, Codex, Cline, ...) call them as MCP tools. Your real handler runs against your real state. **No browser automation, no scraping, no Playwright.**
+Live applications (browser tabs, Electron/Tauri desktop apps, Node daemons, CLIs) declare actions with a Zod-style builder; agents (Claude Code, Claude Desktop, Cursor, Copilot, Codex, Cline, ...) call them as MCP tools. Your real handler runs against your real state. **No browser automation, no scraping, no Playwright.**
 
 <p align="center">
   <img src="./assets/diagrams/pieces-fit-together.png" alt="USER prompts the agent; YOUR APP (browser or Node, using @tesseron/web or /server) connects over WebSocket to the MCP GATEWAY (@tesseron/mcp on :7475); the MCP GATEWAY bridges to the MCP CLIENT (Claude Code, Desktop, Cursor) over MCP stdio." width="900">
@@ -85,8 +85,8 @@ See [`examples/`](./examples) for working apps in vanilla TS, React, Svelte, Vue
 | [`@tesseron/server`](./packages/server) | Node SDK. |
 | [`@tesseron/mcp`](./packages/mcp) | MCP gateway server (CLI; bundled into the plugin). |
 | [`@tesseron/react`](./packages/react) | React hooks adapter. |
-| [`@tesseron/devtools`](./packages/devtools) | In-browser debug UI served by the MCP gateway *(Phase 4, stub)*. |
-| [`create-tesseron`](./packages/create-tesseron) | `npm create tesseron@latest` scaffolder *(Phase 4, stub)*. |
+| [`@tesseron/devtools`](./packages/devtools) | In-browser debug UI served by the MCP gateway *(private stub, not yet published)*. |
+| [`create-tesseron`](./packages/create-tesseron) | `npm create tesseron@latest` scaffolder *(private stub, not yet published)*. |
 
 The Claude Code plugin lives at [`plugin/`](./plugin), exposed via the marketplace manifest at [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json).
 
@@ -111,7 +111,11 @@ For the authoritative, continuously-updated list of which client supports which 
 
 ## Status
 
-**v0.1** — usable end-to-end. Phase 1–3 of the [PRD](./.planning/requirements.md) shipped: bidirectional JSON-RPC over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, elicitation, subscribable resources. Phase 4 (Streamable HTTP transport, devtools UI, scaffolder) pending before **v1.0**.
+**v1.0** shipped April 2026. The protocol is stable at [**1.0.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources.
+
+Published to npm (all at **v1.0.1**): `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/mcp`. The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language.
+
+On the roadmap: Svelte/Vue adapters, the devtools UI, a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
 ## Development
 
