@@ -275,7 +275,7 @@ describe('Phase 3 — cancellation forwarding', () => {
     let handlerSettled = false;
     await setupAndClaim('cancel1', (s) => {
       s.action('wait')
-        .timeout(5000)
+        .timeout({ ms: 5000 })
         .handler(async (_input, ctx) => {
           await new Promise<void>((resolve) => {
             ctx.signal.addEventListener('abort', () => {
@@ -541,7 +541,7 @@ describe('Phase 3 — ctx.signal aborts pending confirm/elicit', () => {
 
     await setupAndClaim('abort1', (s) => {
       s.action('willTimeoutConfirm')
-        .timeout(200)
+        .timeout({ ms: 200 })
         .handler(async (_input, ctx) => {
           const ok = await ctx.confirm({ question: 'will never resolve' });
           return ok ? 'yes' : 'no';
@@ -571,7 +571,7 @@ describe('Phase 3 — ctx.signal aborts pending confirm/elicit', () => {
 
     await setupAndClaim('abort2', (s) => {
       s.action('willTimeoutElicit')
-        .timeout(200)
+        .timeout({ ms: 200 })
         .handler(async (_input, ctx) => {
           await ctx.elicit({
             question: 'will never resolve',

@@ -254,7 +254,7 @@ describe('Tesseron MCP integration', () => {
   it('enforces action timeouts and surfaces a Timeout error', async () => {
     await setupAndClaim('to1', (s) => {
       s.action('slow')
-        .timeout(50)
+        .timeout({ ms: 50 })
         .handler(async (_input, ctx) => {
           await new Promise((r) => setTimeout(r, 250));
           if (ctx.signal.aborted) {

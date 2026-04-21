@@ -1,4 +1,10 @@
+/**
+ * Tesseron wire-protocol version sent in {@link HelloParams.protocolVersion}.
+ * Major-version mismatches are hard-rejected by the gateway; minor-version
+ * mismatches log a warning.
+ */
 export const PROTOCOL_VERSION = '1.0.0' as const;
+/** JSON-RPC version used for every message. */
 export const JSONRPC_VERSION = '2.0' as const;
 
 export type JsonRpcId = string | number | null;
@@ -41,6 +47,11 @@ export type JsonRpcMessage<P = unknown, R = unknown> =
   | JsonRpcNotification<P>
   | JsonRpcResponse<R>;
 
+/**
+ * Numeric codes for every error the SDK raises. Codes in `-32xxx` follow the
+ * JSON-RPC reserved range; Tesseron-specific codes start at `-32000`. Use
+ * {@link TesseronError.code} to branch on these.
+ */
 export const TesseronErrorCode = {
   ParseError: -32700,
   InvalidRequest: -32600,
@@ -62,13 +73,19 @@ export const TesseronErrorCode = {
 
 export type TesseronErrorCodeValue = (typeof TesseronErrorCode)[keyof typeof TesseronErrorCode];
 
+/** Feature flags exchanged during the `tesseron/hello` handshake. */
 export interface TesseronCapabilities {
+  /** `true` if the peer can send/receive progress and log notifications during an invocation. */
   streaming: boolean;
+  /** `true` if the peer honours `resources/subscribe`. */
   subscriptions: boolean;
+  /** `true` if the peer can service `sampling/request`. On the gateway side, mirrors the MCP client's `sampling` capability. */
   sampling: boolean;
+  /** `true` if the peer can service `elicitation/request`. On the gateway side, mirrors the MCP client's `elicitation` capability. */
   elicitation: boolean;
 }
 
+/** App identity as carried on the wire; differs from {@link AppConfig} in that `origin` is required. */
 export interface AppMetadata {
   id: string;
   name: string;
@@ -78,9 +95,13 @@ export interface AppMetadata {
   version?: string;
 }
 
+/** MCP-aligned tool hints surfaced in the action manifest. */
 export interface ActionAnnotations {
+  /** `true` if the action has no side effects (agents may skip confirmation UIs). */
   readOnly?: boolean;
+  /** `true` if the action can destroy or mutate state in a non-idempotent way. */
   destructive?: boolean;
+  /** `true` if the client should confirm with the user before invoking. */
   requiresConfirmation?: boolean;
 }
 
@@ -100,6 +121,7 @@ export interface ResourceManifestEntry {
   subscribable: boolean;
 }
 
+/** Parameters of the `tesseron/hello` request sent by the SDK on connect. */
 export interface HelloParams {
   protocolVersion: string;
   app: AppMetadata;
@@ -108,6 +130,12 @@ export interface HelloParams {
   capabilities: TesseronCapabilities;
 }
 
+/**
+ * Result of the `tesseron/hello` handshake. Carries the session id, the
+ * capabilities the MCP client will honour, the connected agent's identity
+ * (filled once a bridge attaches), and the `claimCode` the user pastes into
+ * their MCP client to link this session.
+ */
 export interface WelcomeResult {
   sessionId: string;
   protocolVersion: string;
@@ -116,6 +144,7 @@ export interface WelcomeResult {
   claimCode?: string;
 }
 
+/** Identity advertised by the MCP client that claimed this session. */
 export interface AgentIdentity {
   id: string;
   name: string;

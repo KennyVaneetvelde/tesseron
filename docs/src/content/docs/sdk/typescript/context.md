@@ -129,12 +129,12 @@ MCP elicit requires the `requestedSchema` to be a flat object of primitive-typed
 - "Which of these?" / "What's the new name?" → `ctx.elicit` with a schema.
 - Multi-step wizards → separate actions, one question each.
 
-## `ctx.log(level, message, meta?)` - structured logs
+## `ctx.log({ level, message, meta? })` - structured logs
 
 ```ts
-ctx.log('info', 'imported CSV', { rows: 1200, durationMs: 4830 });
-ctx.log('warn', 'column name mismatch, falling back', { column: 'sku_new' });
-ctx.log('error', 'remote returned 500', { url, status: 500 });
+ctx.log({ level: 'info', message: 'imported CSV', meta: { rows: 1200, durationMs: 4830 } });
+ctx.log({ level: 'warn', message: 'column name mismatch, falling back', meta: { column: 'sku_new' } });
+ctx.log({ level: 'error', message: 'remote returned 500', meta: { url, status: 500 } });
 ```
 
 Forwarded to MCP `sendLoggingMessage` with `logger: <app_id>`. Useful because:

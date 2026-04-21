@@ -57,10 +57,10 @@ Don't reinvent backoff or reconnect inside the transport - that's the user's job
 
 ## Step 5 - builder DSL
 
-Whatever shape is idiomatic. In TypeScript we use a fluent builder (`action(...).describe(...).input(...).handler(...)`). In Python, decorators. In Rust, probably a struct with a method-chain pattern. What matters is that it ultimately produces a `RegisteredAction`:
+Whatever shape is idiomatic. In TypeScript we use a fluent builder (`action(...).describe(...).input(...).handler(...)`). In Python, decorators. In Rust, probably a struct with a method-chain pattern. What matters is that it ultimately produces an `ActionDefinition`:
 
 ```
-RegisteredAction {
+ActionDefinition {
   name: string;
   description?: string;
   inputSchema?: StandardJsonSchema;
@@ -72,7 +72,7 @@ RegisteredAction {
 }
 ```
 
-Same for `RegisteredResource`.
+Same for `ResourceDefinition`.
 
 ## Step 6 - bind it together
 

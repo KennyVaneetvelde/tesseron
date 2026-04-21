@@ -14,16 +14,16 @@ import {
   // The abstract client (extended by @tesseron/web and @tesseron/server).
   TesseronClient,
   // Builders.
-  ActionBuilder, ResourceBuilder,
-  RegisteredAction, RegisteredResource,
+  ActionBuilder, ActionDefinition, ActionHandler,
+  ResourceBuilder, ResourceDefinition, ResourceReader, ResourceSubscriber,
+  TimeoutOptions,
   // Per-invocation context.
-  ActionContext, AgentCapabilities,
-  SampleRequest, ConfirmRequest, ElicitRequest,
-  // JSON-RPC plumbing.
-  JsonRpcDispatcher,
-  JsonRpcRequest, JsonRpcNotification, JsonRpcResponse,
+  ActionContext, AgentCapabilities, InvokingAgent, ClientContext,
+  ProgressUpdate, SampleRequest, ConfirmRequest, ElicitRequest, LogEntry,
   // Transport contract.
-  Transport,
+  Transport, TransportClosedError,
+  // Wire envelope (JSON-RPC).
+  JsonRpcRequest, JsonRpcNotification, JsonRpcResponse, JsonRpcErrorPayload,
   // Error model.
   TesseronError,
   SamplingNotAvailableError, ElicitationNotAvailableError, SamplingDepthExceededError,
@@ -31,13 +31,14 @@ import {
   TesseronErrorCode,   // numeric enum: InputValidation = -32004, etc.
   // Protocol constants & types.
   PROTOCOL_VERSION,    // '1.0.0'
-  SDK_CAPABILITIES,    // { streaming: true, ... }
   HelloParams, WelcomeResult, TesseronCapabilities,
-  ActionAnnotations,
+  AppMetadata, AgentIdentity, ActionAnnotations,
   ActionInvokeParams, ActionProgressParams, ActionCancelParams,
   ResourceReadParams, ResourceSubscribeParams, ResourceUpdatedParams,
 } from '@tesseron/core';
 ```
+
+Sibling-package helpers (`JsonRpcDispatcher`, `SDK_CAPABILITIES`, schema helpers, builder implementation classes) live under `@tesseron/core/internal`. They are deliberately excluded from the main entry point and are **not** part of the v1.0 semver contract — treat them as subject to change. Only the `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, and `@tesseron/mcp` packages should import from that subpath.
 
 ## `TesseronClient` (abstract)
 

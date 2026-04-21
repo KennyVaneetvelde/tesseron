@@ -33,7 +33,7 @@ tesseron
   .input(z.object({ sku: z.string(), quantity: z.number().int().positive() }))
   .output(z.object({ cartId: z.string(), itemId: z.string() }))
   .annotate({ destructive: false })
-  .timeout(10_000)
+  .timeout({ ms: 10_000 })
   .handler(async ({ sku, quantity }, ctx) => {
     const item = await cart.add(sku, quantity);
     return { cartId: cart.id, itemId: item.id };
@@ -127,6 +127,6 @@ handler: (input: I, ctx: ActionContext) => O | Promise<O>
 | `ctx.sample(req)` | Re-enter the agent LLM for a reasoning step. |
 | `ctx.confirm(req)` | Ask the user a yes/no question. Returns `false` when the client can't prompt. |
 | `ctx.elicit(req)` | Ask the user for structured content matching a schema. |
-| `ctx.log(level, msg, meta?)` | Structured log forwarded to MCP logging. |
+| `ctx.log({ level, message, meta? })` | Structured log forwarded to MCP logging. |
 
 Next: [progress & cancellation](/protocol/progress-cancellation/).

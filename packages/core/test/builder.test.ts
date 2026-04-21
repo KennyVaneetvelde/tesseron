@@ -1,15 +1,15 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { describe, expect, it } from 'vitest';
-import type { ActionContext, RegisteredAction, RegisteredResource } from '../src/index.js';
+import type { ActionContext, ActionDefinition, ResourceDefinition } from '../src/index.js';
 import { ActionBuilderImpl, ResourceBuilderImpl } from '../src/internal.js';
 
 class CapturingRegistry {
-  actions: RegisteredAction[] = [];
-  resources: RegisteredResource[] = [];
-  registerAction(a: RegisteredAction): void {
+  actions: ActionDefinition[] = [];
+  resources: ResourceDefinition[] = [];
+  registerAction(a: ActionDefinition): void {
     this.actions.push(a);
   }
-  registerResource(r: RegisteredResource): void {
+  registerResource(r: ResourceDefinition): void {
     this.resources.push(r);
   }
 }
@@ -37,7 +37,7 @@ describe('ActionBuilderImpl', () => {
       .input(stringSchema)
       .output(stringSchema)
       .annotate({ readOnly: true })
-      .timeout(5000)
+      .timeout({ ms: 5000 })
       .handler((name) => `hello ${name as string}`);
 
     expect(registry.actions).toHaveLength(1);

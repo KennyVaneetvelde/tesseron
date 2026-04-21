@@ -1,20 +1,21 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type {
   ActionBuilder,
+  ActionDefinition,
   ActionHandler,
-  RegisteredAction,
-  RegisteredResource,
   ResourceBuilder,
+  ResourceDefinition,
   ResourceReader,
   ResourceSubscriber,
+  TimeoutOptions,
 } from './builder.js';
 import type { ActionAnnotations } from './protocol.js';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export interface BuilderRegistry {
-  registerAction(action: RegisteredAction): void;
-  registerResource(resource: RegisteredResource): void;
+  registerAction(action: ActionDefinition): void;
+  registerResource(resource: ResourceDefinition): void;
 }
 
 export interface ActionBuilderInit<I, O> {
@@ -59,7 +60,7 @@ export class ActionBuilderImpl<I, O> implements ActionBuilder<I, O> {
     return this;
   }
 
-  timeout(ms: number): ActionBuilder<I, O> {
+  timeout({ ms }: TimeoutOptions): ActionBuilder<I, O> {
     this.timeoutMs = ms;
     return this;
   }
@@ -69,8 +70,8 @@ export class ActionBuilderImpl<I, O> implements ActionBuilder<I, O> {
     return this;
   }
 
-  handler(fn: ActionHandler<I, O>): RegisteredAction<I, O> {
-    const registered: RegisteredAction<I, O> = {
+  handler(fn: ActionHandler<I, O>): ActionDefinition<I, O> {
+    const registered: ActionDefinition<I, O> = {
       name: this.name,
       description: this.description,
       inputSchema: this.inputSchema,
@@ -84,7 +85,7 @@ export class ActionBuilderImpl<I, O> implements ActionBuilder<I, O> {
       inputJsonSchema: this.inputJsonSchema,
       outputJsonSchema: this.outputJsonSchema,
     });
-    this.registry.registerAction(registered as RegisteredAction);
+    this.registry.registerAction(registered as ActionDefinition);
     return registered;
   }
 }
@@ -125,7 +126,7 @@ export class ResourceBuilderImpl<T> implements ResourceBuilder<T> {
   }
 
   private commit(): void {
-    const registered: RegisteredResource<T> = {
+    const registered: ResourceDefinition<T> = {
       name: this.name,
       description: this.description,
       outputSchema: this.outputSchema,
@@ -133,6 +134,6 @@ export class ResourceBuilderImpl<T> implements ResourceBuilder<T> {
       subscriber: this.subscriber,
     };
     Object.assign(registered, { outputJsonSchema: this.outputJsonSchema });
-    this.registry.registerResource(registered as RegisteredResource);
+    this.registry.registerResource(registered as ResourceDefinition);
   }
 }

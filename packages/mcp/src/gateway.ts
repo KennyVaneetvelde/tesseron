@@ -23,43 +23,70 @@ import {
   validateAppId,
 } from './session.js';
 
+/** Constructor options for {@link TesseronGateway}. */
 export interface GatewayOptions {
+  /** Port to bind. Defaults to {@link DEFAULT_GATEWAY_PORT}. */
   port?: number;
+  /** Host/interface to bind. Defaults to {@link DEFAULT_GATEWAY_HOST} (loopback only). */
   host?: string;
+  /** Extra origins accepted in addition to localhost/127.0.0.1. Anything else is rejected with 403. */
   originAllowlist?: string[];
 }
 
+/** Options for {@link TesseronGateway.invokeAction}. */
 export interface InvokeActionOptions {
+  /** Forwarded to the SDK handler as `ctx.signal`; aborting sends `actions/cancel`. */
   signal?: AbortSignal;
+  /** Called for each `actions/progress` notification emitted by the handler. */
   onProgress?: (update: ProgressUpdate) => void;
+  /** Called for each `log` notification emitted by the handler. */
   onLog?: (entry: { level: string; message: string; meta?: Record<string, unknown> }) => void;
 }
 
+/** Handle returned by {@link TesseronGateway.subscribeResource}. */
 export interface ResourceSubscription {
+  /** Fully qualified `tesseron://<app_id>/<resource>` URI. */
   uri: string;
+  /** Tears down the subscription on both ends. Safe to call even after the session closed. */
   unsubscribe: () => Promise<void>;
 }
 
+/** Options for {@link TesseronGateway.subscribeResource}. */
 export interface ResourceSubscribeOptions {
+  /** Fired for every value the SDK emits on this subscription. */
   onUpdate: (value: unknown) => void;
 }
 
+/**
+ * Handler the bridge registers via {@link TesseronGateway.setSamplingHandler}.
+ * Receives the SDK's `sampling/request` and must produce a completion from the
+ * connected MCP client.
+ */
 export type SamplingHandler = (
   req: SamplingRequestParams,
   context: { session: Session },
 ) => Promise<SamplingResult>;
 
+/**
+ * Handler the bridge registers via {@link TesseronGateway.setElicitationHandler}.
+ * Receives the SDK's `elicitation/request` and must prompt the user through
+ * the connected MCP client.
+ */
 export type ElicitationHandler = (
   req: ElicitationRequestParams,
   context: { session: Session },
 ) => Promise<ElicitationResult>;
 
+/** Default gateway port (`7475`) — also the port SDK clients dial by default. */
 export const DEFAULT_GATEWAY_PORT = 7475;
+/** Default gateway bind host; loopback-only to prevent accidental LAN exposure. */
 export const DEFAULT_GATEWAY_HOST = '127.0.0.1';
 
+/** Capabilities the connected MCP client advertised to the bridge. */
 export interface AgentCapabilityInfo {
   sampling: boolean;
   elicitation: boolean;
+  /** Name of the connected MCP client (e.g. `claude-ai`) if already known. */
   clientName?: string;
 }
 
@@ -78,6 +105,12 @@ interface ActiveInvocation {
   onSignalAbort?: () => void;
 }
 
+/**
+ * Local WebSocket server that hosts Tesseron sessions. SDK clients connect
+ * and send `tesseron/hello`; an {@link McpAgentBridge} consumes the gateway on
+ * the MCP-server side to expose claimed sessions as tools and resources. Emits
+ * `sessions-changed` whenever a session is claimed or its owning socket closes.
+ */
 export class TesseronGateway extends EventEmitter {
   private wss?: WebSocketServer;
   private readonly sessions = new Map<string, Session>();
@@ -91,6 +124,7 @@ export class TesseronGateway extends EventEmitter {
     super();
   }
 
+  /** Binds the WebSocket server. Resolves when `listening` fires; rejects on bind error. */
   async start(): Promise<void> {
     const port = this.options.port ?? DEFAULT_GATEWAY_PORT;
     const host = this.options.host ?? DEFAULT_GATEWAY_HOST;
@@ -124,6 +158,7 @@ export class TesseronGateway extends EventEmitter {
     });
   }
 
+  /** Closes all sessions and shuts down the WebSocket server. */
   async stop(): Promise<void> {
     for (const session of this.sessions.values()) {
       session.ws.close(1001, 'Gateway shutting down');
@@ -137,10 +172,12 @@ export class TesseronGateway extends EventEmitter {
     });
   }
 
+  /** Installs the handler invoked for `sampling/request`. Pass `undefined` to clear. */
   setSamplingHandler(handler: SamplingHandler | undefined): void {
     this.samplingHandler = handler;
   }
 
+  /** Installs the handler invoked for `elicitation/request`. Pass `undefined` to clear. */
   setElicitationHandler(handler: ElicitationHandler | undefined): void {
     this.elicitationHandler = handler;
   }
@@ -159,18 +196,26 @@ export class TesseronGateway extends EventEmitter {
     };
   }
 
+  /** Returns a snapshot of the capabilities the attached bridge last reported. */
   getAgentCapabilities(): AgentCapabilityInfo {
     return { ...this.agentCapabilities };
   }
 
+  /** Sessions that have completed the claim flow and are exposed to the MCP client. */
   getClaimedSessions(): Session[] {
     return Array.from(this.sessions.values()).filter((s) => s.claimed);
   }
 
+  /** Sessions that have completed `tesseron/hello` but are waiting for a claim code. */
   getPendingSessions(): Session[] {
     return Array.from(this.sessions.values()).filter((s) => !s.claimed);
   }
 
+  /**
+   * Attempts to claim a pending session by its claim code. Returns the claimed
+   * session, or `null` if the code is unknown or already consumed. Emits
+   * `sessions-changed` on success.
+   */
   claimSession(claimCode: string): Session | null {
     const sessionId = this.pendingClaims.get(claimCode.toUpperCase());
     if (!sessionId) return null;
@@ -183,6 +228,12 @@ export class TesseronGateway extends EventEmitter {
     return session;
   }
 
+  /**
+   * Invokes an action on a claimed session. Progress and log notifications are
+   * forwarded through `options`. If `options.signal` aborts, the SDK receives
+   * an `actions/cancel` notification.
+   * @throws {TesseronError} with `ActionNotFound` if no session exists, `Unauthorized` if unclaimed, or any error the SDK handler raises.
+   */
   async invokeAction(
     sessionId: string,
     localActionName: string,
@@ -233,6 +284,10 @@ export class TesseronGateway extends EventEmitter {
     }
   }
 
+  /**
+   * Reads the current value of a resource exposed by a claimed session.
+   * @throws {TesseronError} with `ActionNotFound` if no session exists or `Unauthorized` if unclaimed.
+   */
   async readResource(sessionId: string, resourceName: string): Promise<ResourceReadResult> {
     const session = this.sessions.get(sessionId);
     if (!session)
@@ -246,6 +301,11 @@ export class TesseronGateway extends EventEmitter {
     return session.dispatcher.request('resources/read', { name: resourceName });
   }
 
+  /**
+   * Subscribes to a subscribable resource. Returns a {@link ResourceSubscription}
+   * whose `unsubscribe` must be called to release the server-side callback.
+   * @throws {TesseronError} with `ActionNotFound` if no session exists or `Unauthorized` if unclaimed.
+   */
   async subscribeResource(
     sessionId: string,
     resourceName: string,

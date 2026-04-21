@@ -41,7 +41,7 @@ There is no application-level ping. The protocol relies on TCP keep-alive and pe
 If your handler legitimately takes longer than 60 s, extend the timeout on the builder:
 
 ```ts
-tesseron.action('bigReport').timeout(300_000).input(...).handler(...);
+tesseron.action('bigReport').timeout({ ms: 300_000 }).input(...).handler(...);
 ```
 
 ## Reconnection

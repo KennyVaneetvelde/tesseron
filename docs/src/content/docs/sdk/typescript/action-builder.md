@@ -3,7 +3,7 @@ title: Action builder
 description: Every step of the fluent builder, what it does, and when to use it.
 ---
 
-The action builder is the fluent API on `tesseron.action(name)`. It chains until `.handler(fn)` terminates it with a `RegisteredAction<I, O>`.
+The action builder is the fluent API on `tesseron.action(name)`. It chains until `.handler(fn)` terminates it with an `ActionDefinition<I, O>`.
 
 ## Signature
 
@@ -13,9 +13,9 @@ interface ActionBuilder<I = unknown, O = unknown> {
   input<NewI>(schema: StandardSchemaV1<NewI>, jsonSchema?: unknown): ActionBuilder<NewI, O>;
   output<NewO>(schema: StandardSchemaV1<NewO>, jsonSchema?: unknown): ActionBuilder<I, NewO>;
   annotate(annotations: ActionAnnotations): ActionBuilder<I, O>;
-  timeout(ms: number): ActionBuilder<I, O>;
+  timeout(options: { ms: number }): ActionBuilder<I, O>;
   strictOutput(): ActionBuilder<I, O>;
-  handler(fn: (input: I, ctx: ActionContext) => O | Promise<O>): RegisteredAction<I, O>;
+  handler(fn: (input: I, ctx: ActionContext) => O | Promise<O>): ActionDefinition<I, O>;
 }
 ```
 
@@ -74,12 +74,12 @@ interface ActionAnnotations {
 | `destructive: true` | Mutates persistent state. Agent SHOULD warn the user. |
 | `requiresConfirmation: true` | Agent MUST NOT call without explicit user confirmation. Often paired with `ctx.confirm` inside the handler as a second gate. |
 
-## `.timeout(ms)`
+## `.timeout({ ms })`
 
 Per-invocation timeout. Default 60 000 ms. When exceeded, the handler's `ctx.signal` aborts and the invocation returns error `-32002 Timeout`.
 
 ```ts
-.timeout(5 * 60 * 1000)   // big report, 5 minutes
+.timeout({ ms: 5 * 60 * 1000 })   // big report, 5 minutes
 ```
 
 ## `.strictOutput()`
@@ -93,7 +93,7 @@ Turns `.output(schema)` from documentation into enforcement. Validation failure 
 
 ## `.handler(fn)`
 
-The actual function. Terminates the builder. Returns a `RegisteredAction<I, O>` that you normally discard - the SDK keeps a reference internally.
+The actual function. Terminates the builder. Returns an `ActionDefinition<I, O>` that you normally discard - the SDK keeps a reference internally.
 
 ```ts
 .handler(async ({ sku, qty }, ctx) => {
@@ -114,7 +114,7 @@ tesseron
   .input(z.object({ url: z.string().url() }))
   .output(z.object({ imported: z.number().int().nonnegative() }))
   .annotate({ destructive: true, requiresConfirmation: true })
-  .timeout(5 * 60 * 1000)
+  .timeout({ ms: 5 * 60 * 1000 })
   .strictOutput()
   .handler(async ({ url }, ctx) => {
     ctx.progress({ message: 'downloading', percent: 5 });

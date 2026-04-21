@@ -124,12 +124,24 @@ const META_DISPATCHER_TOOLS = [
  */
 export type ToolSurfaceMode = 'dynamic' | 'meta' | 'both';
 
+/** Constructor options for {@link McpAgentBridge}. */
 export interface McpAgentBridgeOptions {
+  /** Gateway instance whose claimed sessions should be surfaced as MCP tools/resources. */
   gateway: TesseronGateway;
+  /** MCP `serverInfo` advertised during `initialize`. Defaults to `{ name: 'tesseron', version: '0.0.0' }`. */
   serverInfo?: { name: string; version: string };
+  /** How claimed-session actions are exposed to the MCP client. See {@link ToolSurfaceMode}. Defaults to `both`. */
   toolSurface?: ToolSurfaceMode;
 }
 
+/**
+ * Adapter that fronts a {@link TesseronGateway} with an MCP `Server`. Claimed
+ * sessions' actions surface as MCP tools (`<app_id>__<action>`) and resources
+ * surface as `tesseron://<app_id>/<name>` URIs. Also wires sampling and
+ * elicitation requests from the SDK back into the connected MCP client, and
+ * translates MCP `method not found` errors into typed {@link SamplingNotAvailableError}
+ * / {@link ElicitationNotAvailableError} so handlers can branch on capability.
+ */
 export class McpAgentBridge {
   readonly server: Server;
   private readonly gateway: TesseronGateway;
@@ -213,6 +225,11 @@ export class McpAgentBridge {
     });
   }
 
+  /**
+   * Attaches the MCP server to an MCP transport (stdio, websocket, etc.) and
+   * resyncs client capabilities once `initialize` completes so the gateway
+   * accurately reflects what the connected MCP client supports.
+   */
   async connect(transport: Transport): Promise<void> {
     await this.server.connect(transport);
     this.connected = true;
@@ -247,6 +264,7 @@ export class McpAgentBridge {
     });
   }
 
+  /** Emits `notifications/tools/list_changed` to the MCP client. No-op when disconnected. */
   async notifyToolsChanged(): Promise<void> {
     if (!this.connected) return;
     try {
@@ -256,6 +274,7 @@ export class McpAgentBridge {
     }
   }
 
+  /** Emits `notifications/resources/list_changed` to the MCP client. No-op when disconnected. */
   async notifyResourcesChanged(): Promise<void> {
     if (!this.connected) return;
     try {

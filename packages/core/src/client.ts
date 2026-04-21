@@ -1,9 +1,9 @@
 import { ActionBuilderImpl, type BuilderRegistry, ResourceBuilderImpl } from './builder-impl.js';
 import type {
   ActionBuilder,
-  RegisteredAction,
-  RegisteredResource,
+  ActionDefinition,
   ResourceBuilder,
+  ResourceDefinition,
 } from './builder.js';
 import type {
   ActionContext,
@@ -45,12 +45,22 @@ import {
 } from './schema-helpers.js';
 import { type Transport, TransportClosedError } from './transport.js';
 
+/**
+ * App identity sent to the gateway during the `tesseron/hello` handshake.
+ * Pass this to {@link TesseronClient.app}.
+ */
 export interface AppConfig {
+  /** Stable machine-readable identifier used as the MCP tool-name prefix (`<id>__<action>`). */
   id: string;
+  /** Human-readable name shown in client UIs and claim prompts. */
   name: string;
+  /** Optional short description surfaced to the agent in the manifest. */
   description?: string;
+  /** Optional absolute URL of an icon the agent may display. */
   iconUrl?: string;
+  /** Optional app version string; purely informational. */
   version?: string;
+  /** Browser/page origin. Defaults to `globalThis.location.origin` when omitted. */
   origin?: string;
 }
 
@@ -61,12 +71,12 @@ export const SDK_CAPABILITIES: TesseronCapabilities = {
   elicitation: true,
 };
 
-interface RegisteredActionWithSchema extends RegisteredAction {
+interface ActionDefinitionWithSchema extends ActionDefinition {
   inputJsonSchema?: unknown;
   outputJsonSchema?: unknown;
 }
 
-interface RegisteredResourceWithSchema extends RegisteredResource {
+interface ResourceDefinitionWithSchema extends ResourceDefinition {
   outputJsonSchema?: unknown;
 }
 
@@ -75,10 +85,27 @@ interface ActiveSubscription {
   unsubscribe: () => void;
 }
 
+/**
+ * Registers actions and resources and connects them to a Tesseron gateway so
+ * an MCP client (Claude, Cursor, etc.) can invoke them. Call {@link TesseronClient.app}
+ * once to declare identity, chain {@link TesseronClient.action} / {@link TesseronClient.resource}
+ * builders to expose capabilities, then call {@link TesseronClient.connect} with a
+ * {@link Transport}. Most apps use the `@tesseron/web` or `@tesseron/server` singleton
+ * rather than constructing this directly.
+ *
+ * @example
+ * ```ts
+ * tesseron.app({ id: 'todo', name: 'Todo' });
+ * tesseron.action('addTodo')
+ *   .input(z.object({ text: z.string() }))
+ *   .handler(async ({ text }) => todos.add(text));
+ * await tesseron.connect();
+ * ```
+ */
 export class TesseronClient implements BuilderRegistry {
   private appConfig?: AppMetadata;
-  private readonly actions = new Map<string, RegisteredActionWithSchema>();
-  private readonly resources = new Map<string, RegisteredResourceWithSchema>();
+  private readonly actions = new Map<string, ActionDefinitionWithSchema>();
+  private readonly resources = new Map<string, ResourceDefinitionWithSchema>();
   private readonly invocations = new Map<string, AbortController>();
   private readonly subscriptions = new Map<string, ActiveSubscription>();
 
@@ -86,6 +113,10 @@ export class TesseronClient implements BuilderRegistry {
   private transport?: Transport;
   private welcome?: WelcomeResult;
 
+  /**
+   * Sets the app identity included in the `tesseron/hello` handshake.
+   * Must be called before {@link TesseronClient.connect}.
+   */
   app(config: AppConfig): this {
     this.appConfig = {
       id: config.id,
@@ -98,23 +129,32 @@ export class TesseronClient implements BuilderRegistry {
     return this;
   }
 
+  /**
+   * Starts building an action the agent can invoke as an MCP tool. The action
+   * is registered only after {@link ActionBuilder.handler} is called.
+   */
   action<I = unknown, O = unknown>(name: string): ActionBuilder<I, O> {
     return new ActionBuilderImpl<I, O>(name, this) as unknown as ActionBuilder<I, O>;
   }
 
+  /**
+   * Starts building a resource the agent can read (and optionally subscribe to).
+   * The resource is registered when {@link ResourceBuilder.read} or
+   * {@link ResourceBuilder.subscribe} is called.
+   */
   resource<T = unknown>(name: string): ResourceBuilder<T> {
     return new ResourceBuilderImpl<T>(name, this) as unknown as ResourceBuilder<T>;
   }
 
-  registerAction(action: RegisteredAction): void {
-    this.actions.set(action.name, action as RegisteredActionWithSchema);
+  registerAction(action: ActionDefinition): void {
+    this.actions.set(action.name, action as ActionDefinitionWithSchema);
     if (this.dispatcher && this.welcome) {
       this.dispatcher.notify('actions/list_changed', { actions: this.actionManifest() });
     }
   }
 
-  registerResource(resource: RegisteredResource): void {
-    this.resources.set(resource.name, resource as RegisteredResourceWithSchema);
+  registerResource(resource: ResourceDefinition): void {
+    this.resources.set(resource.name, resource as ResourceDefinitionWithSchema);
     if (this.dispatcher && this.welcome) {
       this.dispatcher.notify('resources/list_changed', { resources: this.resourceManifest() });
     }
@@ -132,6 +172,12 @@ export class TesseronClient implements BuilderRegistry {
     }
   }
 
+  /**
+   * Sends `tesseron/hello` over the given transport and installs handlers for
+   * action invocations and resource reads. Resolves with the gateway's
+   * {@link WelcomeResult} (includes the claim code the user enters into their MCP client).
+   * @throws {Error} If called before {@link TesseronClient.app}.
+   */
   async connect(transport: Transport): Promise<WelcomeResult> {
     if (!this.appConfig) {
       throw new Error('Tesseron: call app({ id, name }) before connect().');
@@ -179,6 +225,10 @@ export class TesseronClient implements BuilderRegistry {
     return welcome;
   }
 
+  /**
+   * Closes the underlying transport. In-flight invocations are aborted and
+   * active subscriptions are torn down via the transport's close handler.
+   */
   async disconnect(): Promise<void> {
     this.transport?.close();
   }
@@ -324,7 +374,7 @@ export class TesseronClient implements BuilderRegistry {
         }
         return validated.value;
       },
-      log: (level, message, meta) => {
+      log: ({ level, message, meta }) => {
         this.dispatcher?.notify('log', {
           invocationId: params.invocationId,
           level,
