@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "tesseron",
+  "owner": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://github.com/KennyVaneetvelde"
+  },
+  "metadata": {
+    "description": "Tesseron marketplace — ships the Tesseron Claude Code plugin (MCP gateway for typed web-app actions over WebSocket).",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "tesseron",
+      "source": "./plugin",
+      "version": "0.1.0",
+      "description": "MCP gateway for Tesseron. Lets any web app expose typed actions to Claude over WebSocket without browser automation.",
+      "category": "integration",
+      "tags": ["mcp", "web", "actions", "react", "svelte", "vue", "websocket"],
+      "homepage": "https://github.com/KennyVaneetvelde/tesseron"
+    }
+  ]
+}

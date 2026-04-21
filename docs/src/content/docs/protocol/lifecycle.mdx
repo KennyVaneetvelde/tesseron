@@ -1,0 +1,94 @@
+---
+title: Lifecycle & failure modes
+description: The session state machine, and what happens to pending work at every transition.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+
+Every WebSocket connection to the MCP gateway produces a session that walks this state machine:
+
+<Diagram
+  caption="Five states. Only Claimed can run actions. Every terminal transition aborts in-flight work."
+  nodeWidth={130}
+  nodeHeight={100}
+  spacing={50}
+  pad={44}
+  nodes={[
+    { id: 'dc',  label: 'DISCONNECTED',   icon: 'x' },
+    { id: 'hs',  label: 'HANDSHAKING',    icon: 'arrow' },
+    { id: 'aw',  label: 'AWAITING',       sub: 'claim pending',  icon: 'lock' },
+    { id: 'cl',  label: 'CLAIMED',        sub: 'tools exposed',  icon: 'check', variant: 'accent' },
+    { id: 'end', label: 'CLOSED',         icon: 'x',             variant: 'danger' },
+  ]}
+  edges={[
+    { from: 'dc',  to: 'hs',  label: 'ws open' },
+    { from: 'hs',  to: 'aw',  label: 'welcome' },
+    { from: 'aw',  to: 'cl',  label: 'claim ok', accent: true },
+    { from: 'aw',  to: 'end', label: 'timeout', style: 'dashed', danger: true },
+    { from: 'cl',  to: 'end', label: 'ws close', style: 'dashed', danger: true },
+  ]}
+/>
+
+## States
+
+- **Disconnected** - no WebSocket yet. Tooling surface shows no tools for this app.
+- **Handshaking** - WebSocket open, `tesseron/hello` in flight.
+- **Awaiting claim** - `welcome` sent with a `claimCode`. Actions are registered in the gateway but *not* exposed as MCP tools until claim.
+- **Claimed** - agent has submitted a matching claim. Tool list is published. Actions can be invoked.
+- **Closed** - WebSocket closed. Session forgotten by the gateway.
+
+## Transitions
+
+| From → To | Trigger | Side effects |
+|---|---|---|
+| Disconnected → Handshaking | App opens WebSocket. | `tesseron/hello` sent. |
+| Handshaking → Awaiting claim | MCP gateway returns `welcome`. | Claim code generated + printed to gateway stderr. |
+| Awaiting claim → Claimed | Agent calls `tesseron__claim_session` with matching code. | `notifications/tools/list_changed` fires. |
+| Awaiting claim → Closed | WebSocket closes or agent never claims within TTL. | Claim code invalidated. |
+| Claimed → Closed | WebSocket closes. | All in-flight invocations aborted; subscriptions dropped; `tools/list_changed` fires so the agent drops stale tools. |
+
+The TTL for an unclaimed session is currently unset; the session persists as long as the WebSocket stays open. In practice, a tab close terminates the WebSocket within seconds.
+
+## What pending work does on close
+
+From inside your handler, on any Closed transition:
+
+- `ctx.signal.aborted` becomes `true`.
+- `ctx.progress(…)` after close is silently dropped.
+- `ctx.sample(…)` / `ctx.confirm(…)` / `ctx.elicit(…)` in flight reject with `TransportClosedError`.
+- The invocation response never reaches the agent - the agent's MCP client detects the tool call ending abruptly and surfaces that to the user.
+
+**Handler best practices:**
+
+```ts
+.handler(async (input, ctx) => {
+  const abortable = new AbortController();
+  ctx.signal.addEventListener('abort', () => abortable.abort());
+  try {
+    return await longWork(input, { signal: abortable.signal });
+  } finally {
+    abortable.abort();   // release any resources even on normal exit
+  }
+});
+```
+
+## Reconnection doesn't resume - it starts over
+
+`tesseron.connect()` after a disconnect yields a **new** `sessionId` and **new** `claimCode`. The agent must re-claim. In-flight work from the old session is gone.
+
+Why not resumable? Two reasons:
+
+1. The agent's tool list is cached around the old session. Silently rebinding would make the old tool names still appear to work, while pointing at a different session. That's worse than requiring a fresh claim.
+2. Claim is meant to be a user-visible act. An invisible reconnection would bypass the "human-in-the-loop authorisation" the claim code represents.
+
+## MCP gateway restart
+
+If the gateway process dies (plugin disabled, Claude Code restart, crash):
+
+- Every app's WebSocket closes with code 1001 (`Going Away`).
+- Every SDK instance aborts in-flight work and rejects pending requests.
+- Apps are free to `connect()` again when the gateway comes back.
+
+A small "reconnect" loop in your app UI - with exponential backoff - is reasonable. Expose the new claim code to the user when the new session is established.
+
+Next: the [security model](/protocol/security/).

@@ -1,0 +1,86 @@
+---
+title: Quickstart (5 minutes)
+description: Install the plugin, drop the SDK into an app, declare one action, watch Claude call it.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Prereqs.** Node ≥ 20. Claude Code installed.
+
+<Steps>
+
+1. **Install the Claude Code plugin.** It bundles the MCP gateway and auto-registers it as an MCP server.
+
+   ```text
+   /plugin marketplace add KennyVaneetvelde/tesseron
+   /plugin install tesseron@tesseron
+   ```
+
+   Restart Claude Code after installation. The gateway now runs whenever the plugin is enabled; no separate process to manage.
+
+2. **Add the SDK to your app.**
+
+   <Tabs>
+     <TabItem label="Browser / Vite">
+       ```bash
+       pnpm add @tesseron/web zod
+       ```
+     </TabItem>
+     <TabItem label="React">
+       ```bash
+       pnpm add @tesseron/react zod
+       ```
+     </TabItem>
+     <TabItem label="Node / server">
+       ```bash
+       pnpm add @tesseron/server zod
+       ```
+     </TabItem>
+   </Tabs>
+
+3. **Declare an app and one action.**
+
+   ```ts title="src/main.ts"
+   import { tesseron } from '@tesseron/web';
+   import { z } from 'zod';
+
+   tesseron.app({ id: 'notes', name: 'My Notes App' });
+
+   tesseron
+     .action('createNote')
+     .describe('Create a new note with a title and body')
+     .input(z.object({
+       title: z.string().min(1),
+       body: z.string().default(''),
+     }))
+     .handler(({ title, body }) => {
+       const note = { id: crypto.randomUUID(), title, body, createdAt: Date.now() };
+       store.add(note);        // whatever "add" means in your app
+       return note;
+     });
+
+   await tesseron.connect();
+   ```
+
+   `tesseron.connect()` opens the WebSocket and resolves once the gateway returns a `welcome` with a `claimCode`.
+
+4. **Claim the session from Claude.** Open your app - the gateway prints a 6-character claim code to its stderr (and you can surface it in your UI too). Tell Claude:
+
+   > "Claim Tesseron session AB3X-7K"
+
+   Claude calls the built-in `tesseron__claim_session` tool, the gateway marks the session claimed, and a `notifications/tools/list_changed` event fires.
+
+5. **Call your action.** The tool list now contains `notes__createNote`. Ask Claude:
+
+   > "Create a note titled 'Groceries' with body 'eggs, milk, bread'."
+
+   The handler runs inside your tab. The new note appears in your UI, reactively. Claude sees the returned object as the tool result.
+
+</Steps>
+
+## Next steps
+
+- [Add progress + cancellation](/protocol/progress-cancellation/) - for actions that take more than a beat.
+- [Expose resources](/protocol/resources/) - let Claude read your UI state (current route, selected item, filter settings).
+- [Use sampling](/protocol/sampling/) - let your handler ask the agent's LLM mid-execution.
+- [Pick your framework adapter](/sdk/) - React, Svelte, Vue, Express patterns.

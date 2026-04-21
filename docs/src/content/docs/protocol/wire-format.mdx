@@ -1,0 +1,116 @@
+---
+title: Wire format (JSON-RPC)
+description: The envelope shapes Tesseron uses, the full method surface in both directions, and the ID-correlation rules.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+
+Tesseron's app ↔ MCP gateway hop is **JSON-RPC 2.0**, one JSON object per WebSocket text frame. No batching, no binary, no compression - one message, one parse.
+
+<Diagram
+  caption="Four envelope shapes. Every message on the wire is exactly one of these."
+  nodeWidth={190}
+  nodeHeight={150}
+  spacing={50}
+  nodes={[
+    { id: 'req', label: 'REQUEST',       sub: ['id + method', 'expects response'], code: 'jsonrpc: "2.0"', icon: 'arrow' },
+    { id: 'ntf', label: 'NOTIFICATION',  sub: ['method only', 'fire-and-forget'],  code: 'no id',          icon: 'arrow' },
+    { id: 'ok',  label: 'SUCCESS',       sub: ['echoes request id', 'carries result'], code: 'result: R',  icon: 'check', variant: 'accent' },
+    { id: 'err', label: 'ERROR',         sub: ['echoes request id', 'carries error object'], code: 'error: {...}', icon: 'x',  variant: 'danger' },
+  ]}
+  edges={[]}
+/>
+
+## Envelope shapes
+
+### Request (expects a response)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "actions/invoke",
+  "params": { /* method-specific */ }
+}
+```
+
+### Notification (fire-and-forget)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "actions/progress",
+  "params": { "invocationId": "inv_1", "percent": 40 }
+}
+```
+
+### Success response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": { /* method-specific payload */ }
+}
+```
+
+### Error response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "error": { "code": -32004, "message": "Invalid input", "data": [/* issues */] }
+}
+```
+
+`id` can be a string, number, or `null`. The SDK uses monotonically incrementing integers per connection; any JSON-RPC-compliant peer is welcome to do otherwise.
+
+## Method surface
+
+### App → Gateway (you send)
+
+| Method | Kind | Purpose |
+|---|---|---|
+| `tesseron/hello` | request | Register app, actions, resources, capabilities. First message. |
+| `actions/progress` | notification | Streaming update during an invocation. |
+| `actions/list_changed` | notification | App (re)registered / removed an action after hello. |
+| `resources/updated` | notification | Push a new value to a subscriber. |
+| `resources/list_changed` | notification | App (re)registered / removed a resource after hello. |
+| `sampling/request` | request | Ask the agent to run an LLM step. |
+| `elicitation/request` | request | Ask the user (confirm or elicit) via the agent UI. |
+| `log` | notification | Structured log forwarded to MCP logging. |
+
+Plus: the **response** for any `actions/invoke`, `resources/read`, `resources/subscribe`, `resources/unsubscribe` the gateway sent you.
+
+### Gateway → App (you handle)
+
+| Method | Kind | Purpose |
+|---|---|---|
+| `actions/invoke` | request | Agent called an action. Respond with `result` or `error`. |
+| `actions/cancel` | notification | Agent cancelled an in-flight invocation. |
+| `resources/read` | request | Agent requested current resource value. |
+| `resources/subscribe` | request | Agent subscribed to future updates. |
+| `resources/unsubscribe` | request | Agent unsubscribed. |
+
+And the **response** to the `tesseron/hello` you sent.
+
+## ID correlation
+
+- A peer that issues a request assigns the `id`. The other peer echoes the exact same `id` in the response.
+- The SDK keeps a `Map<id, { resolve, reject, timeoutHandle }>` of pending outbound requests. On response it looks up the id, clears the timer, and settles the promise.
+- On transport close, **every pending request is rejected** with `TransportClosedError`. There is no resumable queue; reconnect means re-send.
+- Notifications have no `id` - they never fail visibly and never get a response. Don't send data you care about as a notification.
+
+## Framing
+
+- Each JSON-RPC object is serialized with `JSON.stringify` and sent as **one text frame**.
+- Binary frames sent by the peer are coerced to text and parsed - tolerated but not idiomatic.
+- There is **no length prefix and no framing header**. WebSocket gives us message boundaries for free.
+- There is **no batching**. Every message is self-contained.
+
+## Versioning
+
+`tesseron/hello` includes `protocolVersion: "0.2.0"`. The gateway parses it as `major.minor`: a major mismatch is rejected with `-32000 ProtocolMismatch` and the WebSocket is closed, a minor mismatch is accepted with a stderr warning (newer fields may be silently dropped), an exact match is silent. See [Handshake](/protocol/handshake/#protocol-version-mismatch).
+
+Next: how that WebSocket gets established - [Transport](/protocol/transport/).

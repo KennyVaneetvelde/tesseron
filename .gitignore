@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.turbo/
+*.log
+.DS_Store
+.env
+.env.local
+coverage/
+*.tsbuildinfo
+.claude/settings.local.json
+.claude/worktrees/
+/outputs/
+/MERGE_LOG.md
+/PLAN.md

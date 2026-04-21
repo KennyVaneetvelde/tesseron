@@ -1,0 +1,80 @@
+---
+title: Protocol overview
+description: The Tesseron protocol in one page - wire format, transport, handshake, action model, MCP capabilities, errors, lifecycle.
+---
+
+import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import Sequence from '../../../components/Sequence.astro';
+
+<Aside type="note" title="Spec license">
+The Tesseron protocol specification (every page under `docs/protocol/`) is licensed **CC BY 4.0** — independent from the reference implementation. You are free to build a compatible implementation in any language for any purpose, including commercially, with attribution. See [`LICENSE`](https://github.com/KennyVaneetvelde/tesseron/blob/main/docs/src/content/docs/protocol/LICENSE) in the protocol directory.
+</Aside>
+
+Tesseron speaks **JSON-RPC 2.0 over WebSocket** between your app and the MCP gateway, then the gateway bridges that to **MCP over stdio** for the agent. One action round-trip crosses both protocols.
+
+The protocol is at **version `0.2.0`**.
+
+<Sequence
+  caption="A first-use session, start to finish: from WebSocket open to the first tool-call result returned to the agent."
+  actorWidth={170}
+  actorGap={50}
+  actors={[
+    { id: 'app', label: 'WEB APP',  icon: 'window' },
+    { id: 'gw',  label: 'MCP GATEWAY', icon: 'bridge', variant: 'accent' },
+    { id: 'u',   label: 'USER',    icon: 'user' },
+    { id: 'a',   label: 'AGENT',   icon: 'agent' },
+  ]}
+  steps={[
+    { from: 'app', to: 'gw',  label: 'tesseron/hello { app, actions, caps }' },
+    { from: 'gw',  to: 'app', label: 'tesseron/welcome { sessionId, claimCode }', style: 'dashed' },
+    { from: 'gw',  to: 'u',   label: 'claim code (stdout / web UI)', style: 'dashed' },
+    { from: 'u',   to: 'a',   label: 'connect AB3X-7K' },
+    { from: 'a',   to: 'gw',  label: 'tools/call tesseron__claim_session', accent: true },
+    { from: 'gw',  to: 'a',   label: 'notifications/tools/list_changed', style: 'dashed' },
+    { from: 'a',   to: 'gw',  label: 'tools/call shop__searchProducts' },
+    { from: 'gw',  to: 'app', label: 'actions/invoke { invocationId, input }' },
+    { from: 'app', to: 'gw',  label: 'result', style: 'dashed' },
+    { from: 'gw',  to: 'a',   label: 'tools/call result', style: 'dashed' },
+  ]}
+/>
+
+## Read the pages in order
+
+<CardGrid>
+  <LinkCard title="Wire format (JSON-RPC)" href="/protocol/wire-format/"
+    description="Envelope shapes, methods, notifications, ID correlation." />
+  <LinkCard title="Transport (WebSocket)" href="/protocol/transport/"
+    description="URL, framing, origin allowlist, reconnection rules." />
+  <LinkCard title="Handshake & claiming" href="/protocol/handshake/"
+    description="`tesseron/hello` → `welcome` → claim code → bound session." />
+  <LinkCard title="Action model" href="/protocol/actions/"
+    description="How actions are declared, invoked, validated, and namespaced." />
+  <LinkCard title="Progress & cancellation" href="/protocol/progress-cancellation/"
+    description="Streaming updates; `AbortSignal`-based cancellation." />
+  <LinkCard title="Sampling" href="/protocol/sampling/"
+    description="Handlers re-enter the agent LLM for a reasoning step." />
+  <LinkCard title="Elicitation" href="/protocol/elicitation/"
+    description="Handlers pause and ask the user a question via the agent UI." />
+  <LinkCard title="Resources" href="/protocol/resources/"
+    description="Typed, readable, optionally subscribable state projected to the agent." />
+  <LinkCard title="Errors & capabilities" href="/protocol/errors/"
+    description="Error codes, capability negotiation, not-available paths." />
+  <LinkCard title="Lifecycle & failure modes" href="/protocol/lifecycle/"
+    description="Disconnect, reconnect, timeout, MCP gateway restart, tab close." />
+  <LinkCard title="Security model" href="/protocol/security/"
+    description="Origin allowlist, claim codes, multi-app namespacing." />
+</CardGrid>
+
+## Core constants
+
+| Name | Value |
+|---|---|
+| Protocol version | `0.2.0` |
+| Default gateway URL | `ws://127.0.0.1:7475` |
+| Default action timeout | `60_000` ms |
+| Max sampling depth | `3` |
+| Tool name pattern | `<app_id>__<action_name>` |
+| Resource URI pattern | `tesseron://<app_id>/<resource_name>` |
+| `app.id` validator | `/^[a-z][a-z0-9_]*$/` |
+
+All of these are **observable from the wire** - they're not SDK-specific. A Python or Go SDK implementing Tesseron MUST match them exactly.

@@ -1,0 +1,60 @@
+---
+title: All examples
+description: Six runnable Todo apps that together cover every framework adapter and every major feature of the SDK.
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+All six examples live in [`examples/`](https://github.com/KennyVaneetvelde/tesseron/tree/main/examples). Each is a complete, runnable Todo app, intentionally simple so the Tesseron-specific code is easy to read.
+
+<CardGrid>
+  <LinkCard title="vanilla-todo" href="/examples/vanilla-todo/"
+    description="Zero-framework baseline. Start here." />
+  <LinkCard title="node-todo" href="/examples/node-todo/"
+    description="Headless Node service. No browser." />
+  <LinkCard title="express-todo" href="/examples/express-todo/"
+    description="HTTP REST + MCP on the same Node process." />
+  <LinkCard title="react-todo" href="/examples/react-todo/"
+    description="React 18 + `@tesseron/react` hooks." />
+  <LinkCard title="svelte-todo" href="/examples/svelte-todo/"
+    description="Svelte 5 runes (`$state`, `$derived`)." />
+  <LinkCard title="vue-todo" href="/examples/vue-todo/"
+    description="Vue 3 composition API." />
+</CardGrid>
+
+## Feature matrix
+
+| Feature | vanilla | node | express | react | svelte | vue |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Basic actions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Subscribable resources | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Annotations (`destructive`, `requiresConfirmation`, `readOnly`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Zod input validation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.confirm` (in `clearCompleted`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.elicit` with schema (in `renameTodo`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.progress` (in `importTodos`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.sample` (in `suggestTodos`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Framework hooks | ✗ | - | ✗ | ✅ | ✗ | ✗ |
+| Runs in the browser | ✅ | ✗ | ✗ | ✅ | ✅ | ✅ |
+| Runs in Node | ✗ | ✅ | ✅ | ✗ | ✗ | ✗ |
+| Parallel REST API | ✗ | ✗ | ✅ | ✗ | ✗ | ✗ |
+
+## Recommended reading order
+
+1. **[vanilla-todo](/examples/vanilla-todo/)** - plain DOM, no framework. The SDK's builder API with nothing in the way.
+2. **[node-todo](/examples/node-todo/)** - the same action declarations on Node. Proves nothing's tied to the browser.
+3. **[express-todo](/examples/express-todo/)** - adds a REST API next to Tesseron. Shows the "same state, two channels" pattern.
+4. **[react-todo](/examples/react-todo/)** - hooks-based integration.
+5. **[svelte-todo](/examples/svelte-todo/)** - mutation via `$state` runes.
+6. **[vue-todo](/examples/vue-todo/)** - mutation via `ref().value` / `computed()`.
+
+## Running any of them
+
+```bash
+git clone https://github.com/KennyVaneetvelde/tesseron
+cd tesseron
+pnpm install
+pnpm --filter <example-name> dev
+```
+
+Then claim the session from your agent - see the [quickstart](/overview/quickstart/) if you haven't already.

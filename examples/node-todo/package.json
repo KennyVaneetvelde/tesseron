@@ -1,0 +1,21 @@
+{
+  "name": "node-todo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal headless Node todo service: no browser, no Express, no HTTP server. Shows @tesseron/server in its simplest form — any Node process (CLI, daemon, worker) can expose actions to Claude.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tesseron/server": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

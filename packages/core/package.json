@@ -1,0 +1,25 @@
+{
+  "name": "@tesseron/core",
+  "version": "0.0.0",
+  "description": "Protocol types and action builder for Tesseron. Transport-agnostic, validator-agnostic.",
+  "license": "BUSL-1.1",
+  "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./protocol": "./src/protocol.ts",
+    "./errors": "./src/errors.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "^1.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "enabledPlugins": {
+    "codebase-mapper@claude-ai-workshop": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "superpowers-developing-for-claude-code@superpowers-marketplace": true,
+    "developer-kit-typescript@developer-kit": true,
+    "opendesign@opendata-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "developer-kit": {
+      "source": {
+        "source": "github",
+        "repo": "giuseppe-trisciuoglio/developer-kit"
+      }
+    }
+  }
+}

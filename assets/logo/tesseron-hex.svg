@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 256 256"
+     width="256" height="256"
+     role="img"
+     aria-label="Tesseron">
+  <title>Tesseron</title>
+  <desc>Rotated hex pinwheel — six dark tiles around an amber core. Gaps between tiles are genuine transparent space so the mark reads on any background.</desc>
+
+  <!--
+    Rotation + per-tile scale.
+    Each tile is shrunk to 94% around its own centroid so there are real
+    geometric gaps between neighbours (and around the central amber hex),
+    without relying on background-coloured strokes.
+  -->
+  <g transform="rotate(90 128 128) translate(128 128) scale(1.37) translate(-128 -128)">
+    <g fill="#1b1f27">
+      <path d="M176 128L152 86.43L176 44.86L224 128Z"
+            transform="translate(182 96.82) scale(0.94) translate(-182 -96.82)"/>
+      <path d="M152 86.43L104 86.43L80 44.86L176 44.86Z"
+            transform="translate(128 65.65) scale(0.94) translate(-128 -65.65)"/>
+      <path d="M104 86.43L80 128L32 128L80 44.86Z"
+            transform="translate(74 96.82) scale(0.94) translate(-74 -96.82)"/>
+      <path d="M80 128L104 169.57L80 211.14L32 128Z"
+            transform="translate(74 159.18) scale(0.94) translate(-74 -159.18)"/>
+      <path d="M104 169.57L152 169.57L176 211.14L80 211.14Z"
+            transform="translate(128 190.36) scale(0.94) translate(-128 -190.36)"/>
+      <path d="M152 169.57L176 128L224 128L176 211.14Z"
+            transform="translate(182 159.18) scale(0.94) translate(-182 -159.18)"/>
+    </g>
+    <path d="M176 128L152 86.43L104 86.43L80 128L104 169.57L152 169.57Z"
+          fill="#b45309"
+          transform="translate(128 128) scale(0.94) translate(-128 -128)"/>
+  </g>
+</svg>

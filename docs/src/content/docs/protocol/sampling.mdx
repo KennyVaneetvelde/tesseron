@@ -1,0 +1,112 @@
+---
+title: Sampling
+description: How a handler re-enters the agent's LLM for a reasoning step, and what the schema contract looks like.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+**Sampling** lets an action handler ask the agent's LLM to produce a response mid-handler. The LLM is the agent's - not your own - so sampling doesn't require an API key from your side, and it counts against the user's agent budget.
+
+<Sequence
+  caption="The handler re-enters the agent loop. The agent's LLM replies. The handler then validates the result against your schema."
+  actors={[
+    { id: 's', label: 'SDK HANDLER', sub: 'ctx.sample(...)', icon: 'window' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 'a', label: 'AGENT + LLM', icon: 'agent' },
+  ]}
+  steps={[
+    { from: 's', to: 'g', label: 'sampling/request { prompt, schema, maxTokens }' },
+    { from: 'g', to: 'a', label: 'MCP sampling/createMessage' },
+    { note: 'a', label: 'LLM generates response' },
+    { from: 'a', to: 'g', label: 'sampling result', style: 'dashed' },
+    { from: 'g', to: 's', label: '{ content }', style: 'dashed' },
+    { note: 's', label: 'validate against schema -> parsed value', variant: 'accent' },
+  ]}
+/>
+
+## When to use it
+
+- **Natural-language reformatting** - turn a list of rows into a readable summary.
+- **Classification** - given a free-text comment, pick a category from an enum.
+- **Structured extraction** - pull the fields your action needs out of a fuzzy input.
+
+Don't use sampling for:
+
+- Raw chatbot replies. Your action should have a clear return type.
+- Very long generations. Sampling is subject to depth limits (max 3 by default) and counts against the agent budget - keep it targeted.
+
+## Calling sample
+
+```ts
+import { z } from 'zod';
+
+tesseron.action('classifyComment')
+  .input(z.object({ text: z.string() }))
+  .output(z.object({ sentiment: z.enum(['positive', 'neutral', 'negative']), confidence: z.number() }))
+  .handler(async ({ text }, ctx) => {
+    const result = await ctx.sample({
+      prompt: `Classify the sentiment of this comment: """${text}"""`,
+      schema: z.object({
+        sentiment: z.enum(['positive', 'neutral', 'negative']),
+        confidence: z.number().min(0).max(1),
+      }),
+      maxTokens: 80,
+    });
+    return result;
+  });
+```
+
+## Wire format
+
+Request, app → gateway:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "sampling/request",
+  "params": {
+    "invocationId": "inv_abc",
+    "prompt": "Classify the sentiment …",
+    "schema": { "type": "object", "properties": { "sentiment": { "enum": ["positive", "neutral", "negative"] }, "confidence": { "type": "number" } } },
+    "maxTokens": 80
+  }
+}
+```
+
+Response, gateway → app:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": { "content": { "sentiment": "positive", "confidence": 0.82 } }
+}
+```
+
+If you passed a `schema`, the SDK validates `result.content` against it before returning from `ctx.sample`. If the model's response doesn't parse, you get a validation error and can retry.
+
+## Depth limit
+
+Sampling is recursive by construction: the agent is a Claude session that called your action, and you're asking that same Claude to think again. Without a cap, a malicious or buggy chain could spiral.
+
+The MCP gateway enforces `maxSamplingDepth = 3`. Each request from a handler that was itself invoked via sampling increments the counter. Exceeded → error `-32008 SamplingDepthExceeded`.
+
+## Capability gate
+
+Not every MCP client supports sampling. Before calling `ctx.sample`, check the capability:
+
+```ts
+if (!ctx.agentCapabilities.sampling) {
+  // Fall back: return something useful without the LLM.
+}
+const result = await ctx.sample({ /* ... */ });
+```
+
+Or let the SDK throw `SamplingNotAvailableError` (error code `-32006`) and catch it. Pick whichever fits your UX.
+
+### Client compatibility
+
+Sampling only works when the connected MCP client advertises `capabilities.sampling` during the MCP `initialize` handshake. Tesseron captures the client's capabilities at that point and flows them to every SDK session as `ctx.agentCapabilities.sampling` — so a handler always sees the real answer, even when a particular client (for example, Claude Code as of this writing) has not yet implemented `sampling/createMessage`. If a handler calls `ctx.sample()` anyway on such a client, the SDK throws a structured `SamplingNotAvailableError` including the client name (when available) instead of a raw JSON-RPC `-32601 Method not found`, so callers can branch on `error instanceof SamplingNotAvailableError` and return a graceful fallback.
+
+Next: [elicitation](/protocol/elicitation/) - same shape, but with the user instead of the model.

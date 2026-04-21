@@ -1,0 +1,28 @@
+{
+  "name": "@tesseron/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1 --port 4321",
+    "start": "astro dev --host 127.0.0.1 --port 4321",
+    "build": "astro build",
+    "preview": "astro preview --host 127.0.0.1 --port 4321",
+    "astro": "astro",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/starlight": "^0.34.3",
+    "@mermaid-js/layout-elk": "^0.2.1",
+    "astro": "^5.14.1",
+    "elkjs": "^0.11.1",
+    "mermaid": "^11.14.0",
+    "sharp": "^0.33.5",
+    "typescript": "^5.7.0"
+  },
+  "devDependencies": {
+    "chokidar": "^4.0.3",
+    "tsx": "^4.19.2"
+  }
+}

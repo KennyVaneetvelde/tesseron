@@ -1,0 +1,138 @@
+---
+title: Elicitation
+description: Handlers pause to ask the user a question. Two verbs - ctx.confirm for yes/no, ctx.elicit for structured content.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+**Elicitation** is sampling's human sibling. Instead of the LLM generating the next value, the user is prompted through the agent UI and submits the answer themselves.
+
+Tesseron exposes two verbs on `ctx`, mapping onto MCP elicit's two orthogonal return fields (`action`, `content`):
+
+- **`ctx.confirm({ question })`** returns `Promise<boolean>`. For yes/no safety gates. No schema.
+- **`ctx.elicit({ question, schema, jsonSchema? })`** returns `Promise<T | null>`. For structured content.
+
+Pick by intent: a destructive-op gate is a confirm; a "which warehouse?" is an elicit.
+
+## ctx.confirm - yes/no safety gates
+
+```ts
+tesseron.action('clearCompleted')
+  .annotate({ destructive: true, requiresConfirmation: true })
+  .handler(async (_input, ctx) => {
+    const ok = await ctx.confirm({
+      question: 'Remove 5 completed todos? This cannot be undone.',
+    });
+    if (!ok) return { removed: 0, cancelled: true };
+    // ... proceed
+  });
+```
+
+Returns `true` only on explicit accept. Decline, cancel, and absence of elicitation capability all collapse to `false` - the safe default for destructive ops. You don't need to guard with `ctx.agentCapabilities.elicitation`; `confirm` returns `false` when the client can't prompt.
+
+Under the hood, `ctx.confirm` sends an elicit request with an empty-properties JSON Schema (`{ type: 'object', properties: {}, required: [] }`), so MCP clients render a pure Accept/Decline prompt with no input field.
+
+## ctx.elicit - structured content
+
+```ts
+import { z } from 'zod';
+
+const warehouseSchema = z.object({ warehouseId: z.string() });
+
+tesseron.action('checkStock')
+  .handler(async (_input, ctx) => {
+    const answer = await ctx.elicit({
+      question: 'Which warehouse should I check?',
+      schema: warehouseSchema,
+      jsonSchema: z.toJSONSchema(warehouseSchema),
+    });
+    if (answer === null) return { cancelled: true };
+    return stock.lookup(answer.warehouseId);
+  });
+```
+
+Returns the validated value on accept, `null` on decline or cancel. Throws `ElicitationNotAvailableError` (code `-32007`) when the client didn't advertise elicitation - structured data has no safe default, so the handler must branch explicitly.
+
+`jsonSchema` is technically optional; if you omit it, the SDK sends a permissive text-only fallback (`{ response: string }`), which Claude Code renders as a single text input. For good UX, always derive it from your validator - Zod 4 has `z.toJSONSchema(schema)` built in.
+
+MCP elicit constrains `requestedSchema`:
+
+- Top level must be `{ type: "object" }`.
+- Each property must be a primitive type (`string`, `number`, `integer`, `boolean`).
+- No `oneOf` / `anyOf` / `allOf` / `not` at the top level.
+
+The SDK enforces this on send and surfaces an `InvalidParams` error (code `-32602`) at the `ctx.elicit` call site if you send something else.
+
+<Sequence
+  caption="ctx.confirm and ctx.elicit share the same wire flow - the difference is the requestedSchema they send."
+  actorWidth={170}
+  actorGap={50}
+  actors={[
+    { id: 's', label: 'SDK HANDLER', sub: 'ctx.confirm / ctx.elicit', icon: 'window' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 'a', label: 'AGENT',       icon: 'agent' },
+    { id: 'u', label: 'USER',        icon: 'user' },
+  ]}
+  steps={[
+    { from: 's', to: 'g', label: 'elicitation/request { question, schema }', accent: true },
+    { from: 'g', to: 'a', label: 'MCP elicitation/elicit', accent: true },
+    { from: 'a', to: 'u', label: 'shows form or Accept/Decline', style: 'dashed' },
+    { from: 'u', to: 'a', label: 'submits or declines', style: 'dashed' },
+    { from: 'a', to: 'g', label: 'elicitation result', accent: true },
+    { from: 'g', to: 's', label: '{ action, value? }', accent: true },
+  ]}
+/>
+
+## Wire format
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "elicitation/request",
+  "params": {
+    "invocationId": "inv_abc",
+    "question": "Which warehouse should I check?",
+    "schema": {
+      "type": "object",
+      "properties": { "warehouseId": { "type": "string" } },
+      "required": ["warehouseId"]
+    }
+  }
+}
+```
+
+Response (accept):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "result": { "action": "accept", "value": { "warehouseId": "WH-7" } }
+}
+```
+
+Response (decline / cancel):
+
+```json
+{ "jsonrpc": "2.0", "id": 11, "result": { "action": "decline" } }
+```
+
+The SDK maps `action: 'accept'` to the validated value, `decline` / `cancel` to `null` (for `ctx.elicit`) or `false` (for `ctx.confirm`).
+
+## Capability gate
+
+`ctx.agentCapabilities.elicitation` reflects what the connected MCP client advertised during `initialize`. Claude Code advertises elicitation; earlier clients may not.
+
+- `ctx.confirm` is safe in any handler: missing capability returns `false`, which destructive-op guards treat correctly.
+- `ctx.elicit` throws `ElicitationNotAvailableError` when capability is missing - catch it or pre-check the flag and provide a non-interactive fallback.
+
+## Design hints
+
+- **One question per call.** Don't pack a wizard into a schema - chain actions instead.
+- **Use annotations in tandem.** `{ destructive: true, requiresConfirmation: true }` tells the agent to warn upfront; `ctx.confirm` is what gates.
+- **Avoid chained elicitations** in one handler - latency accumulates. If you need multi-step input, build a dedicated action per step.
+
+Next: [resources](/protocol/resources/) - state the agent can read and subscribe to.

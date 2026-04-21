@@ -1,0 +1,127 @@
+---
+title: Progress & cancellation
+description: Streaming updates via `actions/progress` and AbortSignal-based cancellation via `actions/cancel`.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+Long-running actions stream progress forward, and may be cancelled at any moment. Both are first-class in the protocol.
+
+## Streaming progress
+
+<Sequence
+  caption="Progress notifications ride along while the handler runs. The agent's UI typically renders them as an animated status line."
+  actors={[
+    { id: 'a', label: 'AGENT',       icon: 'agent' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 's', label: 'SDK HANDLER', icon: 'window' },
+  ]}
+  steps={[
+    { from: 'a', to: 'g', label: 'tools/call { ... }' },
+    { from: 'g', to: 's', label: 'actions/invoke' },
+    { from: 's', to: 'g', label: 'actions/progress { percent: 10 }', style: 'dashed', accent: true },
+    { from: 'g', to: 'a', label: 'notifications/progress', style: 'dashed', accent: true },
+    { from: 's', to: 'g', label: 'actions/progress { percent: 60 }', style: 'dashed', accent: true },
+    { from: 'g', to: 'a', label: 'notifications/progress', style: 'dashed', accent: true },
+    { from: 's', to: 'g', label: 'result { ... }', style: 'dashed' },
+    { from: 'g', to: 'a', label: 'tools/call result', style: 'dashed' },
+  ]}
+/>
+
+```ts
+tesseron.action('importCsv')
+  .input(z.object({ url: z.string().url() }))
+  .handler(async ({ url }, ctx) => {
+    ctx.progress({ message: 'downloading', percent: 5 });
+    const rows = await fetchCsv(url);
+
+    for (let i = 0; i < rows.length; i += 100) {
+      if (ctx.signal.aborted) throw new Error('Cancelled');
+      ctx.progress({
+        message: `${i}/${rows.length}`,
+        percent: 5 + Math.floor((i / rows.length) * 90),
+      });
+      await importBatch(rows.slice(i, i + 100));
+    }
+
+    return { imported: rows.length };
+  });
+```
+
+Wire format - sent by the app as a notification (no response):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "actions/progress",
+  "params": {
+    "invocationId": "inv_abc",
+    "message": "500/2000",
+    "percent": 27,
+    "data": { "etaMs": 14000 }
+  }
+}
+```
+
+All three payload fields (`message`, `percent`, `data`) are optional. Send any combination. The MCP gateway forwards the notification to the agent as MCP `notifications/progress`; MCP clients render them at their leisure.
+
+**Guideline:** cap progress updates at ~2 / second. Faster rates spam the agent UI without adding information.
+
+## Cancellation
+
+<Sequence
+  caption="The agent cancels. The gateway translates to actions/cancel. The handler sees ctx.signal.aborted."
+  actors={[
+    { id: 'a', label: 'AGENT',       icon: 'agent' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 's', label: 'SDK HANDLER', icon: 'window' },
+  ]}
+  steps={[
+    { from: 'a', to: 'g', label: 'tools/call { ... }' },
+    { from: 'g', to: 's', label: "actions/invoke { invocationId: 'inv_1' }" },
+    { note: 's', label: 'handler running (reads ctx.signal)' },
+    { from: 'a', to: 'g', label: 'cancel invocation', style: 'dashed', danger: true },
+    { from: 'g', to: 's', label: "actions/cancel { invocationId: 'inv_1' }", style: 'dashed', danger: true },
+    { note: 's', label: 'ctx.signal.aborted = true', variant: 'danger' },
+    { from: 's', to: 'g', label: 'error -32001 Cancelled', style: 'dashed', danger: true },
+    { from: 'g', to: 'a', label: 'tools/call error', style: 'dashed', danger: true },
+  ]}
+/>
+
+```ts
+tesseron.action('generateReport')
+  .input(...)
+  .handler(async (input, ctx) => {
+    const rows = await slowQuery(ctx.signal);   // pass signal down
+    if (ctx.signal.aborted) throw new Cancelled();
+    return formatReport(rows);
+  });
+```
+
+- `ctx.signal` is a standard [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). Pass it to `fetch`, `setTimeout`, database drivers, or anything else that accepts one.
+- Cancellation fires for **two reasons**: the agent explicitly cancelled, or the action's timeout expired. Your handler treats them the same way - yield as fast as you can.
+- After abort, the SDK returns an error response with code `-32001 Cancelled` (explicit) or `-32002 Timeout` (timer).
+
+Wire format - notification from gateway to app:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "actions/cancel",
+  "params": { "invocationId": "inv_abc" }
+}
+```
+
+The app doesn't acknowledge the cancellation. It just aborts the signal and lets the normal response path return an error.
+
+## Reading the progress on the agent side
+
+When the agent is Claude Code, progress notifications surface in the running tool-call block. For other MCP clients, behaviour varies - some render a progress bar, some print each message, some ignore them entirely. Don't depend on rich rendering; treat progress as "best-effort hint".
+
+## What NOT to use progress for
+
+- Final results. Use the response.
+- Data the next handler needs. Use a return value, a sampling round-trip, or a resource.
+- Error surfacing. Return an error response.
+
+Next: [sampling](/protocol/sampling/) - handlers that call back into the LLM.

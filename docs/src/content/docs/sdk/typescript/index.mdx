@@ -1,0 +1,151 @@
+---
+title: Install & first action
+description: The minimum code to go from zero to a working Tesseron integration in TypeScript.
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Steps>
+
+1. **Install the package that matches your runtime.**
+
+   <Tabs>
+     <TabItem label="Browser (Vite, Next, etc.)">
+       ```bash
+       pnpm add @tesseron/web zod
+       ```
+     </TabItem>
+     <TabItem label="React">
+       ```bash
+       pnpm add @tesseron/react zod
+       ```
+     </TabItem>
+     <TabItem label="Node (server, worker)">
+       ```bash
+       pnpm add @tesseron/server zod
+       ```
+     </TabItem>
+     <TabItem label="Bring-your-own transport">
+       ```bash
+       pnpm add @tesseron/core zod
+       ```
+     </TabItem>
+   </Tabs>
+
+   `zod` is used in the examples here; swap it for any [Standard Schema](https://standardschema.dev)-compatible validator - Valibot, ArkType, Effect Schema.
+
+2. **Name your app.** `app.id` is what the agent's tool names get prefixed with. It must match `/^[a-z][a-z0-9_]*$/`.
+
+   ```ts
+   import { tesseron } from '@tesseron/web';
+
+   tesseron.app({
+     id: 'notes',
+     name: 'My Notes App',
+     description: 'Create and organise notes',
+   });
+   ```
+
+3. **Declare an action.**
+
+   ```ts
+   import { z } from 'zod';
+
+   tesseron
+     .action('createNote')
+     .describe('Create a new note')
+     .input(z.object({ title: z.string().min(1), body: z.string().default('') }))
+     .handler(({ title, body }) => {
+       const note = { id: crypto.randomUUID(), title, body, createdAt: Date.now() };
+       store.add(note);
+       return note;
+     });
+   ```
+
+4. **Connect.**
+
+   ```ts
+   const welcome = await tesseron.connect();
+   console.log('claim code:', welcome.claimCode);
+   ```
+
+   The MCP gateway prints the claim code to its stderr; you can also surface it in your UI.
+
+5. **Claim from the agent.** In Claude Code: *"Claim Tesseron session &lt;code&gt;."* Once claimed, `notes__createNote` appears in the tool list.
+
+</Steps>
+
+## Typical entry-point layouts
+
+<Tabs>
+  <TabItem label="Browser SPA">
+    ```ts title="src/tesseron.ts"
+    import { tesseron } from '@tesseron/web';
+    import { z } from 'zod';
+
+    tesseron.app({ id: 'notes', name: 'Notes' });
+
+    tesseron.action('createNote')
+      .input(z.object({ title: z.string(), body: z.string() }))
+      .handler(({ title, body }) => notesStore.add({ title, body }));
+
+    export const connect = () => tesseron.connect();
+    ```
+
+    ```ts title="src/main.ts"
+    import { connect } from './tesseron';
+    connect();          // fire and forget; retry in UI if you like.
+    ```
+  </TabItem>
+
+  <TabItem label="React">
+    ```tsx title="src/app.tsx"
+    import { useTesseronAction, useTesseronConnection } from '@tesseron/react';
+    import { z } from 'zod';
+
+    export function App() {
+      const { claimCode, status } = useTesseronConnection();
+
+      useTesseronAction('createNote', {
+        input: z.object({ title: z.string(), body: z.string() }),
+        handler: ({ title, body }) => notesStore.add({ title, body }),
+      });
+
+      return (
+        <div>
+          {status === 'open' && claimCode && <ClaimCodeBanner code={claimCode} />}
+          <Notes />
+        </div>
+      );
+    }
+    ```
+  </TabItem>
+
+  <TabItem label="Node server">
+    ```ts title="src/index.ts"
+    import { tesseron } from '@tesseron/server';
+    import { z } from 'zod';
+
+    tesseron.app({ id: 'notes_api', name: 'Notes API' });
+
+    tesseron.action('createNote')
+      .input(z.object({ title: z.string(), body: z.string() }))
+      .handler(async ({ title, body }) => db.notes.insert({ title, body }));
+
+    const welcome = await tesseron.connect();
+    console.log('claim code:', welcome.claimCode);
+
+    process.on('SIGINT', async () => {
+      await tesseron.disconnect();
+      process.exit(0);
+    });
+    ```
+  </TabItem>
+</Tabs>
+
+## Where to go next
+
+- The [action builder](/sdk/typescript/action-builder/) in full - chaining, output validation, annotations, timeouts.
+- [Standard Schema validators](/sdk/typescript/standard-schema/) - Zod vs Valibot vs ArkType, and JSON Schema interop.
+- The [context API](/sdk/typescript/context/) - progress, sampling, elicitation, logging.
+- Framework adapters: [@tesseron/react](/sdk/typescript/react/).

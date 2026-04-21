@@ -1,0 +1,19 @@
+{
+  "name": "create-tesseron",
+  "version": "0.0.0",
+  "description": "Scaffolder for Tesseron projects. Run with `npm create tesseron@latest`.",
+  "license": "BUSL-1.1",
+  "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "create-tesseron": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

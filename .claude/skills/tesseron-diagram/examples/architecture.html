@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tesseron Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dgm-bg-page: #f8fafc;
+      --dgm-bg-figure: #ffffff;
+      --dgm-grid: rgba(148, 163, 184, 0.35);
+      --dgm-border: #cbd5e1;
+      --dgm-shadow-color: #0f172a;
+
+      --dgm-card-neutral-1: #ffffff;
+      --dgm-card-neutral-2: #f1f5f9;
+      --dgm-card-accent-1: #fffdf7;
+      --dgm-card-accent-2: #fef3c7;
+
+      --dgm-accent-border-1: #fbbf24;
+      --dgm-accent-border-2: #d97706;
+
+      --dgm-accent: #f59e0b;
+      --dgm-accent-text: #b45309;
+
+      --dgm-line: #94a3b8;
+      --dgm-line-strong: #64748b;
+      --dgm-text: #0f172a;
+      --dgm-text-muted: #475569;
+      --dgm-icon: #64748b;
+
+      --dgm-pill-bg: #ffffff;
+      --dgm-pill-border: #e2e8f0;
+      --dgm-pill-text: #334155;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --dgm-bg-page: #060a13;
+        --dgm-bg-figure: #0b1220;
+        --dgm-grid: rgba(51, 65, 85, 0.55);
+        --dgm-border: #334155;
+        --dgm-shadow-color: #000000;
+
+        --dgm-card-neutral-1: #172033;
+        --dgm-card-neutral-2: #0f172a;
+        --dgm-card-accent-1: #2a1f0a;
+        --dgm-card-accent-2: #1c1407;
+
+        --dgm-accent-border-1: #fcd34d;
+        --dgm-accent-border-2: #d97706;
+
+        --dgm-accent-text: #fcd34d;
+
+        --dgm-line: #64748b;
+        --dgm-line-strong: #cbd5e1;
+        --dgm-text: #e2e8f0;
+        --dgm-text-muted: #94a3b8;
+        --dgm-icon: #94a3b8;
+
+        --dgm-pill-bg: #0f172a;
+        --dgm-pill-border: #334155;
+        --dgm-pill-text: #cbd5e1;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--dgm-bg-page); color: var(--dgm-text); padding: 2.5rem 2rem; min-height: 100vh; }
+    .container { max-width: 1320px; margin: 0 auto; }
+    .header { margin-bottom: 1.5rem; }
+    .header-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; }
+    .pulse-dot { width: 10px; height: 10px; background: var(--dgm-accent); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { color: var(--dgm-text-muted); font-size: 0.9rem; margin-left: 1.45rem; }
+    figure.dgm-figure { margin: 0; padding: 1.25rem 1.5rem 0.9rem; border: 1px solid var(--dgm-border); border-radius: 16px; background: var(--dgm-bg-figure); }
+    figure.dgm-figure .dgm-scroll { overflow-x: auto; }
+    figure.dgm-figure svg.dgm-svg { display: block; margin-inline: auto; max-width: none; height: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    figure.dgm-figure figcaption { margin-top: 0.9rem; font-size: 0.9rem; color: var(--dgm-text-muted); text-align: center; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .card { background: var(--dgm-bg-figure); border: 1px solid var(--dgm-border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.accent { background: var(--dgm-accent); }
+    .card-dot.neutral { background: var(--dgm-line); }
+    .card h3 { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    .card ul { list-style: none; color: var(--dgm-text-muted); font-size: 0.82rem; }
+    .card li { margin-bottom: 0.35rem; padding-left: 0.75rem; position: relative; }
+    .card li::before { content: "·"; position: absolute; left: 0; color: var(--dgm-accent); font-weight: 700; }
+    .footer { text-align: center; margin-top: 1.5rem; color: var(--dgm-text-muted); font-size: 0.75rem; font-family: "JetBrains Mono", ui-monospace, monospace; opacity: 0.7; }
+
+    .dgm-title { font: 600 13.5px/1 Inter, sans-serif; letter-spacing: 0.08em; fill: var(--dgm-text); }
+    .dgm-title-accent { fill: var(--dgm-accent-text); }
+    .dgm-sub { font: 400 12.5px/1 Inter, sans-serif; fill: var(--dgm-text-muted); }
+    .dgm-sub-accent { fill: var(--dgm-accent-text); opacity: 0.9; }
+    .dgm-code { font: 400 11.5px/1 "JetBrains Mono", monospace; fill: var(--dgm-text-muted); }
+    .dgm-code-accent { fill: var(--dgm-accent-text); }
+    .dgm-lbl { font: 500 12px/1 Inter, sans-serif; letter-spacing: 0.02em; fill: var(--dgm-pill-text); }
+    .dgm-lbl-accent { fill: var(--dgm-accent-text); }
+    .dgm-icon { stroke: var(--dgm-icon); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .dgm-icon-accent { stroke: var(--dgm-accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Tesseron Architecture</h1>
+      </div>
+      <p class="subtitle">Three processes, two protocols - JSON-RPC/WS between app and gateway, MCP stdio between gateway and agent.</p>
+    </header>
+
+    <figure class="dgm-figure">
+      <div class="dgm-scroll">
+        <!--
+          Layout math — careful so pills fit in gaps with room for visible arrows:
+            pad = 30, card w = 180, gap = 140
+            canvas = 4*180 + 3*140 + 2*30 = 720 + 420 + 60 = 1200
+          Node x positions:
+            USER:   30 .. 210   (center 120, cx of right edge for arrow = 210)
+            APP:   350 .. 530   (gap 140 from USER right edge @ 210)
+            GW:    670 .. 850   (gap 140 from APP right edge @ 530)   [ACCENT]
+            AGENT: 990 .. 1170  (gap 140 from GW right edge @ 850)
+          Arrow midline y = 150 (card vertical center). All cards 120 tall.
+          Pill widths 88 centered in each gap at y=127..149, leaving ~26px of
+          visible arrow on EACH side of each pill.
+        -->
+        <svg class="dgm-svg" viewBox="0 0 1200 310" width="1200" height="310" role="img" aria-label="Tesseron architecture">
+          <defs>
+            <pattern id="dgm-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+              <circle cx="1.2" cy="1.2" r="1.2" fill="var(--dgm-grid)"/>
+            </pattern>
+            <linearGradient id="dgm-card-neutral" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-card-neutral-1)"/>
+              <stop offset="1" stop-color="var(--dgm-card-neutral-2)"/>
+            </linearGradient>
+            <linearGradient id="dgm-card-accent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-card-accent-1)"/>
+              <stop offset="1" stop-color="var(--dgm-card-accent-2)"/>
+            </linearGradient>
+            <linearGradient id="dgm-border-accent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-accent-border-1)"/>
+              <stop offset="1" stop-color="var(--dgm-accent-border-2)"/>
+            </linearGradient>
+            <filter id="dgm-glow-accent" x="-30%" y="-60%" width="160%" height="220%">
+              <feGaussianBlur stdDeviation="14" result="b"/>
+              <feColorMatrix in="b" type="matrix" values="0 0 0 0 0.98  0 0 0 0 0.73  0 0 0 0 0.14  0 0 0 0.45 0"/>
+            </filter>
+            <filter id="dgm-shadow" x="-10%" y="-10%" width="120%" height="130%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="var(--dgm-shadow-color)" flood-opacity="0.06"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="var(--dgm-shadow-color)" flood-opacity="0.04"/>
+            </filter>
+            <!-- No <marker> defs — we draw arrows as explicit line + polygon pairs
+                 below so there's zero chance the line stroke renders past the
+                 triangle tip. Arrow triangle: 12 wide, 12 tall, base-to-tip. -->
+
+          </defs>
+
+          <!-- Z1: grid -->
+          <rect width="100%" height="100%" fill="url(#dgm-dots)"/>
+
+          <!-- Z2: accent glow behind the Gateway. Contained within the SVG vertically. -->
+          <ellipse cx="760" cy="150" rx="130" ry="80" fill="var(--dgm-accent)" filter="url(#dgm-glow-accent)" opacity="0.33"/>
+
+          <!-- Z3: edges. Each arrow = line (stops at triangle base) + polygon
+               triangle (base..tip). Line and triangle never overlap.
+               ARROW_W = 10, ARROW_H = 10 — balanced, compact, not stretched. -->
+          <!-- USER -> APP  (one-way, neutral). Right tip at x=344. -->
+          <line x1="216" y1="150" x2="334" y2="150"
+                stroke="var(--dgm-line-strong)" stroke-width="1.75" stroke-linecap="butt"/>
+          <polygon points="334,145 344,150 334,155" fill="var(--dgm-line-strong)"/>
+          <!-- APP <-> GW  (bidirectional, accent). Tips at x=536 (left) and x=664 (right). -->
+          <polygon points="546,145 536,150 546,155" fill="var(--dgm-accent)"/>
+          <line x1="546" y1="150" x2="654" y2="150"
+                stroke="var(--dgm-accent)" stroke-width="1.75" stroke-linecap="butt"/>
+          <polygon points="654,145 664,150 654,155" fill="var(--dgm-accent)"/>
+          <!-- GW <-> AGENT  (bidirectional, accent). Tips at x=856 (left) and x=984 (right). -->
+          <polygon points="866,145 856,150 866,155" fill="var(--dgm-accent)"/>
+          <line x1="866" y1="150" x2="974" y2="150"
+                stroke="var(--dgm-accent)" stroke-width="1.75" stroke-linecap="butt"/>
+          <polygon points="974,145 984,150 974,155" fill="var(--dgm-accent)"/>
+
+          <!-- Z4: nodes. Icons are centered horizontally above the title.
+               Icon is 20x20 in its own viewBox, translated so its center aligns
+               with the card's horizontal center (card-cx - 10).
+               Vertical layout inside each 120-tall card:
+                 y+16..36  icon (20 tall)
+                 y+56      title (centered)
+                 y+80/96   sub (1 or 2 lines)
+                 y+108     code identifier (optional)  -->
+          <!-- USER (card-cx = 120) -->
+          <g>
+            <rect x="30" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-neutral)" stroke="var(--dgm-border)" stroke-width="1.25"
+                  filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon" transform="translate(110,106)">
+              <circle cx="10" cy="7" r="3.6"/>
+              <path d="M3 20 a7 7 0 0 1 14 0"/>
+            </g>
+            <text x="120" y="150" text-anchor="middle" class="dgm-title">USER</text>
+            <text x="120" y="174" text-anchor="middle" class="dgm-sub">human at</text>
+            <text x="120" y="190" text-anchor="middle" class="dgm-sub">the keyboard</text>
+          </g>
+
+          <!-- YOUR APP (card-cx = 440) -->
+          <g>
+            <rect x="350" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-neutral)" stroke="var(--dgm-border)" stroke-width="1.25"
+                  filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon" transform="translate(430,106)">
+              <rect x="1" y="2" width="18" height="16" rx="2"/>
+              <path d="M1 6 H19"/>
+              <circle cx="4" cy="4" r="0.7" fill="currentColor" stroke="none"/>
+              <circle cx="7" cy="4" r="0.7" fill="currentColor" stroke="none"/>
+            </g>
+            <text x="440" y="150" text-anchor="middle" class="dgm-title">YOUR APP</text>
+            <text x="440" y="174" text-anchor="middle" class="dgm-sub">browser or node</text>
+            <text x="440" y="194" text-anchor="middle" class="dgm-code">@tesseron/web</text>
+          </g>
+
+          <!-- GATEWAY (accent) (card-cx = 760) -->
+          <g>
+            <rect x="670" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-accent)" stroke="url(#dgm-border-accent)" stroke-width="1.25"
+                  filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon dgm-icon-accent" transform="translate(750,106)">
+              <path d="M3 7 H17"/>
+              <path d="M14 4 L18 7 L14 10"/>
+              <path d="M17 13 H3"/>
+              <path d="M6 10 L2 13 L6 16"/>
+            </g>
+            <text x="760" y="150" text-anchor="middle" class="dgm-title dgm-title-accent">GATEWAY</text>
+            <text x="760" y="174" text-anchor="middle" class="dgm-sub dgm-sub-accent">WebSocket + MCP bridge</text>
+            <text x="760" y="194" text-anchor="middle" class="dgm-code dgm-code-accent">@tesseron/mcp :7475</text>
+          </g>
+
+          <!-- AGENT (card-cx = 1080) -->
+          <g>
+            <rect x="990" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-neutral)" stroke="var(--dgm-border)" stroke-width="1.25"
+                  filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon" transform="translate(1070,106)">
+              <path d="M10 1.5 L12 8 L18.5 10 L12 12 L10 18.5 L8 12 L1.5 10 L8 8 Z"/>
+            </g>
+            <text x="1080" y="150" text-anchor="middle" class="dgm-title">AGENT</text>
+            <text x="1080" y="174" text-anchor="middle" class="dgm-sub">Claude Code,</text>
+            <text x="1080" y="190" text-anchor="middle" class="dgm-sub">Cursor, Desktop</text>
+          </g>
+
+          <!-- Z5: edge label pills, centered ON the arrow line (y=150).
+               Pill occupies the middle 88 px of the 140 px gap, leaving
+               ~26 px of visible arrow on each side. The pill breaks the
+               arrow into "--->[ label ]--->" so it reads as a labeled wire,
+               not as a floating tag above the line. -->
+          <!-- "WebSocket" pill centered at gap midpoint x=600 (arrow at y=150) -->
+          <g>
+            <rect x="556" y="139" width="88" height="22" rx="7"
+                  fill="var(--dgm-pill-bg)" stroke="var(--dgm-accent)" stroke-width="1"/>
+            <text x="600" y="154" text-anchor="middle" class="dgm-lbl dgm-lbl-accent">WebSocket</text>
+          </g>
+          <!-- "MCP stdio" pill centered at x=920 -->
+          <g>
+            <rect x="876" y="139" width="88" height="22" rx="7"
+                  fill="var(--dgm-pill-bg)" stroke="var(--dgm-accent)" stroke-width="1"/>
+            <text x="920" y="154" text-anchor="middle" class="dgm-lbl dgm-lbl-accent">MCP stdio</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Your web app declares actions. The gateway bridges them to any MCP-capable agent.</figcaption>
+    </figure>
+
+    <section class="cards">
+      <article class="card">
+        <div class="card-header"><span class="card-dot neutral"></span><h3>Your web app</h3></div>
+        <ul>
+          <li>Hosts the action handlers and the real state they mutate.</li>
+          <li>Uses @tesseron/web, /server, or /react.</li>
+          <li>Connects once, declares once, runs on user's machine.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="card-header"><span class="card-dot accent"></span><h3>Tesseron gateway</h3></div>
+        <ul>
+          <li>Bundled into the Claude Code plugin; auto-spawned.</li>
+          <li>WebSocket server on 127.0.0.1:7475 + MCP stdio bridge.</li>
+          <li>Routes tools/call to actions/invoke and back.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="card-header"><span class="card-dot neutral"></span><h3>AI agent</h3></div>
+        <ul>
+          <li>Any MCP-capable client - Claude Code, Cursor, Desktop.</li>
+          <li>Sees the app's actions as native MCP tools.</li>
+          <li>Never knows WebSocket exists.</li>
+        </ul>
+      </article>
+    </section>
+
+    <footer class="footer">
+      tesseron-diagram · example/architecture.html · open directly in any browser
+    </footer>
+  </div>
+</body>
+</html>

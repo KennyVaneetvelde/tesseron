@@ -1,0 +1,82 @@
+---
+title: Errors & capabilities
+description: Every error code Tesseron defines, what raises each one, and how capability negotiation shapes handler behaviour.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+Tesseron uses JSON-RPC error codes with a Tesseron-specific extension range.
+
+<Sequence
+  caption="A validation error path. The handler never runs; the agent gets structured issues it can correct."
+  actors={[
+    { id: 'a', label: 'AGENT',       icon: 'agent' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 's', label: 'SDK HANDLER', icon: 'window' },
+  ]}
+  steps={[
+    { from: 'a', to: 'g', label: 'tools/call  arguments: { query: 42 }' },
+    { from: 'g', to: 's', label: 'actions/invoke' },
+    { note: 's', label: 'validate input (Standard Schema)', variant: 'danger' },
+    { from: 's', to: 'g', label: 'error -32004 InputValidation  data: [issues]', danger: true, style: 'dashed' },
+    { from: 'g', to: 'a', label: 'tools/call error (agent can retry with corrected args)', danger: true, style: 'dashed' },
+  ]}
+/>
+
+## Error catalog
+
+| Code | Name | Raised when |
+|---:|---|---|
+| `-32700` | `ParseError` | JSON-RPC message failed to parse. Almost always a bug or a non-JSON frame. |
+| `-32600` | `InvalidRequest` | Envelope is well-formed JSON but not a valid JSON-RPC request. |
+| `-32601` | `MethodNotFound` | Method isn't registered. Tesseron's method surface is fixed - this is almost always a version mismatch. |
+| `-32602` | `InvalidParams` | Params don't match the method's expected shape. |
+| `-32603` | `InternalError` | Unhandled exception inside the SDK or gateway. Report it. |
+| `-32000` | `ProtocolMismatch` | `tesseron/hello` sent a `protocolVersion` the gateway doesn't accept. |
+| `-32001` | `Cancelled` | Invocation was cancelled by the agent. |
+| `-32002` | `Timeout` | Invocation exceeded its timeout. |
+| `-32003` | `ActionNotFound` | Agent called an action that isn't registered for this session. |
+| `-32004` | `InputValidation` | Input failed Standard Schema validation. Issues in `error.data`. |
+| `-32005` | `HandlerError` | Handler threw, or output failed strict validation. Message comes from the thrown error. |
+| `-32006` | `SamplingNotAvailable` | Handler called `ctx.sample` but agent didn't advertise sampling. |
+| `-32007` | `ElicitationNotAvailable` | Handler called `ctx.elicit` but agent didn't advertise elicitation. (`ctx.confirm` returns `false` instead of throwing — safe default for destructive gates.) |
+| `-32008` | `SamplingDepthExceeded` | Sampling chain exceeded `maxSamplingDepth` (3). |
+| `-32009` | `Unauthorized` | Wrong claim code, unclaimed session invoking action, or origin not allowlisted. |
+
+Errors carry an optional `data` field. Tesseron uses it to attach:
+
+- **For `-32004` InputValidation**: the `issues` array from Standard Schema.
+- **For `-32005` HandlerError** with strict output: the `issues` for the failed output check.
+- **For `-32008` SamplingDepthExceeded**: `{ depth, max }`.
+
+## Capability negotiation
+
+Both sides declare capabilities during the handshake. The `welcome` response contains their intersection - that's what your handler should trust.
+
+| Capability | Meaning |
+|---|---|
+| `streaming` | `actions/progress` notifications are allowed. |
+| `subscriptions` | Agent will call `resources/subscribe`. |
+| `sampling` | `ctx.sample` is available. |
+| `elicitation` | `ctx.confirm` and `ctx.elicit` are available. |
+
+Your handler, in general:
+
+```ts
+if (!ctx.agentCapabilities.sampling) {
+  return fallbackResponse();
+}
+const refined = await ctx.sample({ prompt, schema });
+```
+
+If you'd rather error out than fall back, just call `ctx.sample` unconditionally - the SDK throws `SamplingNotAvailableError` (code `-32006`) which the agent sees as a structured tool failure.
+
+## Errors are data, not disasters
+
+Agents are good at recovering from structured errors. Prefer returning a well-typed error to throwing a vague one:
+
+- Bad input? Let Standard Schema reject it - the agent gets issues to correct.
+- Impossible state? `throw new Error("Cart is locked; ask the user to unlock it")` surfaces as code `-32005` with a useful message.
+- Need clarification? Use [elicitation](/protocol/elicitation/) instead of failing.
+
+Next: [lifecycle & failure modes](/protocol/lifecycle/).

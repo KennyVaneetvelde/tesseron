@@ -1,0 +1,27 @@
+{
+  "name": "tesseron",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Expose typed web app actions to MCP-compatible AI agents over WebSocket. SDK + matching MCP gateway.",
+  "license": "BUSL-1.1",
+  "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "docs:dev": "pnpm --filter @tesseron/docs start",
+    "docs:build": "pnpm --filter @tesseron/docs build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}

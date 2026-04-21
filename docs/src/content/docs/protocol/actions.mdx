@@ -1,0 +1,132 @@
+---
+title: Action model
+description: How actions are declared, namespaced, invoked, validated, and returned.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+An **action** is a named, typed, handler-backed operation that the app exposes to the agent. On the MCP side it looks like a single tool. On the Tesseron side it has a schema, a handler, and a set of per-invocation context helpers.
+
+<Sequence
+  caption="One invocation from tools/call to tool result - with input validation between."
+  actors={[
+    { id: 'a', label: 'AGENT',       icon: 'agent' },
+    { id: 'g', label: 'MCP GATEWAY',     icon: 'bridge', variant: 'accent' },
+    { id: 's', label: 'SDK HANDLER', icon: 'window' },
+  ]}
+  steps={[
+    { from: 'a', to: 'g', label: "tools/call { name: 'shop__addItem', arguments }" },
+    { from: 'g', to: 's', label: 'actions/invoke { name, invocationId, input }' },
+    { note: 's', label: 'validate input (Standard Schema)' },
+    { note: 's', label: 'run handler(input, ctx)' },
+    { from: 's', to: 'g', label: "result { id: 'item_42', ... }", style: 'dashed' },
+    { from: 'g', to: 'a', label: 'tools/call result', style: 'dashed' },
+  ]}
+/>
+
+## Declaration
+
+```ts
+tesseron
+  .action('addItem')                // action name
+  .describe('Add an item to the cart')
+  .input(z.object({ sku: z.string(), quantity: z.number().int().positive() }))
+  .output(z.object({ cartId: z.string(), itemId: z.string() }))
+  .annotate({ destructive: false })
+  .timeout(10_000)
+  .handler(async ({ sku, quantity }, ctx) => {
+    const item = await cart.add(sku, quantity);
+    return { cartId: cart.id, itemId: item.id };
+  });
+```
+
+Builder steps:
+
+| Step | Purpose | Required? |
+|---|---|---|
+| `.describe(string)` | Human-readable description shown to the agent's LLM. | Recommended |
+| `.input(schema)` | Standard Schema validator for arguments. Becomes JSON Schema on the wire. | Recommended |
+| `.output(schema)` | Validator for the return value. Not enforced by default. | Optional |
+| `.annotate({…})` | Metadata: `readOnly`, `destructive`, `requiresConfirmation`. | Optional |
+| `.timeout(ms)` | Abort the invocation after N ms. Default 60 000. | Optional |
+| `.strictOutput()` | Enforce the output schema. Default is passthrough. | Optional |
+| `.handler(fn)` | The function that runs. Receives `(input, ctx)`. Terminates the builder. | Required |
+
+## Naming and the MCP tool list
+
+The MCP gateway registers every action as an MCP tool under the name `<app.id>__<action.name>`. For `app.id = "shop"` and `action = "searchProducts"` the agent sees `shop__searchProducts`. Multiple apps can coexist - see [multi-app coexistence](/protocol/security/#multi-app-coexistence).
+
+## Invocation wire format
+
+Request from gateway to app:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "actions/invoke",
+  "params": {
+    "name": "addItem",
+    "invocationId": "inv_abc123",
+    "input": { "sku": "SKU-1", "quantity": 2 },
+    "client": { "route": "/cart" }
+  }
+}
+```
+
+The SDK turns `params` into an `ActionContext` and calls your handler. `ctx.agent`, `ctx.agentCapabilities`, and the rest of `ctx.client` come from the `welcome` the SDK cached at handshake time - they don't ride on every `actions/invoke`. Response:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "result": { "cartId": "c_1", "itemId": "i_42" }
+}
+```
+
+Or, on error:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "error": { "code": -32005, "message": "Cart is locked", "data": { "cartId": "c_1" } }
+}
+```
+
+## Validation passes
+
+- **Input** is validated **before** the handler runs. Failure → error code `-32004 InputValidation`, handler never fires. Validation `issues` are returned in `error.data`.
+- **Output** is **not** validated by default. Call `.strictOutput()` to enforce - failure becomes `-32005 HandlerError` with issues in `data`. The permissive default is deliberate: output schemas are often loose, and most teams use `.output()` purely for documentation.
+
+## Annotations
+
+| Field | Meaning |
+|---|---|
+| `readOnly` | The action doesn't mutate state. The agent may parallelise or cache. |
+| `destructive` | The action mutates persistent state. Agents SHOULD surface a confirmation UI. |
+| `requiresConfirmation` | The action MUST NOT be called without explicit user confirmation. |
+
+Annotations are **advisory**. They ride along with the MCP tool descriptor; honouring them is the agent's job.
+
+## What the handler receives
+
+```ts
+handler: (input: I, ctx: ActionContext) => O | Promise<O>
+```
+
+`ctx` is the per-invocation context. Full reference in [SDK → Context](/sdk/typescript/context/):
+
+| Field | Purpose |
+|---|---|
+| `ctx.signal` | `AbortSignal` fired on timeout or cancel. |
+| `ctx.agent` | `{ id, name }` of the calling agent. |
+| `ctx.agentCapabilities` | What the agent can do. Gate your sampling / elicit calls on this. |
+| `ctx.client` | `{ origin, route?, userAgent? }`. |
+| `ctx.progress(update)` | Emit an `actions/progress` notification. |
+| `ctx.sample(req)` | Re-enter the agent LLM for a reasoning step. |
+| `ctx.confirm(req)` | Ask the user a yes/no question. Returns `false` when the client can't prompt. |
+| `ctx.elicit(req)` | Ask the user for structured content matching a schema. |
+| `ctx.log(level, msg, meta?)` | Structured log forwarded to MCP logging. |
+
+Next: [progress & cancellation](/protocol/progress-cancellation/).

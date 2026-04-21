@@ -1,0 +1,27 @@
+The Tesseron protocol specification — all documents under
+`docs/src/content/docs/protocol/` — is licensed separately from the
+reference implementation under the Creative Commons Attribution 4.0
+International License (CC BY 4.0).
+
+You are free to:
+  - Share, copy, and redistribute the specification in any medium or format.
+  - Adapt, remix, transform, and build upon the specification, including
+    authoring a compatible implementation in any language, for any purpose,
+    including commercially.
+
+Under the following terms:
+  - Attribution — you must give appropriate credit to "Tesseron (Kenny
+    Vaneetvelde)", provide a link to https://github.com/KennyVaneetvelde/tesseron,
+    and indicate if changes were made. You may do so in any reasonable
+    manner, but not in any way that suggests the licensor endorses you
+    or your use.
+
+No additional restrictions — you may not apply legal terms or technological
+measures that legally restrict others from doing anything the license
+permits.
+
+Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+The reference implementation (SDKs, gateway, plugin, devtools, scaffolder,
+docs/examples) remains under the Business Source License 1.1 — see the
+top-level LICENSE file.

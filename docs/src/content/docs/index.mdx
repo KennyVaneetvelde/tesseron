@@ -1,0 +1,156 @@
+---
+title: Tesseron
+description: Expose typed web-app actions to MCP-compatible AI agents over WebSocket. No browser automation, no scraping.
+template: splash
+hero:
+  tagline: |
+    Expose typed web-app actions to MCP-compatible AI agents over WebSocket.
+    No browser automation, no scraping, no Playwright.
+  image:
+    file: ../../assets/logo-light.svg
+  actions:
+    - text: Quickstart (5 min)
+      link: /overview/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: Protocol spec
+      link: /protocol/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/KennyVaneetvelde/tesseron
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import Diagram from '../../components/Diagram.astro';
+
+<Diagram
+  caption="Your web app declares actions. The MCP gateway bridges them to any MCP-capable agent (Claude Code, Cursor, Claude Desktop)."
+  nodeWidth={130}
+  spacing={115}
+  pad={42}
+  nodes={[
+    { id: 'user',  label: 'USER',    sub: ['human at', 'the keyboard'],     icon: 'user' },
+    { id: 'app',   label: 'YOUR APP', sub: 'browser or node', code: '@tesseron/web', icon: 'window' },
+    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WebSocket + MCP', code: '@tesseron/mcp :7475', icon: 'bridge', variant: 'accent' },
+    { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent' },
+  ]}
+  edges={[
+    { from: 'user', to: 'app' },
+    { from: 'app',  to: 'gw',    label: 'WebSocket', bidirectional: true, accent: true },
+    { from: 'gw',   to: 'agent', label: 'MCP stdio', bidirectional: true, accent: true },
+  ]}
+/>
+
+## What you get
+
+<CardGrid>
+  <Card title="Typed actions" icon="seti:typescript">
+    Declare actions with a fluent builder backed by any [Standard Schema](https://standardschema.dev) validator - Zod, Valibot, ArkType, Effect Schema. The MCP tool schema is derived automatically.
+  </Card>
+  <Card title="Real UI, not a shadow DOM" icon="open-book">
+    The agent drives your actual running app. State, auth, feature flags - all intact. Nothing to scrape, nothing to re-implement.
+  </Card>
+  <Card title="Full MCP capability set" icon="rocket">
+    Streaming progress, cancellation, resources (read + subscribe), sampling, and elicitation work out of the box over a single WebSocket.
+  </Card>
+  <Card title="Framework-agnostic" icon="puzzle">
+    One-file integrations for vanilla TS, React, Svelte, Vue, Node, and Express. Same builder API everywhere.
+  </Card>
+</CardGrid>
+
+## Read the docs in two halves
+
+<CardGrid>
+  <LinkCard
+    title="Protocol"
+    href="/protocol/"
+    description="The wire format, handshake, action model, and advanced MCP features - with a diagram for every flow."
+  />
+  <LinkCard
+    title="SDK"
+    href="/sdk/"
+    description="Build with @tesseron/web, /server, /react, or port Tesseron to a new language."
+  />
+</CardGrid>
+
+## 60-second taste
+
+```ts title="src/main.ts"
+import { tesseron } from '@tesseron/web';
+import { z } from 'zod';
+
+tesseron.app({ id: 'shop', name: 'Acme Shop' });
+
+// 1. A plain action - input, handler, streaming progress, return value.
+tesseron
+  .action('searchProducts')
+  .describe('Search the product catalog')
+  .input(z.object({ query: z.string().min(1), limit: z.number().default(10) }))
+  .handler(async ({ query, limit }, ctx) => {
+    ctx.progress({ message: 'searching...', percent: 20 });
+    const items = await store.search(query, { limit });
+    return { items }; // becomes the MCP tool result the agent sees
+  });
+
+// 2. An action that pauses to ask the user through the agent's UI.
+tesseron
+  .action('checkout')
+  .describe('Place the pending order')
+  .input(z.object({ cartId: z.string() }))
+  .handler(async ({ cartId }, ctx) => {
+    const ok = await ctx.confirm({
+      question: `Place order for $${cart.total(cartId)}? This charges your card.`,
+    });
+    if (!ok) throw new Error('User cancelled');
+    return await orders.place(cartId);
+  });
+
+// 3. A resource - readable, subscribable app state. No polling needed.
+tesseron
+  .resource('currentRoute')
+  .describe('URL the user is viewing')
+  .read(() => location.pathname)
+  .subscribe((emit) => {
+    const fn = () => emit(location.pathname);
+    addEventListener('popstate', fn);
+    return () => removeEventListener('popstate', fn);
+  });
+
+// 4. Connect. `connect()` resolves with the claim code - surface it
+//    in your UI so the human can paste it into their agent.
+const { claimCode } = await tesseron.connect();
+document.querySelector('#connect-banner')!.textContent =
+  `Paste "${claimCode}" into Claude to connect this tab.`;
+```
+
+**What the agent sees once connected:**
+
+- Two MCP tools: `shop__searchProducts` and `shop__checkout`. It can call either, pass typed input, and receive your typed output.
+- One resource: `tesseron://shop/currentRoute`. It can read once, or subscribe and get pushed updates every time the user navigates - no polling, no webhooks.
+
+**What you didn't have to do:**
+
+- No HTTP server. The WebSocket goes to the gateway that runs next to the agent.
+- No OpenAPI spec, no tool schemas. They're derived from your Zod validators.
+- No glue between tools. The agent reads `searchProducts`'s output, picks a product, calls `checkout` with it, and pauses on `ctx.confirm` until the user approves - all orchestrated by the agent loop.
+
+That's the whole surface: `.action()`, `.resource()`, and `.connect()`. Everything else is detail.
+
+**The other half runs next to the agent.** The gateway is `@tesseron/mcp` - an MCP server that opens the WebSocket port, hands out claim codes, and translates MCP tool calls into `actions/invoke` frames on your app's socket. You don't write MCP code; the gateway *is* the MCP server.
+
+You wire it into your agent's MCP config once. Claude Desktop example (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "tesseron": {
+      "command": "npx",
+      "args": ["-y", "@tesseron/mcp"]
+    }
+  }
+}
+```
+
+Claude Code / Cursor / any MCP-capable client: same pattern, their own config file.

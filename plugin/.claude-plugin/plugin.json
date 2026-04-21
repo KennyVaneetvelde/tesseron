@@ -1,0 +1,23 @@
+{
+  "name": "tesseron",
+  "version": "0.1.0",
+  "description": "MCP gateway that lets any web app expose typed actions to Claude over WebSocket — no browser automation. Pair with @tesseron/web (or /server, /react) in your app.",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com"
+  },
+  "homepage": "https://github.com/KennyVaneetvelde/tesseron",
+  "repository": "https://github.com/KennyVaneetvelde/tesseron",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "tesseron",
+    "atomic-agents",
+    "web-sdk",
+    "actions",
+    "react",
+    "svelte",
+    "vue",
+    "websocket"
+  ]
+}

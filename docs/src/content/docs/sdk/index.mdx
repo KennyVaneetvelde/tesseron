@@ -1,0 +1,68 @@
+---
+title: SDK overview
+description: What a Tesseron SDK has to expose - in TypeScript today, in any other language tomorrow.
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import Mermaid from '../../../components/Mermaid.astro';
+
+An SDK is the part of Tesseron that lives in **your** process. It serialises outgoing JSON-RPC, dispatches incoming method calls into your handlers, and wraps the per-invocation protocol glue (progress, cancel, sample, elicit) in a shape that feels natural in the host language.
+
+Today we ship five TypeScript packages. The surface they expose - the **SDK contract** - is the portable part. A Python or Go implementation reuses the same concepts.
+
+## The shipped TypeScript SDK
+
+<Mermaid
+  caption="Five packages. core owns the protocol types and builder; the others wrap transport and framework integration."
+  code={`
+flowchart LR
+  core["@tesseron/core<br/>action & resource builders<br/>JSON-RPC dispatcher<br/>protocol types"]
+  web["@tesseron/web<br/>browser client<br/>WebSocket transport"]
+  server["@tesseron/server<br/>Node client<br/>ws transport"]
+  react["@tesseron/react<br/>useTesseronAction<br/>useTesseronResource<br/>useTesseronConnection"]
+  mcp["@tesseron/mcp<br/>MCP gateway<br/>MCP stdio bridge"]
+  web -- "re-exports" --> core
+  server -- "re-exports" --> core
+  react -- "wraps" --> web
+  mcp -. "shared types" .-> core
+`}
+/>
+
+<CardGrid>
+  <LinkCard title="Quickstart" href="/sdk/typescript/"
+    description="Install one package, declare one action, connect." />
+  <LinkCard title="@tesseron/core" href="/sdk/typescript/core/"
+    description="Action & resource builders, JSON-RPC dispatcher, protocol types. Zero runtime deps beyond Standard Schema." />
+  <LinkCard title="@tesseron/web" href="/sdk/typescript/web/"
+    description="Browser WebSocket transport + singleton client." />
+  <LinkCard title="@tesseron/server" href="/sdk/typescript/server/"
+    description="Node `ws`-backed transport + singleton client." />
+  <LinkCard title="@tesseron/react" href="/sdk/typescript/react/"
+    description="`useTesseronAction`, `useTesseronResource`, `useTesseronConnection`." />
+  <LinkCard title="@tesseron/mcp" href="/sdk/typescript/mcp/"
+    description="The MCP gateway itself. CLI, bundled into the Claude Code plugin." />
+</CardGrid>
+
+## The portable SDK contract
+
+Whatever language you implement Tesseron in, the SDK has to expose these primitives. They correspond 1:1 with the [protocol](/protocol/).
+
+| Primitive | In TypeScript | Covers |
+|---|---|---|
+| **Client lifecycle** | `tesseron.app({ id, name, … })` + `tesseron.connect()` | Handshake, session ID, claim code. |
+| **Action builder** | `.action(name).describe(…).input(…).output(…).handler(fn)` | Declaring a named, typed, handler-backed action. |
+| **Resource builder** | `.resource(name).read(fn).subscribe(emitter)` | Declaring readable + optionally subscribable state. |
+| **Standard Schema bridge** | Accepts any `StandardSchemaV1<T>` validator (Zod, Valibot, ArkType, …) | Input / output / sampling / elicitation validation. |
+| **Invocation context** | `(input, ctx)` passed to every handler | `ctx.signal`, `ctx.progress`, `ctx.sample`, `ctx.confirm`, `ctx.elicit`, `ctx.log`, `ctx.agent`, `ctx.agentCapabilities`, `ctx.client`. |
+| **Transport abstraction** | `Transport { send, onMessage, onClose, close }` | WebSocket in practice, but the protocol is transport-agnostic. |
+| **JSON-RPC dispatcher** | `JsonRpcDispatcher` | Request/notification handling, ID correlation, timeout, error mapping. |
+| **Structured error model** | `TesseronError(code, message, data?)` | Mapping to / from JSON-RPC error objects with the error codes in the [catalog](/protocol/errors/). |
+
+## Other SDKs
+
+<CardGrid>
+  <LinkCard title="Python SDK (planned)" href="/sdk/python/"
+    description="Status, intended shape, timeline." />
+  <LinkCard title="Port Tesseron to your language" href="/sdk/porting/"
+    description="Step-by-step guide, protocol conformance checklist, test strategy." />
+</CardGrid>

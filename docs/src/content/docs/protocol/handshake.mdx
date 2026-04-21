@@ -1,0 +1,140 @@
+---
+title: Handshake & claiming
+description: How a WebSocket becomes a bound session - tesseron/hello, welcome, claim code, and tools/list_changed.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+A Tesseron session goes through three states: **connected**, **awaiting claim**, **claimed**. Only claimed sessions can have their actions invoked.
+
+<Sequence
+  caption="From page load to first tool call."
+  actorWidth={170}
+  actorGap={50}
+  actors={[
+    { id: 'app', label: 'WEB APP',  sub: '@tesseron/web', icon: 'window' },
+    { id: 'gw',  label: 'MCP GATEWAY', sub: '@tesseron/mcp', icon: 'bridge', variant: 'accent' },
+    { id: 'u',   label: 'USER',    icon: 'user' },
+    { id: 'a',   label: 'AGENT',   sub: 'Claude Code',  icon: 'agent' },
+  ]}
+  steps={[
+    { from: 'app', to: 'gw',  label: 'tesseron/hello { app, actions, resources, caps }' },
+    { from: 'gw',  to: 'app', label: "tesseron/welcome { sessionId, claimCode: 'AB3X-7K' }", style: 'dashed' },
+    { from: 'gw',  to: 'u',   label: 'claim code (web UI or stdout)', style: 'dashed' },
+    { from: 'u',   to: 'a',   label: 'connect AB3X-7K' },
+    { from: 'a',   to: 'gw',  label: 'tools/call tesseron__claim_session', accent: true },
+    { from: 'gw',  to: 'a',   label: 'notifications/tools/list_changed', style: 'dashed' },
+    { from: 'a',   to: 'gw',  label: 'tools/call shop__searchProducts' },
+    { from: 'gw',  to: 'app', label: 'actions/invoke { invocationId, input }' },
+    { from: 'app', to: 'gw',  label: 'result', style: 'dashed' },
+    { from: 'gw',  to: 'a',   label: 'tools/call result', style: 'dashed' },
+  ]}
+/>
+
+## The `tesseron/hello` request
+
+Sent by the app right after the WebSocket opens.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tesseron/hello",
+  "params": {
+    "protocolVersion": "0.2.0",
+    "app": {
+      "id": "shop",
+      "name": "Acme Shop",
+      "description": "Product catalog and cart",
+      "origin": "http://localhost:3000",
+      "version": "1.0.0",
+      "iconUrl": "https://shop.example/icon.svg"
+    },
+    "actions": [
+      {
+        "name": "searchProducts",
+        "description": "Search the product catalog",
+        "inputSchema": { /* JSON Schema */ },
+        "outputSchema": { /* JSON Schema, optional */ },
+        "annotations": { "readOnly": true },
+        "timeoutMs": 60000
+      }
+    ],
+    "resources": [
+      { "name": "currentRoute", "description": "URL the user is viewing", "subscribable": true }
+    ],
+    "capabilities": {
+      "streaming": true,
+      "subscriptions": true,
+      "sampling": true,
+      "elicitation": true
+    }
+  }
+}
+```
+
+Rules:
+
+- `app.id` must match `/^[a-z][a-z0-9_]*$/`. It becomes the prefix on every MCP tool this app contributes.
+- `app.origin` is informational; the MCP gateway treats its own origin check (see [Transport](/protocol/transport/)) as authoritative.
+- Action `inputSchema` / `outputSchema` are JSON Schema. The SDK derives them from your Standard Schema validator where possible, or you can pass them explicitly.
+- `capabilities` is what the **app** can do, not what the agent can do - that comes back in `welcome`.
+
+## The `welcome` response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "sessionId": "s_a1b2c3de1234567",
+    "protocolVersion": "0.2.0",
+    "capabilities": { "streaming": true, "subscriptions": true, "sampling": true, "elicitation": true },
+    "agent": { "id": "pending", "name": "Awaiting agent" },
+    "claimCode": "AB3X-7K"
+  }
+}
+```
+
+- `sessionId` is opaque and only meaningful to the gateway - log it for debugging.
+- `capabilities` here is the **intersection** of app and agent capabilities. If the agent doesn't support sampling, it will be `false` here even if you asked for it.
+- `agent` stays at `{ id: "pending", name: "Awaiting agent" }` until a claim happens.
+- `claimCode` is a 6-character human-friendly string like `AB3X-7K`. Alphanumerics minus visually confusing characters.
+
+## Claiming
+
+The claim code is **not** sent on the wire to the agent. It's displayed in two places, for the human to transfer out-of-band:
+
+1. The gateway prints it to stderr (which Claude Code surfaces).
+2. The app is free to render it in its UI - e.g. a "Connect Claude" button that reveals the code.
+
+The user then tells the agent:
+
+> Claim Tesseron session AB3X-7K
+
+The agent calls the built-in `tesseron__claim_session` MCP tool with `{ code: "AB3X-7K" }`. The gateway looks up the pending claim, and if it matches:
+
+- Marks the session `claimed: true`.
+- Sets `agent` on the session to the agent's identity.
+- Emits `notifications/tools/list_changed` so the agent refreshes its tool list.
+- From this point, `tools/call <app_id>__<action>` is allowed.
+
+If the code doesn't match (expired, wrong app, already used): error `-32009 Unauthorized`.
+
+## Why out-of-band claim?
+
+Because in-band claim is just security theatre over localhost. Anything running on the user's machine can open a WebSocket to `:7475`. The claim code is a **user-typed confirmation** - proof that a human authorised this specific browser tab to be controlled by this specific agent session. It's short enough to read aloud, long enough to resist guessing (~1.5 billion combinations of 6 upper-case alphanumeric minus confusables).
+
+## Protocol version mismatch
+
+The MCP gateway parses `protocolVersion` as `major.minor`:
+
+- **Different major** → hard reject with error code `-32000 ProtocolMismatch` and the WebSocket is closed.
+- **Different minor** → accepted, with a warning logged to gateway stderr. New fields added in later minors may be silently dropped; rebuild the SDK bundle to resync.
+- **Exact match** → no logging.
+
+```json
+{ "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "Gateway speaks protocol 0.2.0; SDK sent 1.0.0. Major version mismatch - pin compatible package versions." } }
+```
+
+Next: the [action model](/protocol/actions/).

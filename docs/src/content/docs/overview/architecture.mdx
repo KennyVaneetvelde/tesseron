@@ -1,0 +1,65 @@
+---
+title: Architecture at a glance
+description: The three moving parts - your app, the MCP gateway, the agent - and how a single action flows between them.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+
+<Diagram
+  caption="Three processes, two protocols. Your app speaks JSON-RPC over WebSocket to the MCP gateway; the gateway speaks MCP stdio to the agent."
+  nodes={[
+    { id: 'user',  label: 'USER',    sub: ['human at', 'the keyboard'],     icon: 'user' },
+    { id: 'app',   label: 'YOUR APP', sub: 'browser or node', code: '@tesseron/web', icon: 'window' },
+    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WebSocket + MCP', code: '@tesseron/mcp :7475', icon: 'bridge', variant: 'accent' },
+    { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent' },
+  ]}
+  edges={[
+    { from: 'user', to: 'app' },
+    { from: 'app',  to: 'gw',    label: 'WebSocket', bidirectional: true, accent: true },
+    { from: 'gw',   to: 'agent', label: 'MCP stdio', bidirectional: true, accent: true },
+  ]}
+/>
+
+## Three processes
+
+- **Your app** - browser tab, React / Svelte / Vue / vanilla-TS, or a Node process. Hosts the action handlers and the real state they mutate. Uses `@tesseron/web`, `@tesseron/server`, or a framework adapter.
+- **The MCP gateway** - a small Node process (`@tesseron/mcp`) bundled into the Claude Code plugin. Listens on `ws://127.0.0.1:7475` for your app and on stdio for the agent. Translates between the two.
+- **The agent** - Claude Code, Claude Desktop, Cursor, or any other MCP client. Doesn't know or care about WebSockets - it only sees standard MCP tools.
+
+## Two protocols
+
+| Hop | Protocol | Transport |
+|---|---|---|
+| app ↔ gateway | Tesseron JSON-RPC 2.0 (custom) | WebSocket |
+| gateway ↔ agent | Model Context Protocol | stdio |
+
+The gateway is the only place that knows both dialects. Everything else is clean on each side: your app speaks one flavour of JSON-RPC, the agent speaks MCP.
+
+## What travels on each hop
+
+**App → Gateway** (you send these):
+- `tesseron/hello` - register app, actions, resources, capabilities.
+- `actions/invoke` response - the return value of an invoked action.
+- `actions/progress` - streaming progress updates.
+- `resources/updated` - push notifications for subscribed resources.
+- `sampling/request`, `elicitation/request` - ask the agent or user something mid-handler.
+
+**Gateway → App** (you handle these):
+- `actions/invoke` - the agent called one of your actions.
+- `actions/cancel` - the agent cancelled a running invocation.
+- `resources/read`, `resources/subscribe`, `resources/unsubscribe` - resource I/O.
+
+**Gateway → Agent** (abstracted - the SDK takes care of MCP framing):
+- `tools/list` with entries named `<app_id>__<action_name>`.
+- `tools/call` results, streamed via `notifications/progress` where available.
+- `resources/list`, `resources/read`, `resources/subscribe`.
+
+## Why an MCP gateway?
+
+Because MCP doesn't run over WebSocket, and JSON-RPC-over-stdio doesn't work from a browser tab. The gateway reconciles the two, plus:
+
+- **Session claiming.** A 6-character code (`AB3X-7K`) that the user pastes into the agent binds one tab to one agent session. Keeps strangers out.
+- **Origin allowlist.** Non-localhost origins are rejected at the upgrade handshake unless explicitly allowed.
+- **Multi-app fan-in.** You can run several apps at once; tools are namespaced by `app.id` so `shop__addItem` and `admin__banUser` never collide.
+
+Next: the [5-minute quickstart](/overview/quickstart/) walks through getting this running end-to-end.

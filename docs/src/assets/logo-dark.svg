@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" fill="none" aria-label="Tesseron">
+  <rect x="2" y="4" width="24" height="24" rx="6" fill="#f59e0b"/>
+  <rect x="6" y="8" width="16" height="16" rx="3" fill="none" stroke="#0d1017" stroke-width="1.6"/>
+  <rect x="10" y="12" width="8" height="8" rx="1.5" fill="#0d1017"/>
+  <text x="36" y="22" font-family="-apple-system,system-ui,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#eef1f6" letter-spacing="-0.01em">tesseron</text>
+</svg>

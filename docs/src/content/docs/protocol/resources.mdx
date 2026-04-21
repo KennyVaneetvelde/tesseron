@@ -1,0 +1,145 @@
+---
+title: Resources
+description: Typed, readable, optionally subscribable state your app projects to the agent.
+---
+
+import Sequence from '../../../components/Sequence.astro';
+
+A **resource** is a named piece of app state the agent can read - and optionally subscribe to for push updates. Resources complement actions: actions cause changes, resources expose what changed.
+
+<Sequence
+  caption="Agent reads once, then subscribes. When the app's value changes, the SDK pushes a resources/updated notification."
+  actors={[
+    { id: 'a', label: 'AGENT',            icon: 'agent' },
+    { id: 'g', label: 'MCP GATEWAY',          icon: 'bridge', variant: 'accent' },
+    { id: 's', label: 'RESOURCE HANDLER', icon: 'database' },
+  ]}
+  steps={[
+    { from: 'a', to: 'g', label: 'resources/read tesseron://shop/route' },
+    { from: 'g', to: 's', label: 'resources/read' },
+    { from: 's', to: 'g', label: "{ value: '/cart' }", style: 'dashed' },
+    { from: 'g', to: 'a', label: 'read result', style: 'dashed' },
+    { from: 'a', to: 'g', label: 'resources/subscribe', accent: true },
+    { from: 'g', to: 's', label: 'resources/subscribe', accent: true },
+    { note: 's', label: 'register emit() callback' },
+    { from: 's', to: 'g', label: "resources/updated { value: '/checkout' }", style: 'dashed', accent: true },
+    { from: 'g', to: 'a', label: 'notifications/resources/updated', style: 'dashed', accent: true },
+  ]}
+/>
+
+## Declaration
+
+```ts
+tesseron.resource('currentRoute')
+  .describe('The URL path the user is currently viewing')
+  .read(() => window.location.pathname)
+  .subscribe((emit) => {
+    const onChange = () => emit(window.location.pathname);
+    window.addEventListener('popstate', onChange);
+    return () => window.removeEventListener('popstate', onChange);
+  });
+```
+
+- `.read()` is a one-shot getter. Called on every `resources/read` the agent issues.
+- `.subscribe()` is optional. It registers an emitter; return an unsubscribe function so the SDK can clean up when the agent unsubscribes or the session closes.
+
+## URI convention
+
+Resources are exposed to the agent with the URI `tesseron://<app_id>/<resource_name>`. For `app.id = "shop"` and `resource = "currentRoute"`, the agent sees `tesseron://shop/currentRoute`.
+
+## Reading from clients that don't speak MCP resources
+
+Some MCP clients don't surface `resources/read` to their model. The MCP gateway ships a meta-tool fallback:
+
+- **`tesseron__read_resource`** (`{ app_id, name }`) - returns the resource's current value as a tool-call result. Prefer this over the generic `ReadMcpResourceTool` because the agent doesn't have to know how the MCP server is namespaced on the client (e.g. `plugin:tesseron:tesseron` in Claude Code plugin installs vs. `tesseron` in a raw config).
+
+`tesseron__list_actions` enumerates every claimed session's resources and includes both the preferred `tesseron__read_resource` args and the `ReadMcpResourceTool` fallback.
+
+## Wire format
+
+### Read (gateway → app, request)
+
+```json
+{ "jsonrpc": "2.0", "id": 14, "method": "resources/read", "params": { "name": "currentRoute" } }
+```
+
+Response:
+
+```json
+{ "jsonrpc": "2.0", "id": 14, "result": { "value": "/checkout" } }
+```
+
+### Subscribe (gateway → app, request)
+
+```json
+{ "jsonrpc": "2.0", "id": 15, "method": "resources/subscribe", "params": { "name": "currentRoute", "subscriptionId": "sub_1" } }
+```
+
+Response is empty - the SDK just acknowledges and now holds the emitter callback.
+
+### Update (app → gateway, notification)
+
+Each time the emitter fires:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "resources/updated",
+  "params": { "subscriptionId": "sub_1", "value": "/cart" }
+}
+```
+
+The gateway forwards this as MCP `notifications/resources/updated` to the agent.
+
+### Unsubscribe (gateway → app, request)
+
+```json
+{ "jsonrpc": "2.0", "id": 16, "method": "resources/unsubscribe", "params": { "subscriptionId": "sub_1" } }
+```
+
+The SDK calls the unsubscribe function returned by your `.subscribe()` handler.
+
+### List changed (app → gateway, notification)
+
+If your app registers or removes resources after the initial `tesseron/hello`, the SDK emits `resources/list_changed` with the new manifest. The gateway forwards this as MCP `notifications/resources/list_changed` so agents can refetch the list. `actions/list_changed` follows the same pattern for dynamic action sets.
+
+## Patterns
+
+### Read-only projection
+
+```ts
+tesseron.resource('filterState').read(() => ({
+  search: state.search,
+  onlyDone: state.onlyDone,
+}));
+```
+
+Perfect for letting the agent reason about "what's the user currently looking at" before proposing actions.
+
+### Debounced subscription
+
+Don't emit on every keystroke - the agent can't meaningfully react at that rate.
+
+```ts
+tesseron.resource('search')
+  .read(() => state.search)
+  .subscribe((emit) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => emit(state.search), 250);
+    };
+    state.on('change', onChange);
+    return () => { if (timer) clearTimeout(timer); state.off('change', onChange); };
+  });
+```
+
+### Large or expensive resources
+
+If the value is expensive to produce, remember that `.read()` runs every time the agent fetches. Cache inside the handler, or use `.subscribe()` as the source of truth and cache the latest emitted value in-memory.
+
+## Capability gate
+
+Subscriptions require `agentCapabilities.subscriptions`. Reads do not. If the agent can't subscribe, it will only call `resources/read` and your `.subscribe()` handler is never invoked.
+
+Next: the full [error catalog and capability negotiation](/protocol/errors/).

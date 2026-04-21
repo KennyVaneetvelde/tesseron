@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tesseron Diagram Template</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dgm-bg-page: #f8fafc;
+      --dgm-bg-figure: #ffffff;
+      --dgm-grid: rgba(148, 163, 184, 0.35);
+      --dgm-border: #cbd5e1;
+      --dgm-shadow-color: #0f172a;
+
+      --dgm-card-neutral-1: #ffffff;
+      --dgm-card-neutral-2: #f1f5f9;
+      --dgm-card-accent-1: #fffdf7;
+      --dgm-card-accent-2: #fef3c7;
+      --dgm-card-danger-1: #fef2f2;
+      --dgm-card-danger-2: #fee2e2;
+
+      --dgm-accent-border-1: #fbbf24;
+      --dgm-accent-border-2: #d97706;
+      --dgm-danger-border-1: #f87171;
+      --dgm-danger-border-2: #b91c1c;
+
+      --dgm-accent: #f59e0b;
+      --dgm-accent-text: #b45309;
+      --dgm-danger: #dc2626;
+      --dgm-danger-text: #b91c1c;
+
+      --dgm-line: #94a3b8;
+      --dgm-line-strong: #64748b;
+      --dgm-text: #0f172a;
+      --dgm-text-muted: #475569;
+      --dgm-icon: #64748b;
+
+      --dgm-pill-bg: #ffffff;
+      --dgm-pill-border: #e2e8f0;
+      --dgm-pill-text: #334155;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --dgm-bg-page: #060a13;
+        --dgm-bg-figure: #0b1220;
+        --dgm-grid: rgba(51, 65, 85, 0.55);
+        --dgm-border: #334155;
+        --dgm-shadow-color: #000000;
+
+        --dgm-card-neutral-1: #172033;
+        --dgm-card-neutral-2: #0f172a;
+        --dgm-card-accent-1: #2a1f0a;
+        --dgm-card-accent-2: #1c1407;
+        --dgm-card-danger-1: #2a0f0f;
+        --dgm-card-danger-2: #1c0a0a;
+
+        --dgm-accent-border-1: #fcd34d;
+        --dgm-accent-border-2: #d97706;
+        --dgm-danger-border-1: #fca5a5;
+        --dgm-danger-border-2: #b91c1c;
+
+        --dgm-accent-text: #fcd34d;
+        --dgm-danger-text: #fca5a5;
+
+        --dgm-line: #64748b;
+        --dgm-line-strong: #cbd5e1;
+        --dgm-text: #e2e8f0;
+        --dgm-text-muted: #94a3b8;
+        --dgm-icon: #94a3b8;
+
+        --dgm-pill-bg: #0f172a;
+        --dgm-pill-border: #334155;
+        --dgm-pill-text: #cbd5e1;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--dgm-bg-page);
+      color: var(--dgm-text);
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header { margin-bottom: 1.5rem; }
+    .header-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; }
+    .pulse-dot {
+      width: 10px; height: 10px; background: var(--dgm-accent);
+      border-radius: 50%; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { color: var(--dgm-text-muted); font-size: 0.9rem; margin-left: 1.45rem; }
+
+    figure.dgm-figure {
+      margin: 0;
+      padding: 1.25rem 1.5rem 0.9rem;
+      border: 1px solid var(--dgm-border);
+      border-radius: 16px;
+      background: var(--dgm-bg-figure);
+    }
+    figure.dgm-figure .dgm-scroll { overflow-x: auto; }
+    figure.dgm-figure svg.dgm-svg {
+      display: block;
+      margin-inline: auto;
+      max-width: none;
+      height: auto;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    figure.dgm-figure figcaption {
+      margin-top: 0.9rem;
+      font-size: 0.9rem;
+      color: var(--dgm-text-muted);
+      text-align: center;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .card {
+      background: var(--dgm-bg-figure);
+      border: 1px solid var(--dgm-border);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+    }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.accent { background: var(--dgm-accent); }
+    .card-dot.neutral { background: var(--dgm-line); }
+    .card h3 { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    .card ul { list-style: none; color: var(--dgm-text-muted); font-size: 0.82rem; }
+    .card li { margin-bottom: 0.35rem; padding-left: 0.75rem; position: relative; }
+    .card li::before { content: "·"; position: absolute; left: 0; color: var(--dgm-accent); font-weight: 700; }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--dgm-text-muted);
+      font-size: 0.75rem;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      opacity: 0.7;
+    }
+
+    /* Diagram text classes */
+    .dgm-title { font: 600 13.5px/1 Inter, sans-serif; letter-spacing: 0.08em; fill: var(--dgm-text); }
+    .dgm-title-accent { fill: var(--dgm-accent-text); }
+    .dgm-title-danger { fill: var(--dgm-danger-text); }
+    .dgm-sub { font: 400 12.5px/1 Inter, sans-serif; fill: var(--dgm-text-muted); }
+    .dgm-sub-accent { fill: var(--dgm-accent-text); opacity: 0.9; }
+    .dgm-code { font: 400 11.5px/1 "JetBrains Mono", monospace; fill: var(--dgm-text-muted); }
+    .dgm-code-accent { fill: var(--dgm-accent-text); }
+    .dgm-lbl { font: 500 12px/1 Inter, sans-serif; letter-spacing: 0.02em; fill: var(--dgm-pill-text); }
+    .dgm-icon { stroke: var(--dgm-icon); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .dgm-icon-accent { stroke: var(--dgm-accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Diagram title</h1>
+      </div>
+      <p class="subtitle">One-sentence description</p>
+    </header>
+
+    <figure class="dgm-figure">
+      <div class="dgm-scroll">
+        <!--
+          STARTER TEMPLATE — 2-node horizontal flow.
+          Canvas 800 x 260, pad 30, card w=180 h=120, gap=140.
+          Midline y = 150 (matches card vertical center).
+          Duplicate/extend to add more cards following the layout math in SKILL.md.
+
+          Hard rules applied here:
+            - Arrow = <line> + <polygon>, NOT <marker>.
+            - Line x2 = triangle base x (NOT the tip). Line has stroke-linecap="butt".
+            - Arrowhead triangle is 10 wide, 10 tall (base at +/-5 from midline).
+            - Label pill is centered ON the arrow line (y band y-11..y+11, text y+4).
+            - Icons centered horizontally above the title (translate cx-10, y+16).
+            - Glow ellipse rx = 0.6*W, ry = 0.7*H, opacity 0.33.
+        -->
+        <svg class="dgm-svg" viewBox="0 0 800 260" width="800" height="260" role="img" aria-label="architecture diagram">
+
+          <defs>
+            <!-- Dotted grid -->
+            <pattern id="dgm-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+              <circle cx="1.2" cy="1.2" r="1.2" fill="var(--dgm-grid)"/>
+            </pattern>
+
+            <!-- Card fills -->
+            <linearGradient id="dgm-card-neutral" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-card-neutral-1)"/>
+              <stop offset="1" stop-color="var(--dgm-card-neutral-2)"/>
+            </linearGradient>
+            <linearGradient id="dgm-card-accent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-card-accent-1)"/>
+              <stop offset="1" stop-color="var(--dgm-card-accent-2)"/>
+            </linearGradient>
+
+            <!-- Accent border gradient -->
+            <linearGradient id="dgm-border-accent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--dgm-accent-border-1)"/>
+              <stop offset="1" stop-color="var(--dgm-accent-border-2)"/>
+            </linearGradient>
+
+            <!-- Accent glow -->
+            <filter id="dgm-glow-accent" x="-30%" y="-60%" width="160%" height="220%">
+              <feGaussianBlur stdDeviation="14" result="b"/>
+              <feColorMatrix in="b" type="matrix"
+                values="0 0 0 0 0.98   0 0 0 0 0.73   0 0 0 0 0.14   0 0 0 0.45 0"/>
+            </filter>
+
+            <!-- Card shadow -->
+            <filter id="dgm-shadow" x="-10%" y="-10%" width="120%" height="130%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="var(--dgm-shadow-color)" flood-opacity="0.06"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="var(--dgm-shadow-color)" flood-opacity="0.04"/>
+            </filter>
+
+            <!-- Note: NO <marker> defs. Arrows are explicit line + polygon pairs. -->
+          </defs>
+
+          <!-- Z1: Dotted background -->
+          <rect width="100%" height="100%" fill="url(#dgm-dots)"/>
+
+          <!-- Z2: Accent glow behind accent node (cx=530 is Gateway card center) -->
+          <ellipse cx="530" cy="150" rx="108" ry="84" fill="var(--dgm-accent)" filter="url(#dgm-glow-accent)" opacity="0.33"/>
+
+          <!-- Z3: Arrow from Node 0 right-edge (x=210) to Node 1 tip (x=440).
+               Line runs to the base x (430), polygon carries the tip (430..440). -->
+          <line x1="210" y1="150" x2="430" y2="150"
+                stroke="var(--dgm-line-strong)" stroke-width="1.75" stroke-linecap="butt"/>
+          <polygon points="430,145 440,150 430,155" fill="var(--dgm-line-strong)"/>
+
+          <!-- Z4: Nodes (neutral left, accent right) -->
+          <!-- Node 0: NEUTRAL — USER. Card x=30..210, cx=120. -->
+          <g>
+            <rect x="30" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-neutral)" stroke="var(--dgm-border)"
+                  stroke-width="1.25" filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon" transform="translate(110,106)">
+              <circle cx="10" cy="7" r="3.6"/>
+              <path d="M3 20 a7 7 0 0 1 14 0"/>
+            </g>
+            <text x="120" y="150" text-anchor="middle" class="dgm-title">USER</text>
+            <text x="120" y="174" text-anchor="middle" class="dgm-sub">first node</text>
+            <text x="120" y="190" text-anchor="middle" class="dgm-sub">(neutral)</text>
+          </g>
+
+          <!-- Node 1: ACCENT — GATEWAY. Card x=440..620, cx=530. -->
+          <g>
+            <rect x="440" y="90" width="180" height="120" rx="14"
+                  fill="url(#dgm-card-accent)" stroke="url(#dgm-border-accent)"
+                  stroke-width="1.25" filter="url(#dgm-shadow)"/>
+            <g class="dgm-icon dgm-icon-accent" transform="translate(520,106)">
+              <path d="M3 7 H17"/>
+              <path d="M14 4 L18 7 L14 10"/>
+              <path d="M17 13 H3"/>
+              <path d="M6 10 L2 13 L6 16"/>
+            </g>
+            <text x="530" y="150" text-anchor="middle" class="dgm-title dgm-title-accent">GATEWAY</text>
+            <text x="530" y="174" text-anchor="middle" class="dgm-sub dgm-sub-accent">second node</text>
+            <text x="530" y="194" text-anchor="middle" class="dgm-code dgm-code-accent">(accent)</text>
+          </g>
+
+          <!-- Z5: Edge label pill — centered ON the arrow (pill band y=139..161, arrow at y=150). -->
+          <g>
+            <rect x="281" y="139" width="78" height="22" rx="7"
+                  fill="var(--dgm-pill-bg)" stroke="var(--dgm-pill-border)" stroke-width="1"/>
+            <text x="320" y="154" text-anchor="middle" class="dgm-lbl">connects</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Caption under the diagram.</figcaption>
+    </figure>
+
+    <section class="cards">
+      <article class="card">
+        <div class="card-header"><span class="card-dot accent"></span><h3>What it is</h3></div>
+        <ul>
+          <li>Component purpose in one sentence.</li>
+          <li>Technology or protocol identifier.</li>
+          <li>Who owns it.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="card-header"><span class="card-dot neutral"></span><h3>How it connects</h3></div>
+        <ul>
+          <li>Inbound protocol.</li>
+          <li>Outbound protocol.</li>
+          <li>Failure mode.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="card-header"><span class="card-dot neutral"></span><h3>Where to go next</h3></div>
+        <ul>
+          <li>Link to detailed section.</li>
+          <li>Link to code or spec.</li>
+          <li>Link to example.</li>
+        </ul>
+      </article>
+    </section>
+
+    <footer class="footer">
+      tesseron-diagram · template v1.0
+    </footer>
+  </div>
+</body>
+</html>
