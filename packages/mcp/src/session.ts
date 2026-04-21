@@ -3,9 +3,9 @@ import type {
   ActionManifestEntry,
   AppMetadata,
   TesseronCapabilities,
-  JsonRpcDispatcher,
   ResourceManifestEntry,
 } from '@tesseron/core';
+import type { JsonRpcDispatcher } from '@tesseron/core/internal';
 
 export interface Session {
   id: string;

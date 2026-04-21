@@ -111,6 +111,6 @@ And the **response** to the `tesseron/hello` you sent.
 
 ## Versioning
 
-`tesseron/hello` includes `protocolVersion: "0.2.0"`. The gateway parses it as `major.minor`: a major mismatch is rejected with `-32000 ProtocolMismatch` and the WebSocket is closed, a minor mismatch is accepted with a stderr warning (newer fields may be silently dropped), an exact match is silent. See [Handshake](/protocol/handshake/#protocol-version-mismatch).
+`tesseron/hello` includes `protocolVersion: "1.0.0"`. The gateway parses it as `major.minor`: a major mismatch is rejected with `-32000 ProtocolMismatch` and the WebSocket is closed, a minor mismatch is accepted with a stderr warning (newer fields may be silently dropped), an exact match is silent. See [Handshake](/protocol/handshake/#protocol-version-mismatch).
 
 Next: how that WebSocket gets established - [Transport](/protocol/transport/).

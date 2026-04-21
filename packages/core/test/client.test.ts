@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  TesseronClient,
-  JsonRpcDispatcher,
-  PROTOCOL_VERSION,
-  type Transport,
-} from '../src/index.js';
+import { PROTOCOL_VERSION, TesseronClient, type Transport } from '../src/index.js';
+import { JsonRpcDispatcher } from '../src/internal.js';
 
 interface PairedSetup {
   client: TesseronClient;

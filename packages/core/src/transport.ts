@@ -1,3 +1,6 @@
+import { TesseronError } from './errors.js';
+import { TesseronErrorCode } from './protocol.js';
+
 export interface Transport {
   send(message: unknown): void;
   onMessage(handler: (message: unknown) => void): void;
@@ -5,9 +8,12 @@ export interface Transport {
   close(reason?: string): void;
 }
 
-export class TransportClosedError extends Error {
+export class TransportClosedError extends TesseronError {
   constructor(reason?: string) {
-    super(reason ? `Transport closed: ${reason}` : 'Transport closed');
+    super(
+      TesseronErrorCode.TransportClosed,
+      reason ? `Transport closed: ${reason}` : 'Transport closed',
+    );
     this.name = 'TransportClosedError';
   }
 }

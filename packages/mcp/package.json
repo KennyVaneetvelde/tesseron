@@ -1,7 +1,7 @@
 {
   "name": "@tesseron/mcp",
-  "version": "0.0.0",
-  "description": "MCP gateway for Tesseron. Bridges WebSocket SDKs to MCP-compatible AI agents over stdio and Streamable HTTP.",
+  "version": "1.0.0",
+  "description": "MCP gateway for Tesseron. Bridges WebSocket SDKs to MCP-compatible AI agents over stdio.",
   "license": "BUSL-1.1",
   "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
   "type": "module",
@@ -10,12 +10,18 @@
   "bin": {
     "tesseron-mcp": "./src/cli.ts"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "tsx src/cli.ts",
     "build": "tsup",
-    "build:plugin": "tsup --config tsup-plugin.config.ts"
+    "build:plugin": "tsup --config tsup-plugin.config.ts",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@tesseron/core": "workspace:*",
@@ -30,5 +36,21 @@
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
     "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    },
+    "bin": {
+      "tesseron-mcp": "./dist/tesseron-mcp.cjs"
+    }
   }
 }

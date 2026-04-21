@@ -12,7 +12,7 @@ The Tesseron protocol specification (every page under `docs/protocol/`) is licen
 
 Tesseron speaks **JSON-RPC 2.0 over WebSocket** between your app and the MCP gateway, then the gateway bridges that to **MCP over stdio** for the agent. One action round-trip crosses both protocols.
 
-The protocol is at **version `0.2.0`**.
+The protocol is at **version `1.0.0`**.
 
 <Sequence
   caption="A first-use session, start to finish: from WebSocket open to the first tool-call result returned to the agent."
@@ -69,7 +69,7 @@ The protocol is at **version `0.2.0`**.
 
 | Name | Value |
 |---|---|
-| Protocol version | `0.2.0` |
+| Protocol version | `1.0.0` |
 | Default gateway URL | `ws://127.0.0.1:7475` |
 | Default action timeout | `60_000` ms |
 | Max sampling depth | `3` |

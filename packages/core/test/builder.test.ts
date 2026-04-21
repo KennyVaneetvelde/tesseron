@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import {
-  type ActionContext,
-  ActionBuilderImpl,
-  type RegisteredAction,
-  type RegisteredResource,
-  ResourceBuilderImpl,
-} from '../src/index.js';
+import type { ActionContext, RegisteredAction, RegisteredResource } from '../src/index.js';
+import { ActionBuilderImpl, ResourceBuilderImpl } from '../src/internal.js';
 
 class CapturingRegistry {
   actions: RegisteredAction[] = [];

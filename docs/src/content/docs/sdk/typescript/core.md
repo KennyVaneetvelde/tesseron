@@ -30,7 +30,7 @@ import {
   CancelledError, TimeoutError,
   TesseronErrorCode,   // numeric enum: InputValidation = -32004, etc.
   // Protocol constants & types.
-  PROTOCOL_VERSION,    // '0.2.0'
+  PROTOCOL_VERSION,    // '1.0.0'
   SDK_CAPABILITIES,    // { streaming: true, ... }
   HelloParams, WelcomeResult, TesseronCapabilities,
   ActionAnnotations,

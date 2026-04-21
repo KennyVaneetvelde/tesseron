@@ -41,7 +41,7 @@ Sent by the app right after the WebSocket opens.
   "id": 1,
   "method": "tesseron/hello",
   "params": {
-    "protocolVersion": "0.2.0",
+    "protocolVersion": "1.0.0",
     "app": {
       "id": "shop",
       "name": "Acme Shop",
@@ -88,7 +88,7 @@ Rules:
   "id": 1,
   "result": {
     "sessionId": "s_a1b2c3de1234567",
-    "protocolVersion": "0.2.0",
+    "protocolVersion": "1.0.0",
     "capabilities": { "streaming": true, "subscriptions": true, "sampling": true, "elicitation": true },
     "agent": { "id": "pending", "name": "Awaiting agent" },
     "claimCode": "AB3X-7K"
@@ -134,7 +134,7 @@ The MCP gateway parses `protocolVersion` as `major.minor`:
 - **Exact match** → no logging.
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "Gateway speaks protocol 0.2.0; SDK sent 1.0.0. Major version mismatch - pin compatible package versions." } }
+{ "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "Gateway speaks protocol 1.0.0; SDK sent 2.0.0. Major version mismatch - pin compatible package versions." } }
 ```
 
 Next: the [action model](/protocol/actions/).

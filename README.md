@@ -10,7 +10,7 @@
 <p>
   <a href="https://github.com/KennyVaneetvelde/tesseron/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/KennyVaneetvelde/tesseron?style=flat-square&color=f59e0b&logo=github&labelColor=0b1220"></a>
   <a href="./LICENSE"><img alt="License: BUSL-1.1" src="https://img.shields.io/badge/License-BUSL--1.1-f59e0b?style=flat-square&labelColor=0b1220"></a>
-  <img alt="Protocol 0.2.0" src="https://img.shields.io/badge/Protocol-0.2.0-f59e0b?style=flat-square&labelColor=0b1220">
+  <img alt="Protocol 1.0.0" src="https://img.shields.io/badge/Protocol-1.0.0-f59e0b?style=flat-square&labelColor=0b1220">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white&labelColor=0b1220">
   <img alt="Node 20+" src="https://img.shields.io/badge/Node-%E2%89%A5%2020-339933?style=flat-square&logo=node.js&logoColor=white&labelColor=0b1220">
   <img alt="Tests" src="https://img.shields.io/badge/Tests-65%20passing-22c55e?style=flat-square&labelColor=0b1220">

@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/core",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Protocol types and action builder for Tesseron. Transport-agnostic, validator-agnostic.",
   "license": "BUSL-1.1",
   "author": "Kenny Vaneetvelde <kenny.vaneetvelde@gmail.com>",
@@ -10,16 +10,53 @@
   "exports": {
     ".": "./src/index.ts",
     "./protocol": "./src/protocol.ts",
-    "./errors": "./src/errors.ts"
+    "./errors": "./src/errors.ts",
+    "./internal": "./src/internal.ts"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0"
   },
   "devDependencies": {
     "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      },
+      "./protocol": {
+        "types": "./dist/protocol.d.ts",
+        "import": "./dist/protocol.js",
+        "require": "./dist/protocol.cjs"
+      },
+      "./errors": {
+        "types": "./dist/errors.d.ts",
+        "import": "./dist/errors.js",
+        "require": "./dist/errors.cjs"
+      },
+      "./internal": {
+        "types": "./dist/internal.d.ts",
+        "import": "./dist/internal.js",
+        "require": "./dist/internal.cjs"
+      }
+    }
   }
 }

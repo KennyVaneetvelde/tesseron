@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = '0.2.0' as const;
+export const PROTOCOL_VERSION = '1.0.0' as const;
 export const JSONRPC_VERSION = '2.0' as const;
 
 export type JsonRpcId = string | number | null;
@@ -57,6 +57,7 @@ export const TesseronErrorCode = {
   ElicitationNotAvailable: -32007,
   SamplingDepthExceeded: -32008,
   Unauthorized: -32009,
+  TransportClosed: -32010,
 } as const;
 
 export type TesseronErrorCodeValue = (typeof TesseronErrorCode)[keyof typeof TesseronErrorCode];

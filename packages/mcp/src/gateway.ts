@@ -4,7 +4,6 @@ import {
   type ElicitationRequestParams,
   type ElicitationResult,
   type HelloParams,
-  JsonRpcDispatcher,
   PROTOCOL_VERSION,
   type ProgressUpdate,
   type ResourceReadResult,
@@ -14,6 +13,7 @@ import {
   TesseronErrorCode,
   type WelcomeResult,
 } from '@tesseron/core';
+import { JsonRpcDispatcher } from '@tesseron/core/internal';
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 import {
   type Session,

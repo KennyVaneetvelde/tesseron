@@ -17,8 +17,8 @@ import {
   SamplingNotAvailableError,
   TesseronError,
   TesseronErrorCode,
-  assertValidElicitSchema,
 } from '@tesseron/core';
+import { assertValidElicitSchema } from '@tesseron/core/internal';
 import type { ResourceSubscription, TesseronGateway } from './gateway.js';
 import type { Session } from './session.js';
 

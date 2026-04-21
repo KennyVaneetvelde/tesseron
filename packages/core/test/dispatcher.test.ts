@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TesseronError, JSONRPC_VERSION, JsonRpcDispatcher } from '../src/index.js';
+import { JSONRPC_VERSION, TesseronError } from '../src/index.js';
+import { JsonRpcDispatcher } from '../src/internal.js';
 
 function pair(): {
   a: JsonRpcDispatcher;

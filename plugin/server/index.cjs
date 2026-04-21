@@ -18830,7 +18830,7 @@ var import_node_buffer = require("buffer");
 var import_node_events = require("events");
 
 // ../core/src/protocol.ts
-var PROTOCOL_VERSION = "0.2.0";
+var PROTOCOL_VERSION = "1.0.0";
 var JSONRPC_VERSION2 = "2.0";
 var TesseronErrorCode = {
   ParseError: -32700,
@@ -18847,7 +18847,8 @@ var TesseronErrorCode = {
   SamplingNotAvailable: -32006,
   ElicitationNotAvailable: -32007,
   SamplingDepthExceeded: -32008,
-  Unauthorized: -32009
+  Unauthorized: -32009,
+  TransportClosed: -32010
 };
 
 // ../core/src/errors.ts

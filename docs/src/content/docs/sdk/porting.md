@@ -102,7 +102,7 @@ Before you ship, make sure the SDK passes every line of this list. An SDK that f
 
 **Handshake**
 - [ ] Sends `tesseron/hello` immediately after WebSocket open.
-- [ ] Sends `protocolVersion = "0.2.0"` exactly.
+- [ ] Sends `protocolVersion = "1.0.0"` exactly.
 - [ ] Sends `app.id` that matches `/^[a-z][a-z0-9_]*$/`.
 - [ ] Surfaces `welcome.claimCode` to the caller (stdout, event, return value - your choice).
 - [ ] Surfaces `welcome.capabilities` as the authoritative agent capability set to handlers.

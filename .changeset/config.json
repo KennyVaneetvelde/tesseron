@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "KennyVaneetvelde/tesseron" }
+  ],
+  "commit": false,
+  "fixed": [
+    [
+      "@tesseron/core",
+      "@tesseron/web",
+      "@tesseron/server",
+      "@tesseron/react",
+      "@tesseron/mcp"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@tesseron/devtools",
+    "create-tesseron",
+    "@tesseron/docs",
+    "vanilla-todo",
+    "react-todo",
+    "svelte-todo",
+    "vue-todo",
+    "express-todo",
+    "node-todo"
+  ]
+}
