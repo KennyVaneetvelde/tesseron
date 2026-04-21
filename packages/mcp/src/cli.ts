@@ -4,16 +4,16 @@ import { DEFAULT_GATEWAY_HOST, DEFAULT_GATEWAY_PORT, TesseronGateway } from './g
 import { McpAgentBridge, type ToolSurfaceMode } from './mcp-bridge.js';
 
 function toolSurfaceFromEnv(): ToolSurfaceMode {
-  const v = process.env.TESSERON_TOOL_SURFACE;
+  const v = process.env['TESSERON_TOOL_SURFACE'];
   if (v === 'dynamic' || v === 'meta' || v === 'both') return v;
   return 'both';
 }
 
 async function main(): Promise<void> {
-  const portEnv = process.env.TESSERON_PORT;
+  const portEnv = process.env['TESSERON_PORT'];
   const port = portEnv ? Number(portEnv) : DEFAULT_GATEWAY_PORT;
-  const host = process.env.TESSERON_HOST ?? DEFAULT_GATEWAY_HOST;
-  const allowlistEnv = process.env.TESSERON_ORIGIN_ALLOWLIST;
+  const host = process.env['TESSERON_HOST'] ?? DEFAULT_GATEWAY_HOST;
+  const allowlistEnv = process.env['TESSERON_ORIGIN_ALLOWLIST'];
   const originAllowlist = allowlistEnv ? allowlistEnv.split(',').map((s) => s.trim()) : undefined;
   const toolSurface = toolSurfaceFromEnv();
 

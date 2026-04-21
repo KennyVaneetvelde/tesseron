@@ -158,11 +158,13 @@ export class TesseronClient implements BuilderRegistry {
     dispatcher.on('resources/read', (params) =>
       this.handleResourceRead(params as ResourceReadParams),
     );
-    dispatcher.on('resources/subscribe', (params) =>
-      this.handleResourceSubscribe(params as ResourceSubscribeParams),
-    );
+    dispatcher.on('resources/subscribe', (params) => {
+      this.handleResourceSubscribe(params as ResourceSubscribeParams);
+      return undefined;
+    });
     dispatcher.on('resources/unsubscribe', (params) => {
       this.handleResourceUnsubscribe(params as ResourceUnsubscribeParams);
+      return undefined;
     });
 
     const hello: HelloParams = {

@@ -69,9 +69,13 @@ export function useTesseronResource<T = unknown>(
     const o = optionsRef.current;
     if (o.description) builder = builder.describe(o.description);
     if (o.output) builder = builder.output(o.output, o.outputJsonSchema);
-    if (o.read) builder = builder.read(() => optionsRef.current.read?.());
+    if (o.read) {
+      const read = o.read;
+      builder = builder.read(() => (optionsRef.current.read ?? read)());
+    }
     if (o.subscribe) {
-      builder = builder.subscribe((emit) => optionsRef.current.subscribe?.(emit));
+      const subscribe = o.subscribe;
+      builder = builder.subscribe((emit) => (optionsRef.current.subscribe ?? subscribe)(emit));
     }
     return () => {
       client.removeResource(name);

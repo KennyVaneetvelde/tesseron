@@ -302,8 +302,8 @@ export class McpAgentBridge {
       let localName: string;
       let invokeArgs: Record<string, unknown>;
       if (name === META_TOOL_INVOKE_ACTION) {
-        const rawAppId = typeof args.app_id === 'string' ? args.app_id : '';
-        const rawAction = typeof args.action === 'string' ? args.action : '';
+        const rawAppId = typeof args['app_id'] === 'string' ? args['app_id'] : '';
+        const rawAction = typeof args['action'] === 'string' ? args['action'] : '';
         if (!rawAppId || !rawAction) {
           return errorResult(
             'tesseron__invoke_action requires string "app_id" and "action". Use tesseron__list_actions to enumerate.',
@@ -312,8 +312,8 @@ export class McpAgentBridge {
         appId = rawAppId;
         localName = rawAction;
         invokeArgs =
-          typeof args.args === 'object' && args.args !== null
-            ? (args.args as Record<string, unknown>)
+          typeof args['args'] === 'object' && args['args'] !== null
+            ? (args['args'] as Record<string, unknown>)
             : {};
       } else {
         const separatorIdx = name.indexOf(PREFIX_SEPARATOR);
@@ -514,8 +514,8 @@ export class McpAgentBridge {
     content: Array<{ type: 'text'; text: string }>;
     isError?: boolean;
   }> {
-    const appId = typeof args.app_id === 'string' ? args.app_id : '';
-    const resourceName = typeof args.name === 'string' ? args.name : '';
+    const appId = typeof args['app_id'] === 'string' ? args['app_id'] : '';
+    const resourceName = typeof args['name'] === 'string' ? args['name'] : '';
     if (!appId || !resourceName) {
       return errorResult(
         'tesseron__read_resource requires string "app_id" and "name". Use tesseron__list_actions to enumerate available resources.',
@@ -547,7 +547,7 @@ export class McpAgentBridge {
     content: Array<{ type: 'text'; text: string }>;
     isError?: boolean;
   } {
-    const code = typeof args.code === 'string' ? args.code : '';
+    const code = typeof args['code'] === 'string' ? args['code'] : '';
     if (!code) {
       return errorResult('Missing "code" argument. Provide the 6-character claim code.');
     }

@@ -19032,25 +19032,25 @@ function assertValidElicitSchema(schema) {
     );
   }
   const s = schema;
-  if (s.type !== "object") {
+  if (s["type"] !== "object") {
     throw new TesseronError(
       TesseronErrorCode.InvalidParams,
       `elicit jsonSchema must be { type: "object" } at the top level; got type="${String(
-        s.type
+        s["type"]
       )}". Compose a flat object of primitives.`
     );
   }
-  if (s.oneOf || s.anyOf || s.allOf || s.not) {
+  if (s["oneOf"] || s["anyOf"] || s["allOf"] || s["not"]) {
     throw new TesseronError(
       TesseronErrorCode.InvalidParams,
       "elicit jsonSchema must not use top-level oneOf/anyOf/allOf/not \u2014 MCP elicit clients require a single flat object shape."
     );
   }
-  const props = s.properties ?? {};
+  const props = s["properties"] ?? {};
   for (const [name, prop] of Object.entries(props)) {
     if (!prop || typeof prop !== "object") continue;
     const p = prop;
-    const type = Array.isArray(p.type) ? p.type[0] : p.type;
+    const type = Array.isArray(p["type"]) ? p["type"][0] : p["type"];
     if (!type) continue;
     const t = String(type);
     if (!["string", "number", "integer", "boolean"].includes(t)) {
@@ -25269,8 +25269,8 @@ var McpAgentBridge = class {
       let localName;
       let invokeArgs;
       if (name === META_TOOL_INVOKE_ACTION) {
-        const rawAppId = typeof args.app_id === "string" ? args.app_id : "";
-        const rawAction = typeof args.action === "string" ? args.action : "";
+        const rawAppId = typeof args["app_id"] === "string" ? args["app_id"] : "";
+        const rawAction = typeof args["action"] === "string" ? args["action"] : "";
         if (!rawAppId || !rawAction) {
           return errorResult(
             'tesseron__invoke_action requires string "app_id" and "action". Use tesseron__list_actions to enumerate.'
@@ -25278,7 +25278,7 @@ var McpAgentBridge = class {
         }
         appId = rawAppId;
         localName = rawAction;
-        invokeArgs = typeof args.args === "object" && args.args !== null ? args.args : {};
+        invokeArgs = typeof args["args"] === "object" && args["args"] !== null ? args["args"] : {};
       } else {
         const separatorIdx = name.indexOf(PREFIX_SEPARATOR);
         if (separatorIdx === -1) {
@@ -25454,8 +25454,8 @@ var McpAgentBridge = class {
     };
   }
   async handleReadResource(args) {
-    const appId = typeof args.app_id === "string" ? args.app_id : "";
-    const resourceName = typeof args.name === "string" ? args.name : "";
+    const appId = typeof args["app_id"] === "string" ? args["app_id"] : "";
+    const resourceName = typeof args["name"] === "string" ? args["name"] : "";
     if (!appId || !resourceName) {
       return errorResult(
         'tesseron__read_resource requires string "app_id" and "name". Use tesseron__list_actions to enumerate available resources.'
@@ -25481,7 +25481,7 @@ var McpAgentBridge = class {
     }
   }
   handleClaim(args) {
-    const code = typeof args.code === "string" ? args.code : "";
+    const code = typeof args["code"] === "string" ? args["code"] : "";
     if (!code) {
       return errorResult('Missing "code" argument. Provide the 6-character claim code.');
     }
@@ -25559,15 +25559,15 @@ function isMethodNotFoundError(error2) {
 
 // src/cli.ts
 function toolSurfaceFromEnv() {
-  const v = process.env.TESSERON_TOOL_SURFACE;
+  const v = process.env["TESSERON_TOOL_SURFACE"];
   if (v === "dynamic" || v === "meta" || v === "both") return v;
   return "both";
 }
 async function main() {
-  const portEnv = process.env.TESSERON_PORT;
+  const portEnv = process.env["TESSERON_PORT"];
   const port = portEnv ? Number(portEnv) : DEFAULT_GATEWAY_PORT;
-  const host = process.env.TESSERON_HOST ?? DEFAULT_GATEWAY_HOST;
-  const allowlistEnv = process.env.TESSERON_ORIGIN_ALLOWLIST;
+  const host = process.env["TESSERON_HOST"] ?? DEFAULT_GATEWAY_HOST;
+  const allowlistEnv = process.env["TESSERON_ORIGIN_ALLOWLIST"];
   const originAllowlist = allowlistEnv ? allowlistEnv.split(",").map((s) => s.trim()) : void 0;
   const toolSurface = toolSurfaceFromEnv();
   const gateway = new TesseronGateway({ port, host, originAllowlist });

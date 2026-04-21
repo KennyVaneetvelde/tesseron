@@ -75,25 +75,25 @@ export function assertValidElicitSchema(schema: unknown): object {
     );
   }
   const s = schema as Record<string, unknown>;
-  if (s.type !== 'object') {
+  if (s['type'] !== 'object') {
     throw new TesseronError(
       TesseronErrorCode.InvalidParams,
       `elicit jsonSchema must be { type: "object" } at the top level; got type="${String(
-        s.type,
+        s['type'],
       )}". Compose a flat object of primitives.`,
     );
   }
-  if (s.oneOf || s.anyOf || s.allOf || s.not) {
+  if (s['oneOf'] || s['anyOf'] || s['allOf'] || s['not']) {
     throw new TesseronError(
       TesseronErrorCode.InvalidParams,
       'elicit jsonSchema must not use top-level oneOf/anyOf/allOf/not — MCP elicit clients require a single flat object shape.',
     );
   }
-  const props = (s.properties ?? {}) as Record<string, unknown>;
+  const props = (s['properties'] ?? {}) as Record<string, unknown>;
   for (const [name, prop] of Object.entries(props)) {
     if (!prop || typeof prop !== 'object') continue;
     const p = prop as Record<string, unknown>;
-    const type = Array.isArray(p.type) ? (p.type as unknown[])[0] : p.type;
+    const type = Array.isArray(p['type']) ? (p['type'] as unknown[])[0] : p['type'];
     if (!type) continue;
     const t = String(type);
     if (!['string', 'number', 'integer', 'boolean'].includes(t)) {
