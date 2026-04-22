@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { timingSafeEqual } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import {
   type ElicitationRequestParams,
@@ -7,6 +8,7 @@ import {
   PROTOCOL_VERSION,
   type ProgressUpdate,
   type ResourceReadResult,
+  type ResumeParams,
   type SamplingRequestParams,
   type SamplingResult,
   TesseronError,
@@ -133,6 +135,7 @@ interface ZombieSession {
   resources: Session['resources'];
   capabilities: Session['capabilities'];
   resumeToken: string;
+  claimCode: string;
   claimed: boolean;
   claimedAt?: number;
   /** Timer that removes this zombie from {@link TesseronGateway.zombieSessions} once the TTL elapses. */
@@ -436,6 +439,7 @@ export class TesseronGateway extends EventEmitter {
           resources: closedSession.resources,
           capabilities: closedSession.capabilities,
           resumeToken: closedSession.resumeToken,
+          claimCode: closedSession.claimCode,
           claimed: closedSession.claimed,
           claimedAt: closedSession.claimedAt,
           evictTimer,
@@ -514,6 +518,126 @@ export class TesseronGateway extends EventEmitter {
         },
         claimCode,
         resumeToken,
+      };
+      return welcome;
+    });
+
+    dispatcher.on('tesseron/resume', async (params): Promise<WelcomeResult> => {
+      const resumeParams = params as ResumeParams;
+
+      if (session) {
+        throw new TesseronError(
+          TesseronErrorCode.ResumeFailed,
+          'This socket is already attached to a session. Send tesseron/resume on a fresh connection.',
+        );
+      }
+
+      // Same protocol-version policy as hello: hard-reject on major mismatch,
+      // warn on minor. A resuming SDK that upgraded past a major bump must
+      // fall back to a fresh tesseron/hello with its new manifest.
+      const [theirMajor, theirMinor] = parseProtocolVersion(resumeParams.protocolVersion);
+      const [ourMajor, ourMinor] = parseProtocolVersion(PROTOCOL_VERSION);
+      if (theirMajor !== ourMajor) {
+        throw new TesseronError(
+          TesseronErrorCode.ProtocolMismatch,
+          `Gateway speaks protocol ${PROTOCOL_VERSION}; SDK sent ${resumeParams.protocolVersion}. Major version mismatch on resume — pin compatible package versions or start a fresh session.`,
+        );
+      }
+      if (theirMinor !== ourMinor) {
+        logToStderr(
+          `[tesseron] protocol minor version mismatch on resume: gateway=${PROTOCOL_VERSION}, SDK=${resumeParams.protocolVersion}.`,
+        );
+      }
+
+      validateAppId(resumeParams.app.id);
+
+      const zombie = this.zombieSessions.get(resumeParams.sessionId);
+      if (!zombie) {
+        throw new TesseronError(
+          TesseronErrorCode.ResumeFailed,
+          `No resumable session "${resumeParams.sessionId}". The TTL may have elapsed, the gateway may have restarted, or the session never existed.`,
+        );
+      }
+
+      if (zombie.app.id !== resumeParams.app.id) {
+        throw new TesseronError(
+          TesseronErrorCode.ResumeFailed,
+          `Session "${resumeParams.sessionId}" is owned by app "${zombie.app.id}", not "${resumeParams.app.id}". Refusing cross-app resume.`,
+        );
+      }
+
+      // Resume is only meaningful for sessions that were actually claimed; an
+      // unclaimed zombie's original claim code is already gone from
+      // pendingClaims and there's nothing user-visible to restore. Surface a
+      // clean error so the SDK knows to fall back to a fresh tesseron/hello.
+      if (!zombie.claimed) {
+        throw new TesseronError(
+          TesseronErrorCode.ResumeFailed,
+          `Session "${resumeParams.sessionId}" was never claimed; open a fresh session with tesseron/hello instead.`,
+        );
+      }
+
+      // Constant-time token compare. Both tokens are 32-char base64url in the
+      // happy path, but we still check lengths first to avoid a side channel
+      // when a wildly-wrong token is presented.
+      const presented = Buffer.from(resumeParams.resumeToken);
+      const stored = Buffer.from(zombie.resumeToken);
+      if (presented.length !== stored.length || !timingSafeEqual(presented, stored)) {
+        throw new TesseronError(
+          TesseronErrorCode.ResumeFailed,
+          `Invalid resumeToken for session "${resumeParams.sessionId}".`,
+        );
+      }
+
+      // Token validated. Cancel eviction, remove zombie, promote to live
+      // session with the fresh socket + dispatcher, and rotate the token.
+      clearTimeout(zombie.evictTimer);
+      this.zombieSessions.delete(zombie.id);
+
+      if (origin && resumeParams.app.origin !== origin) {
+        resumeParams.app.origin = origin;
+      }
+
+      const rotatedResumeToken = generateResumeToken();
+      session = {
+        id: zombie.id,
+        app: resumeParams.app,
+        ws,
+        dispatcher,
+        actions: resumeParams.actions,
+        resources: resumeParams.resources,
+        capabilities: resumeParams.capabilities,
+        claimCode: zombie.claimCode,
+        claimed: zombie.claimed,
+        claimedAt: zombie.claimedAt,
+        resumeToken: rotatedResumeToken,
+      };
+      this.sessions.set(zombie.id, session);
+
+      logToStderr(
+        `[tesseron] resumed session "${resumeParams.app.name}" (${zombie.id}) — claim preserved`,
+      );
+
+      // The MCP bridge sees the reattached session via sessions-changed and
+      // re-advertises its tools, so the agent gets them back in tools/list.
+      this.emit('sessions-changed');
+
+      const welcome: WelcomeResult = {
+        sessionId: zombie.id,
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: {
+          streaming: true,
+          subscriptions: true,
+          sampling: this.agentCapabilities.sampling,
+          elicitation: this.agentCapabilities.elicitation,
+        },
+        agent: {
+          id: this.agentCapabilities.clientName ?? 'pending',
+          name: this.agentCapabilities.clientName ?? 'Awaiting agent',
+        },
+        // No claimCode on resume: the session is already claimed; re-issuing
+        // a pairing code would only confuse the UI.
+        resumeToken: rotatedResumeToken,
       };
       return welcome;
     });
