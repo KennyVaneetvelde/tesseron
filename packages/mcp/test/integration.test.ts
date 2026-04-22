@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { TesseronErrorCode } from '@tesseron/core';
 import { ServerTesseronClient } from '@tesseron/server';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { McpAgentBridge, TesseronGateway } from '../src/index.js';
@@ -56,6 +57,7 @@ async function listToolNames(): Promise<string[]> {
 interface CallOutcome {
   text: string;
   isError: boolean;
+  structuredContent?: Record<string, unknown>;
 }
 
 async function callTool(name: string, args: unknown): Promise<CallOutcome> {
@@ -64,7 +66,11 @@ async function callTool(name: string, args: unknown): Promise<CallOutcome> {
     CallToolResultSchema,
   );
   const text = result.content.map((c) => (c.type === 'text' ? c.text : `[${c.type}]`)).join('');
-  return { text, isError: result.isError === true };
+  return {
+    text,
+    isError: result.isError === true,
+    structuredContent: result.structuredContent,
+  };
 }
 
 async function setupAndClaim(
@@ -164,6 +170,9 @@ describe('Tesseron MCP integration', () => {
     const result = await callTool('val1__greet', { name: 42 });
     expect(result.isError).toBe(true);
     expect(result.text.toLowerCase()).toContain('invalid input');
+    // Structured content lets agents programmatically branch on the specific
+    // error code rather than regex-matching the human-readable text.
+    expect(result.structuredContent?.code).toBe(TesseronErrorCode.InputValidation);
   });
 
   it('surfaces handler errors with their original message', async () => {
@@ -176,6 +185,10 @@ describe('Tesseron MCP integration', () => {
     const result = await callTool('err1__boom', {});
     expect(result.isError).toBe(true);
     expect(result.text).toContain('something broke in the handler');
+    // A plain handler throw propagates as InternalError via the dispatcher's
+    // toErrorPayload fallback. HandlerError is reserved for the SDK's own
+    // schema-validation failures (see core/src/client.ts lines 322/370/393).
+    expect(result.structuredContent?.code).toBe(TesseronErrorCode.InternalError);
   });
 
   it('rejects unknown claim codes', async () => {

@@ -400,7 +400,7 @@ export class McpAgentBridge {
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return errorResult(message, error instanceof TesseronError ? error.data : undefined);
+        return errorResult(message, error instanceof TesseronError ? error : undefined);
       } finally {
         if (progressToken !== undefined) {
           this.progressCursors.delete(progressToken);
@@ -558,7 +558,7 @@ export class McpAgentBridge {
       return { content: [{ type: 'text' as const, text }] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return errorResult(message, error instanceof TesseronError ? error.data : undefined);
+      return errorResult(message, error instanceof TesseronError ? error : undefined);
     }
   }
 
@@ -648,17 +648,37 @@ function levelFromString(level: string): 'debug' | 'info' | 'warning' | 'error' 
   }
 }
 
+/**
+ * Build the MCP `CallToolResult` payload for a failed tools/call.
+ *
+ * When a {@link TesseronError} is supplied, its `code` (and `data`, when
+ * present) are surfaced in two places: the human-readable `text` body keeps
+ * the existing `${message}\n${JSON}` shape so log scraping stays compatible,
+ * and an MCP-spec-native `structuredContent` object gives agents a
+ * programmatic branch point (e.g. retry on `TransportClosed` but not on
+ * `HandlerError`). Without the `structuredContent` carve-out, the only way
+ * for an agent to tell error codes apart was regex on the text.
+ */
 function errorResult(
   message: string,
-  data?: unknown,
-): { content: Array<{ type: 'text'; text: string }>; isError: true } {
+  error?: TesseronError,
+): {
+  content: Array<{ type: 'text'; text: string }>;
+  structuredContent?: Record<string, unknown>;
+  isError: true;
+} {
+  const structured: Record<string, unknown> | undefined = error
+    ? { code: error.code, ...(error.data !== undefined ? { data: error.data } : {}) }
+    : undefined;
+  const textSuffix = structured ? `\n${JSON.stringify(structured, null, 2)}` : '';
   return {
     content: [
       {
         type: 'text' as const,
-        text: data ? `${message}\n${JSON.stringify(data, null, 2)}` : message,
+        text: `${message}${textSuffix}`,
       },
     ],
+    ...(structured ? { structuredContent: structured } : {}),
     isError: true,
   };
 }
