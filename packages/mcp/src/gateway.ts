@@ -11,6 +11,7 @@ import {
   type SamplingResult,
   TesseronError,
   TesseronErrorCode,
+  TransportClosedError,
   type WelcomeResult,
 } from '@tesseron/core';
 import { JsonRpcDispatcher } from '@tesseron/core/internal';
@@ -365,6 +366,11 @@ export class TesseronGateway extends EventEmitter {
     });
 
     ws.on('close', () => {
+      // Mirrors the SDK-side rejectAllPending in TesseronClient: without it,
+      // any gateway->SDK request in flight when the socket dies never settles,
+      // and the MCP client's tool call hangs until its own timeout expires.
+      dispatcher.rejectAllPending(new TransportClosedError('Session socket closed'));
+
       if (!session) return;
       this.sessions.delete(session.id);
       this.pendingClaims.delete(session.claimCode);

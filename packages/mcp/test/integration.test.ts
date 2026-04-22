@@ -225,6 +225,44 @@ describe('Tesseron MCP integration', () => {
     expect(await listToolNames()).not.toContain('eph1__boop');
   });
 
+  it('rejects in-flight invocations when the session WebSocket closes mid-call', async () => {
+    // Invariant: when a session socket closes mid-call, the gateway must reject
+    // the pending dispatcher request, not just clear its active-invocations map.
+    // Otherwise `tools/call` hangs until the MCP client's own timeout expires.
+    let release!: () => void;
+    const blocker = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const { sdk } = await setupAndClaim('flight1', (s) => {
+      s.action('hang').handler(async () => {
+        await blocker;
+        return 'never';
+      });
+    });
+
+    try {
+      const callPromise = callTool('flight1__hang', {});
+      // Give the call a beat to land on the SDK side before we yank the socket.
+      await new Promise((r) => setTimeout(r, 50));
+
+      await sdk.disconnect();
+
+      const result = await Promise.race([
+        callPromise,
+        new Promise<CallOutcome>((_, reject) =>
+          setTimeout(() => reject(new Error('callTool hung past 2s')), 2000),
+        ),
+      ]);
+      expect(result.isError).toBe(true);
+      expect(result.text.toLowerCase()).toMatch(/transport|socket|closed|disconnect/);
+    } finally {
+      // Release the handler so the awaiting promise in the SDK can finalize,
+      // regardless of whether the assertions above passed or the race timed out.
+      release();
+    }
+  });
+
   it('rejects reserved app ids during handshake', async () => {
     const sdk = newSdk();
     sdk.app({ id: 'tesseron', name: 'evil', origin: 'http://localhost' });
