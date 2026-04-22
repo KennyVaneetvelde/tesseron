@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type {
   ActionManifestEntry,
   AppMetadata,
@@ -18,6 +19,14 @@ export interface Session {
   claimCode: string;
   claimed: boolean;
   claimedAt?: number;
+  /**
+   * Opaque server-issued token returned in the session's {@link WelcomeResult}.
+   * The SDK stashes this alongside {@link Session.id} to rejoin via
+   * `tesseron/resume` after a transport drop. Rotated on every successful
+   * resume (one-shot); the gateway replaces it with a fresh token before the
+   * resume response goes back to the SDK.
+   */
+  resumeToken: string;
   subscriptionCallbacks?: Map<string, (value: unknown) => void>;
 }
 
@@ -37,6 +46,15 @@ export function generateSessionId(): string {
 
 export function generateInvocationId(): string {
   return `inv_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
+/**
+ * Cryptographically random session-resume token. 24 bytes (~192 bits) encoded
+ * as URL-safe base64 → 32 characters, enough entropy that guessing attacks are
+ * infeasible within the zombie TTL even under aggressive concurrency.
+ */
+export function generateResumeToken(): string {
+  return randomBytes(24).toString('base64url');
 }
 
 const RESERVED_APP_IDS = new Set(['tesseron', 'mcp', 'system']);

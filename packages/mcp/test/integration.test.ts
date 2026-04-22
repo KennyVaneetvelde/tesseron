@@ -263,6 +263,18 @@ describe('Tesseron MCP integration', () => {
     }
   });
 
+  it('issues a resumeToken in the welcome response', async () => {
+    const sdk = newSdk();
+    sdk.app({ id: 'tok1', name: 'tok', origin: 'http://localhost' });
+    sdk.action('ping').handler(() => 'pong');
+    const welcome = await sdk.connect(URL);
+    expect(welcome.resumeToken).toBeTruthy();
+    expect(typeof welcome.resumeToken).toBe('string');
+    // base64url, 24 bytes → 32 chars, no padding
+    expect(welcome.resumeToken!.length).toBe(32);
+    expect(welcome.resumeToken).toMatch(/^[A-Za-z0-9_-]+$/);
+  });
+
   it('rejects reserved app ids during handshake', async () => {
     const sdk = newSdk();
     sdk.app({ id: 'tesseron', name: 'evil', origin: 'http://localhost' });

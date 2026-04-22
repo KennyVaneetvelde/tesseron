@@ -20,6 +20,7 @@ import {
   type Session,
   generateClaimCode,
   generateInvocationId,
+  generateResumeToken,
   generateSessionId,
   validateAppId,
 } from './session.js';
@@ -32,6 +33,13 @@ export interface GatewayOptions {
   host?: string;
   /** Extra origins accepted in addition to localhost/127.0.0.1. Anything else is rejected with 403. */
   originAllowlist?: string[];
+  /**
+   * Milliseconds to retain a closed session as a "zombie" so a reconnecting SDK
+   * can rejoin via `tesseron/resume`. Default {@link DEFAULT_RESUME_TTL_MS}.
+   * Set to `0` to disable session resume entirely — closed sessions drop
+   * immediately and any reconnect must start fresh with `tesseron/hello`.
+   */
+  resumeTtlMs?: number;
 }
 
 /** Options for {@link TesseronGateway.invokeAction}. */
@@ -82,6 +90,12 @@ export type ElicitationHandler = (
 export const DEFAULT_GATEWAY_PORT = 7475;
 /** Default gateway bind host; loopback-only to prevent accidental LAN exposure. */
 export const DEFAULT_GATEWAY_HOST = '127.0.0.1';
+/**
+ * Default zombie-session retention window (90 s). Long enough to cover a
+ * manual tab refresh, a routine HMR cycle, or a brief network blip; short
+ * enough that abandoned sessions don't accumulate.
+ */
+export const DEFAULT_RESUME_TTL_MS = 90_000;
 
 /** Capabilities the connected MCP client advertised to the bridge. */
 export interface AgentCapabilityInfo {
@@ -107,6 +121,25 @@ interface ActiveInvocation {
 }
 
 /**
+ * A recently-closed session retained in memory so a reconnecting SDK can
+ * rejoin it via `tesseron/resume`. Carries only the metadata the resume
+ * handler needs — the dead WebSocket and its dispatcher are deliberately
+ * dropped so we never try to write to them.
+ */
+interface ZombieSession {
+  id: string;
+  app: Session['app'];
+  actions: Session['actions'];
+  resources: Session['resources'];
+  capabilities: Session['capabilities'];
+  resumeToken: string;
+  claimed: boolean;
+  claimedAt?: number;
+  /** Timer that removes this zombie from {@link TesseronGateway.zombieSessions} once the TTL elapses. */
+  evictTimer: ReturnType<typeof setTimeout>;
+}
+
+/**
  * Local WebSocket server that hosts Tesseron sessions. SDK clients connect
  * and send `tesseron/hello`; an {@link McpAgentBridge} consumes the gateway on
  * the MCP-server side to expose claimed sessions as tools and resources. Emits
@@ -117,6 +150,11 @@ export class TesseronGateway extends EventEmitter {
   private readonly sessions = new Map<string, Session>();
   private readonly pendingClaims = new Map<string, string>();
   private readonly activeInvocations = new Map<string, ActiveInvocation>();
+  /**
+   * Recently-closed sessions kept around for a TTL window so the SDK can
+   * rejoin them with `tesseron/resume`. See {@link GatewayOptions.resumeTtlMs}.
+   */
+  private readonly zombieSessions = new Map<string, ZombieSession>();
   private samplingHandler?: SamplingHandler;
   private elicitationHandler?: ElicitationHandler;
   private agentCapabilities: AgentCapabilityInfo = { ...DEFAULT_AGENT_CAPABILITIES };
@@ -167,6 +205,12 @@ export class TesseronGateway extends EventEmitter {
     this.sessions.clear();
     this.pendingClaims.clear();
     this.activeInvocations.clear();
+    // Cancel every outstanding zombie eviction timer; their sessions will never
+    // resume across a gateway restart regardless.
+    for (const zombie of this.zombieSessions.values()) {
+      clearTimeout(zombie.evictTimer);
+    }
+    this.zombieSessions.clear();
     if (!this.wss) return;
     return new Promise<void>((resolve, reject) => {
       this.wss?.close((err) => (err ? reject(err) : resolve()));
@@ -372,6 +416,32 @@ export class TesseronGateway extends EventEmitter {
       dispatcher.rejectAllPending(new TransportClosedError('Session socket closed'));
 
       if (!session) return;
+
+      // Zombify the session so a reconnecting SDK can rejoin via
+      // `tesseron/resume` within the TTL. When the feature is disabled
+      // (resumeTtlMs === 0) the session is dropped immediately.
+      const resumeTtl = this.options.resumeTtlMs ?? DEFAULT_RESUME_TTL_MS;
+      if (resumeTtl > 0) {
+        const closedSession = session;
+        const evictTimer = setTimeout(() => {
+          this.zombieSessions.delete(closedSession.id);
+        }, resumeTtl);
+        // Allow the process to exit even while the zombie waits out its TTL;
+        // the gateway itself doesn't keep Node alive once the WS server stops.
+        evictTimer.unref?.();
+        this.zombieSessions.set(closedSession.id, {
+          id: closedSession.id,
+          app: closedSession.app,
+          actions: closedSession.actions,
+          resources: closedSession.resources,
+          capabilities: closedSession.capabilities,
+          resumeToken: closedSession.resumeToken,
+          claimed: closedSession.claimed,
+          claimedAt: closedSession.claimedAt,
+          evictTimer,
+        });
+      }
+
       this.sessions.delete(session.id);
       this.pendingClaims.delete(session.claimCode);
       // Cancel any active invocations for this session
@@ -410,6 +480,7 @@ export class TesseronGateway extends EventEmitter {
 
       const sessionId = generateSessionId();
       const claimCode = generateClaimCode();
+      const resumeToken = generateResumeToken();
       session = {
         id: sessionId,
         app: helloParams.app,
@@ -420,6 +491,7 @@ export class TesseronGateway extends EventEmitter {
         capabilities: helloParams.capabilities,
         claimCode,
         claimed: false,
+        resumeToken,
       };
       this.sessions.set(sessionId, session);
       this.pendingClaims.set(claimCode, sessionId);
@@ -441,6 +513,7 @@ export class TesseronGateway extends EventEmitter {
           name: this.agentCapabilities.clientName ?? 'Awaiting agent',
         },
         claimCode,
+        resumeToken,
       };
       return welcome;
     });
