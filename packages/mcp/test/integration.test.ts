@@ -248,7 +248,6 @@ describe('Tesseron MCP integration', () => {
 
       await sdk.disconnect();
 
-      // Should reject (surface as an error tool-call), not hang.
       const result = await Promise.race([
         callPromise,
         new Promise<CallOutcome>((_, reject) =>
