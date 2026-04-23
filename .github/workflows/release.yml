@@ -50,6 +50,10 @@ jobs:
       - name: Create Release PR or Publish
         uses: changesets/action@v1
         with:
+          # `changeset version` re-expands short JSON arrays onto multiple lines,
+          # which the repo's Biome formatter then rejects on the release PR's CI.
+          # Running `biome format --write` afterwards re-inlines them.
+          version: pnpm version-packages
           publish: pnpm changeset publish
           createGithubReleases: true
           commit: "chore: release packages"

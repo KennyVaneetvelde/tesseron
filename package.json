@@ -20,6 +20,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
+    "version-packages": "changeset version && biome format --write .",
     "docs:dev": "pnpm --filter @tesseron/docs start",
     "docs:build": "pnpm --filter @tesseron/docs build"
   },
