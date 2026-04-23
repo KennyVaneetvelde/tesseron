@@ -1,5 +1,19 @@
 # @tesseron/mcp
 
+## 1.0.2
+
+### Patch Changes
+
+- [#3](https://github.com/BrainBlend-AI/tesseron/pull/3) [`2445125`](https://github.com/BrainBlend-AI/tesseron/commit/2445125df8e7673227bbcdf922a0b7d8b276b7f0) Thanks [@KennyVaneetvelde](https://github.com/KennyVaneetvelde)! - Fix hang on session WebSocket disconnect: the gateway now rejects all pending
+  dispatcher requests (`actions/invoke`, `resources/read`, `resources/subscribe`,
+  `resources/unsubscribe`) with a `TransportClosedError` when a session's socket
+  closes, mirroring the SDK-side behaviour. Previously, in-flight requests
+  abandoned by a disappearing SDK would hang until the MCP client's own timeout
+  kicked in.
+- Updated dependencies []:
+  - @tesseron/core@1.0.2
+  - @tesseron/server@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes
@@ -30,7 +44,6 @@
   semantic versioning.
 
   Highlights:
-
   - Typed action builder with Zod / Standard Schema input validation.
   - Subscribable resources with tag support.
   - Handler context: `ctx.confirm`, `ctx.elicit` (schema-validated),

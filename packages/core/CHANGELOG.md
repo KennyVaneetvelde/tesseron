@@ -1,5 +1,7 @@
 # @tesseron/core
 
+## 1.0.2
+
 ## 1.0.1
 
 ### Patch Changes
@@ -26,7 +28,6 @@
   semantic versioning.
 
   Highlights:
-
   - Typed action builder with Zod / Standard Schema input validation.
   - Subscribable resources with tag support.
   - Handler context: `ctx.confirm`, `ctx.elicit` (schema-validated),
