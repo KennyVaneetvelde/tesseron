@@ -17,6 +17,7 @@ import {
   SamplingNotAvailableError,
   TesseronError,
   TesseronErrorCode,
+  type TesseronStructuredError,
 } from '@tesseron/core';
 import { assertValidElicitSchema } from '@tesseron/core/internal';
 import type { ResourceSubscription, TesseronGateway } from './gateway.js';
@@ -664,10 +665,10 @@ function errorResult(
   error?: TesseronError,
 ): {
   content: Array<{ type: 'text'; text: string }>;
-  structuredContent?: Record<string, unknown>;
+  structuredContent?: TesseronStructuredError;
   isError: true;
 } {
-  const structured: Record<string, unknown> | undefined = error
+  const structured: TesseronStructuredError | undefined = error
     ? { code: error.code, ...(error.data !== undefined ? { data: error.data } : {}) }
     : undefined;
   const textSuffix = structured ? `\n${JSON.stringify(structured, null, 2)}` : '';

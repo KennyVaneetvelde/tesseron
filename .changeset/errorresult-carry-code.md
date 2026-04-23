@@ -1,4 +1,5 @@
 ---
+"@tesseron/core": minor
 "@tesseron/mcp": minor
 ---
 
@@ -7,7 +8,8 @@ Surface `TesseronErrorCode` in tool-call error results. The bridge's
 object carrying the underlying `TesseronError`'s numeric `code` (and `data`,
 when present), so agents can programmatically branch on `TransportClosed`
 vs `HandlerError` vs `InputValidation` etc. instead of regex-matching the
-text body.
+text body. The structured shape is exported from `@tesseron/core` as
+`TesseronStructuredError` for typed consumer access.
 
 Before:
 

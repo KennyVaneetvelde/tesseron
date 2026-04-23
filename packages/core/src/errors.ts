@@ -1,6 +1,19 @@
 import { TesseronErrorCode } from './protocol.js';
 
 /**
+ * Wire shape of a {@link TesseronError} as surfaced to MCP agents via the
+ * `structuredContent` field of a failed `tools/call` result. Lets agents
+ * branch programmatically on `code` (e.g. retry on `TransportClosed` but not
+ * on `HandlerError`) instead of regex-matching the human-readable text body.
+ */
+export interface TesseronStructuredError {
+  /** Numeric code; compare against {@link TesseronErrorCode} values. */
+  code: number;
+  /** Error-specific payload (same shape as {@link TesseronError.data}); omitted when undefined. */
+  data?: unknown;
+}
+
+/**
  * Base class for all typed errors the SDK surfaces. Maps 1:1 onto JSON-RPC
  * error responses; subclasses narrow to specific {@link TesseronErrorCode} values.
  */
