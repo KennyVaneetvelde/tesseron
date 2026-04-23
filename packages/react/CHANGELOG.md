@@ -1,5 +1,13 @@
 # @tesseron/react
 
+## 1.1.0
+
+### Patch Changes
+
+- Updated dependencies [[`3e8ee2f`](https://github.com/BrainBlend-AI/tesseron/commit/3e8ee2fd431f37c952fff376a3f5bb5202ff870c), [`97248fb`](https://github.com/BrainBlend-AI/tesseron/commit/97248fbce9f5b0f1e2d065390ccbd50fa92b6ea7)]:
+  - @tesseron/core@1.1.0
+  - @tesseron/web@1.1.0
+
 ## 1.0.2
 
 ### Patch Changes
