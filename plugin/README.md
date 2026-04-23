@@ -1,12 +1,22 @@
 # tesseron (Claude Code plugin)
 
-Drops the [Tesseron](https://github.com/BrainBlend-AI/tesseron) MCP gateway into Claude Code as a single-command install. Once enabled, any web app speaking the Tesseron wire protocol over WebSocket — via [`@tesseron/web`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/web), [`@tesseron/server`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/server), or [`@tesseron/react`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/react) — can expose typed, prefixed actions as MCP tools that Claude can call.
+Drops the [Tesseron](https://github.com/BrainBlend-AI/tesseron) MCP gateway into Claude Code as a single-command install **and** gives Claude deep, just-in-time knowledge of the Tesseron protocol and SDK. When you work in a Tesseron codebase, Claude picks up the right patterns for actions, resources, `ActionContext`, transports, React hooks, protocol wire format, errors, gateway config, testing, and project layout — without you pasting docs or repeating conventions.
+
+## What you get
+
+- **MCP gateway** — a bundled `@tesseron/mcp` gateway that Claude Code launches automatically. Any web app speaking the Tesseron wire protocol over WebSocket — via [`@tesseron/web`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/web), [`@tesseron/server`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/server), or [`@tesseron/react`](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/react) — can expose typed, prefixed actions as MCP tools that Claude can call.
+- **`framework` skill** — auto-triggered when Claude sees Tesseron code. Orients Claude on the framework and exposes eleven focused reference files (actions, resources, context, transports, react, protocol, schemas, errors, gateway, testing, project-structure). Progressive disclosure keeps the parent context lean.
+- **`new-app` skill** — slash-invokable scaffolder (`/tesseron:new-app`). Four short questions and produces a runnable project with the right `package.json`, `tsconfig.json`, entry point, and a first working action + resource for the chosen stack (vanilla TS / React / Node / Express).
+- **`tesseron-explorer` subagent** — auto-triggered (or `Task`-invoked) when you ask to explore, map, or understand an existing Tesseron codebase. Reads the project in isolated context and returns a compact architecture map (apps, actions, resources, context-method usage, transports, React hooks, session lifecycle, essential-reading list) without polluting the parent thread with every file it had to open.
+- **`tesseron-reviewer` subagent** — auto-triggered (or `Task`-invoked) when you ask for a review, audit, or check of Tesseron code. Runs in isolated context with read-only tools so the file-exploration load never pollutes the parent thread. Focuses only on Tesseron-specific concerns (app manifest hygiene, builder invariants, `ActionContext` capability checks, handler async/signal forwarding, subscriber cleanup, session resume flow, React hook registration, gateway origin-allowlist sanity). Returns a single confidence-filtered structured report. Complements generic code review; does not replace it.
+
+This follows the hybrid pattern Anthropic themselves ship: reference skills for knowledge that should inform the main thread, specialist subagents for discrete read-heavy tasks whose output is a summary.
 
 **Why this exists.** Browser automation (Playwright, chrome-devtools-mcp) is fragile, slow, and forces the agent to reverse-engineer your UI on every run. Your app already knows what it can do — let it tell Claude directly with typed action manifests.
 
 ## Install
 
-Requires **Node 18+** on `PATH` (Claude Code's runtime already qualifies; this is only a concern for unusual setups).
+Requires **Node 18+** on `PATH` for the gateway (Claude Code's runtime already qualifies; this is only a concern for unusual setups).
 
 ```text
 /plugin marketplace add BrainBlend-AI/tesseron
@@ -15,7 +25,7 @@ Requires **Node 18+** on `PATH` (Claude Code's runtime already qualifies; this i
 
 Restart Claude Code. The plugin's MCP server (`tesseron`) starts automatically. You'll see a single tool, `mcp__plugin_tesseron_tesseron__tesseron__claim_session`, until a web app speaking the protocol connects.
 
-## How to use it
+## How to use the gateway
 
 1. **In your web app**, import `@tesseron/web` (or `/server`, `/react`), declare actions with the Zod-style builder, and call `tesseron.connect()`. The SDK opens a WebSocket to `ws://127.0.0.1:7475` (the gateway this plugin spawned).
 
@@ -27,11 +37,21 @@ Restart Claude Code. The plugin's MCP server (`tesseron`) starts automatically. 
 
 For a complete walkthrough with framework examples (plain TS / React / Svelte / Vue / Node backend), see the repo's [examples/](https://github.com/BrainBlend-AI/tesseron/tree/main/examples).
 
+## Typical flows
+
+**Writing new Tesseron code.** Open your project. Claude notices imports from `@tesseron/*`, loads the `framework` skill, and pulls in `references/actions.md`, `references/resources.md`, etc. as the conversation progresses.
+
+**Starting from nothing.** Run `/tesseron:new-app my-project`. Four questions, one scaffolded project, one runnable action + resource. Say `pnpm dev`, copy the claim code, paste it into Claude.
+
+**Understanding a codebase you inherited.** Ask "help me understand how the actions in this project work" or "map this codebase." The `tesseron-explorer` subagent fires, reads the relevant files in its own context, and returns a compact architecture map with file:line references — the parent thread skips the file-by-file slog.
+
+**Before committing.** Ask "review my changes for Tesseron issues." The `tesseron-reviewer` subagent fires (or Claude invokes it via the `Task` tool), reads the diff in its own context, and returns a confidence-filtered list of framework-specific issues with ready-to-apply fixes.
+
 ## What the MCP gateway does
 
 - Listens on `ws://127.0.0.1:7475` (override with `TESSERON_PORT` env var).
 - Origin allowlist: localhost / 127.0.0.1 by default. Override with `TESSERON_ORIGIN_ALLOWLIST=https://your-app.example,https://staging.example`.
-- Exposes a meta-tool `tesseron__claim_session({code})` for the click-to-connect handshake (PRD D-05).
+- Exposes a meta-tool `tesseron__claim_session({code})` for the click-to-connect handshake.
 - Forwards SDK→agent: action invocations, streaming progress, structured logs, sampling, elicitation, resource read/subscribe.
 - Forwards agent→SDK: tool calls, cancellations, MCP-side `notifications/progress`.
 - Multi-app aware: tools from each connected app are prefixed with the app's id, so `shop__refundOrder` and `crm__refundOrder` don't collide.
@@ -43,10 +63,28 @@ For a complete walkthrough with framework examples (plain TS / React / Svelte / 
 | `TESSERON_PORT` | `7475` | WebSocket server port |
 | `TESSERON_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` only with an explicit allowlist) |
 | `TESSERON_ORIGIN_ALLOWLIST` | (none) | Comma-separated additional origins beyond localhost |
+| `TESSERON_TOOL_SURFACE` | `both` | `dynamic` \| `meta` \| `both` — see `skills/framework/references/gateway.md` |
 
 Set these in your Claude Code env, your shell, or override per-launch.
 
-## Building from source
+## How the skills work
+
+This plugin follows Anthropic's 2026 skill-authoring conventions:
+
+- Each skill is a folder with a `SKILL.md` file (≤500 lines) plus an optional `references/` directory.
+- YAML frontmatter has two fields: `name` and `description`. The description is what Claude reads to decide when the skill applies.
+- Reference files are one level deep from `SKILL.md`, each ≤ a few pages. Claude loads only the ones relevant to the current task.
+
+Read the `framework` skill's `SKILL.md` if you want to see the routing table and minimum-viable-app template up front.
+
+## Compatibility
+
+- TypeScript 5.7+ (strict mode, `noUncheckedIndexedAccess` recommended).
+- Node 20+ for server / gateway processes.
+- Protocol version `1.0.0`. Session resume added in SDK v1.1.
+- `@tesseron/core`, `/web`, `/server`, `/react`, `/mcp` released in lockstep — match them within a minor version.
+
+## Building the gateway from source
 
 The bundled gateway at [`server/index.cjs`](./server/index.cjs) is generated by tsup from the [@tesseron/mcp](https://github.com/BrainBlend-AI/tesseron/tree/main/packages/mcp) source. To rebuild after changes:
 
@@ -56,6 +94,20 @@ pnpm --filter @tesseron/mcp build:plugin
 
 Output lands directly in this directory's `server/`.
 
+## Development
+
+Edit files in place and re-run `/reload-plugins` in Claude Code to pick up changes without restarting. `--plugin-dir` loads take precedence over installed marketplace copies for the current session.
+
+```bash
+claude --plugin-dir /path/to/tesseron/plugin
+```
+
 ## License
 
-MIT © Kenny Vaneetvelde
+MIT © Kenny Vaneetvelde — see [`LICENSE`](./LICENSE).
+
+## Links
+
+- Protocol + SDKs: https://github.com/BrainBlend-AI/tesseron
+- Examples: https://github.com/BrainBlend-AI/tesseron/tree/main/examples
+- Changelog: [`CHANGELOG.md`](./CHANGELOG.md)

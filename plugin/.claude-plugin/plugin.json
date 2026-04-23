@@ -1,7 +1,7 @@
 {
   "name": "tesseron",
-  "version": "0.1.0",
-  "description": "MCP gateway that lets any web app expose typed actions to Claude over WebSocket — no browser automation. Pair with @tesseron/web (or /server, /react) in your app.",
+  "version": "1.0.2",
+  "description": "MCP gateway that lets any web app expose typed actions to Claude over WebSocket — no browser automation — plus a framework skill with eleven progressive-disclosure references (actions, resources, context, transports, react, protocol, schemas, errors, gateway, testing, project-structure), a new-app scaffolder, and isolated-context explorer/reviewer subagents for building and auditing Tesseron codebases.",
   "author": {
     "name": "Kenny Vaneetvelde",
     "email": "kenny.vaneetvelde@gmail.com"
@@ -18,6 +18,10 @@
     "react",
     "svelte",
     "vue",
-    "websocket"
+    "websocket",
+    "typescript",
+    "zod",
+    "skill",
+    "subagent"
   ]
 }
