@@ -53,6 +53,7 @@ yarn-error.log*
 # Claude-local state (shared settings are tracked)
 .claude/settings.local.json
 .claude/worktrees/
+.claude/skills/reddit-author/
 
 # Project-specific internals (not for public consumption)
 /outputs/
