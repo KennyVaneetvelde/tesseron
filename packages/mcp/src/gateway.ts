@@ -42,6 +42,13 @@ export interface GatewayOptions {
    * immediately and any reconnect must start fresh with `tesseron/hello`.
    */
   resumeTtlMs?: number;
+  /**
+   * Maximum number of zombie sessions retained simultaneously. When adding a
+   * new zombie would exceed this cap, the oldest (longest-retained) zombie is
+   * evicted. Defaults to {@link DEFAULT_MAX_ZOMBIES}. Exists so a peer that
+   * rapidly connects and disconnects can't accumulate unbounded memory.
+   */
+  maxZombies?: number;
 }
 
 /** Options for {@link TesseronGateway.invokeAction}. */
@@ -98,6 +105,13 @@ export const DEFAULT_GATEWAY_HOST = '127.0.0.1';
  * enough that abandoned sessions don't accumulate.
  */
 export const DEFAULT_RESUME_TTL_MS = 90_000;
+/**
+ * Default cap on {@link TesseronGateway.zombieSessions}. A peer that repeatedly
+ * connects and disconnects could otherwise pile up zombies until their TTLs
+ * elapse; when the cap is reached the oldest (longest-retained) zombie is
+ * evicted to make room.
+ */
+export const DEFAULT_MAX_ZOMBIES = 100;
 
 /** Capabilities the connected MCP client advertised to the bridge. */
 export interface AgentCapabilityInfo {
@@ -437,6 +451,21 @@ export class TesseronGateway extends EventEmitter {
       // is dropped immediately.
       const resumeTtl = this.options.resumeTtlMs ?? DEFAULT_RESUME_TTL_MS;
       if (resumeTtl > 0 && !this.stopped) {
+        // Cap the map to prevent a connect/disconnect flood from piling up
+        // zombies until their TTLs elapse. Map iteration order is insertion
+        // order, so the first key is the oldest entry.
+        const maxZombies = this.options.maxZombies ?? DEFAULT_MAX_ZOMBIES;
+        if (this.zombieSessions.size >= maxZombies) {
+          const oldestId = this.zombieSessions.keys().next().value;
+          if (oldestId !== undefined) {
+            const oldest = this.zombieSessions.get(oldestId);
+            if (oldest) clearTimeout(oldest.evictTimer);
+            this.zombieSessions.delete(oldestId);
+            logToStderr(
+              `[tesseron] zombie cap (${maxZombies}) reached — evicted oldest zombie ${oldestId}`,
+            );
+          }
+        }
         const closedSession = session;
         const evictTimer = setTimeout(() => {
           this.zombieSessions.delete(closedSession.id);
@@ -616,9 +645,10 @@ export class TesseronGateway extends EventEmitter {
         );
       }
 
-      // Constant-time token compare. Both tokens are 32-char base64url in the
-      // happy path, but we still check lengths first to avoid a side channel
-      // when a wildly-wrong token is presented.
+      // Constant-time token compare. timingSafeEqual throws on mismatched-
+      // length buffers, so gate it behind an explicit length check first to
+      // return a clean ResumeFailed instead of a raw TypeError. Both tokens
+      // are 32-char base64url in the happy path.
       const presented = Buffer.from(resumeParams.resumeToken);
       const stored = Buffer.from(zombie.resumeToken);
       if (presented.length !== stored.length || !timingSafeEqual(presented, stored)) {

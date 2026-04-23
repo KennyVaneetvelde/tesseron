@@ -76,6 +76,11 @@ export interface ConnectOptions {
    * the request rejects with a {@link TesseronError} of code
    * {@link TesseronErrorCode.ResumeFailed}; callers typically fall back to a
    * plain `connect()` at that point.
+   *
+   * **Resume does NOT restore resource subscriptions.** `resources/subscribe`
+   * bindings on the prior socket are torn down when the transport closes and
+   * are not replayed; if the app relied on push updates, re-subscribe after
+   * the resume handshake resolves.
    */
   resume?: ResumeCredentials;
 }
