@@ -7,17 +7,29 @@
     "url": "https://github.com/BrainBlend-AI"
   },
   "metadata": {
-    "description": "Tesseron marketplace — ships the Tesseron Claude Code plugin (MCP gateway for typed web-app actions over WebSocket).",
-    "version": "0.1.0"
+    "description": "Tesseron marketplace — ships the Tesseron Claude Code plugin: MCP gateway plus the framework skill, `tesseron-dev` wiring skill, and explorer/reviewer subagents for building and auditing web apps that speak the Tesseron protocol.",
+    "version": "1.0.2"
   },
   "plugins": [
     {
       "name": "tesseron",
       "source": "./plugin",
-      "version": "0.1.0",
-      "description": "MCP gateway for Tesseron. Lets any web app expose typed actions to Claude over WebSocket without browser automation.",
+      "version": "1.0.2",
+      "description": "Tesseron for Claude Code: MCP gateway for typed web-app actions over WebSocket, plus a framework skill (progressive-disclosure references for actions, resources, context, transports, react, protocol, schemas, errors, gateway, testing, project-structure), an `tesseron-dev` skill that integrates Tesseron into any JS/TS project by picking the right consumer package (`@tesseron/react`, `/server`, or `/web`) and inserting the canonical API, and isolated-context explorer/reviewer subagents.",
       "category": "integration",
-      "tags": ["mcp", "web", "actions", "react", "svelte", "vue", "websocket"],
+      "tags": [
+        "mcp",
+        "web",
+        "actions",
+        "react",
+        "svelte",
+        "vue",
+        "websocket",
+        "typescript",
+        "zod",
+        "skill",
+        "subagent"
+      ],
       "homepage": "https://github.com/BrainBlend-AI/tesseron"
     }
   ]
