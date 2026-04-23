@@ -36,11 +36,7 @@
     "./errors": "./src/errors.ts",
     "./internal": "./src/internal.ts"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
