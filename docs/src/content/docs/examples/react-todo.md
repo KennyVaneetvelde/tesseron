@@ -1,6 +1,9 @@
 ---
 title: react-todo
 description: React 18 + `@tesseron/react` hooks. Idiomatic integration with component lifecycle.
+related:
+  - sdk/typescript/react
+  - sdk/typescript/web
 ---
 
 **What it teaches:** declarative action registration in React. Mount = register; unmount = unregister. State is mutated through `setTodos` exactly like in a normal React app.

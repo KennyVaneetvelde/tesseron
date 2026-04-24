@@ -1,6 +1,9 @@
 ---
 title: express-todo
 description: REST API + Tesseron on the same Node process, backed by the same state.
+related:
+  - sdk/typescript/server
+  - examples/node-todo
 ---
 
 **What it teaches:** how to expose the same backend operations via two channels at once - HTTP for human / programmatic clients, Tesseron for the agent. Neither knows the other exists.

@@ -1,6 +1,9 @@
 ---
 title: "@tesseron/react"
 description: Hooks for declarative action and resource registration inside React components.
+related:
+  - sdk/typescript/web
+  - sdk/typescript/action-builder
 ---
 
 `@tesseron/react` wraps `@tesseron/web` in three hooks. Registration becomes a declarative part of your component tree; unmount tears down cleanly.

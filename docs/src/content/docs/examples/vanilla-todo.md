@@ -1,6 +1,9 @@
 ---
 title: vanilla-todo
 description: Plain Vite + TypeScript. The minimum environment for exercising the SDK.
+related:
+  - sdk/typescript/web
+  - sdk/typescript/index
 ---
 
 **What it teaches:** the raw action / resource builder API with no framework in the way. Read this before any of the framework-specific examples.

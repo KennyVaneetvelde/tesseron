@@ -1,6 +1,9 @@
 ---
 title: "@tesseron/core"
 description: The protocol types, builder, JSON-RPC dispatcher, and abstract client that every runtime adapter extends.
+related:
+  - protocol/wire-format
+  - sdk/typescript/action-builder
 ---
 
 `@tesseron/core` is the runtime-independent layer. It has **zero runtime dependencies beyond Standard Schema spec types**. If you're writing a custom transport - Bun, Deno, a browser extension background worker, a native WebSocket implementation - you extend `core` directly.

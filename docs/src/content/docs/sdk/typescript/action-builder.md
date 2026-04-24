@@ -1,6 +1,10 @@
 ---
 title: Action builder
 description: Every step of the fluent builder, what it does, and when to use it.
+related:
+  - protocol/actions
+  - sdk/typescript/standard-schema
+  - sdk/typescript/context
 ---
 
 The action builder is the fluent API on `tesseron.action(name)`. It chains until `.handler(fn)` terminates it with an `ActionDefinition<I, O>`.

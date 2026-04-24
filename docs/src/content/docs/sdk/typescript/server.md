@@ -1,6 +1,10 @@
 ---
 title: "@tesseron/server"
 description: The Node SDK. Same action surface as @tesseron/web, different transport.
+related:
+  - sdk/typescript/core
+  - protocol/transport
+  - sdk/typescript/action-builder
 ---
 
 `@tesseron/server` is what you use in a Node process - an Express server, a NestJS app, a CLI tool, a background worker. The builder API is identical to `@tesseron/web`; only the transport differs.

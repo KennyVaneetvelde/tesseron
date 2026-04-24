@@ -1,6 +1,8 @@
 ---
 title: vue-todo
 description: Vue 3 composition API with `ref()` and `computed()`.
+related:
+  - sdk/typescript/web
 ---
 
 **What it teaches:** integrating Tesseron with Vue 3's reactivity. Handlers mutate `todos.value` and `computed()` recomputes downstream derived state.

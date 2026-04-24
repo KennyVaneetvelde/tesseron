@@ -1,6 +1,8 @@
 ---
 title: Standard Schema (Zod, Valibot, …)
 description: Any Standard Schema v1 validator works. What that means, which libraries are supported, and how to handle JSON Schema export.
+related:
+  - sdk/typescript/action-builder
 ---
 
 Tesseron's action builder accepts any validator that implements [Standard Schema v1](https://standardschema.dev). That's a small contract that most modern TypeScript validation libraries already expose:

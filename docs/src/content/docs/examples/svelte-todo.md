@@ -1,6 +1,8 @@
 ---
 title: svelte-todo
 description: Svelte 5 runes (`$state`, `$derived`). Mutation via direct reassignment.
+related:
+  - sdk/typescript/web
 ---
 
 **What it teaches:** integrating Tesseron with Svelte 5's rune-based reactivity. Handlers reassign `let todos = $state(...)` and Svelte re-renders.
