@@ -26,14 +26,28 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 2. **Add the SDK to your app.**
 
    <Tabs>
-     <TabItem label="Browser / Vite">
+     <TabItem label="Vite (Vue / Svelte / vanilla)">
        ```bash
        pnpm add @tesseron/web zod
+       pnpm add -D @tesseron/vite
+       ```
+     </TabItem>
+     <TabItem label="Vue">
+       ```bash
+       pnpm add @tesseron/vue zod
+       pnpm add -D @tesseron/vite
+       ```
+     </TabItem>
+     <TabItem label="Svelte">
+       ```bash
+       pnpm add @tesseron/svelte zod
+       pnpm add -D @tesseron/vite
        ```
      </TabItem>
      <TabItem label="React">
        ```bash
        pnpm add @tesseron/react zod
+       pnpm add -D @tesseron/vite
        ```
      </TabItem>
      <TabItem label="Node / server">
@@ -43,7 +57,20 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
      </TabItem>
    </Tabs>
 
-3. **Declare an app and one action.**
+3. **Register the Vite plugin** (browser apps only). It exposes `/@tesseron/ws` on the Vite dev server and writes per-tab discovery files the gateway watches.
+
+   ```ts title="vite.config.ts"
+   import { defineConfig } from 'vite';
+   import { tesseron } from '@tesseron/vite';
+
+   export default defineConfig({
+     plugins: [/* your framework plugin, e.g. vue() or svelte() */, tesseron()],
+   });
+   ```
+
+   Node apps skip this step - `@tesseron/server` binds and announces automatically.
+
+4. **Declare an app and one action.**
 
    ```ts title="src/main.ts"
    import { tesseron } from '@tesseron/web';
@@ -67,15 +94,15 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
    await tesseron.connect();
    ```
 
-   `tesseron.connect()` opens the WebSocket and resolves once the gateway returns a `welcome` with a `claimCode`.
+   In the browser, `tesseron.connect()` opens a WebSocket to the Vite plugin at `<location.origin>/@tesseron/ws`, which bridges it to the gateway. In Node, `@tesseron/server` binds a loopback WS server and announces itself via `~/.tesseron/tabs/`; the gateway dials in. Either way, `connect()` resolves with a `welcome` that carries the `claimCode`.
 
-4. **Claim the session from Claude.** Open your app - the gateway prints a 6-character claim code to its stderr (and you can surface it in your UI too). Tell Claude:
+5. **Claim the session from Claude.** Open your app - the gateway prints a 6-character claim code to its stderr (and you can surface it in your UI too). Tell Claude:
 
    > "Claim Tesseron session AB3X-7K"
 
    Claude calls the built-in `tesseron__claim_session` tool, the gateway marks the session claimed, and a `notifications/tools/list_changed` event fires.
 
-5. **Call your action.** The tool list now contains `notes__createNote`. Ask Claude:
+6. **Call your action.** The tool list now contains `notes__createNote`. Ask Claude:
 
    > "Create a note titled 'Groceries' with body 'eggs, milk, bread'."
 

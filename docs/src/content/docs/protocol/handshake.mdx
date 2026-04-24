@@ -128,7 +128,7 @@ If the code doesn't match (expired, wrong app, already used): error `-32009 Unau
 
 ## Why out-of-band claim?
 
-Because in-band claim is just security theatre over localhost. Anything running on the user's machine can open a WebSocket to `:7475`. The claim code is a **user-typed confirmation** - proof that a human authorised this specific browser tab to be controlled by this specific agent session. It's short enough to read aloud, long enough to resist guessing (~1.5 billion combinations of 6 upper-case alphanumeric minus confusables).
+Because in-band claim is just security theatre over localhost. Anything running on the user's machine can read `~/.tesseron/tabs/` and dial one of those WebSocket URLs. The claim code is a **user-typed confirmation** - proof that a human authorised this specific browser tab to be controlled by this specific agent session. It's short enough to read aloud, long enough to resist guessing (~1.5 billion combinations of 6 upper-case alphanumeric minus confusables).
 
 ## Protocol version mismatch
 

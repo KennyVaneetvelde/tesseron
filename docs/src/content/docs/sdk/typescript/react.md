@@ -58,7 +58,7 @@ Options:
 
 ```ts
 interface UseTesseronConnectionOptions {
-  url?: string;     // defaults to ws://127.0.0.1:7475
+  url?: string;     // defaults to `<location.origin>/@tesseron/ws` (served by @tesseron/vite)
   enabled?: boolean; // gate the connect, e.g. only when logged in
 }
 ```

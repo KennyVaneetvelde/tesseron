@@ -1,0 +1,24 @@
+{
+  "name": "node-prompts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Headless Node service exposing a library of reusable LLM prompts to Claude via Tesseron. Sampling is central to the domain — Claude tests, refines, and generates prompt variants through ctx.sample.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "validate:e2e": "tsx scripts/validate-e2e.ts"
+  },
+  "dependencies": {
+    "@tesseron/server": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@tesseron/mcp": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

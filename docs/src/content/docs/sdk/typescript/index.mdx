@@ -15,14 +15,28 @@ import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
 1. **Install the package that matches your runtime.**
 
    <Tabs>
-     <TabItem label="Browser (Vite, Next, etc.)">
+     <TabItem label="Browser (Vite)">
        ```bash
        pnpm add @tesseron/web zod
+       pnpm add -D @tesseron/vite
+       ```
+     </TabItem>
+     <TabItem label="Vue">
+       ```bash
+       pnpm add @tesseron/vue zod
+       pnpm add -D @tesseron/vite
+       ```
+     </TabItem>
+     <TabItem label="Svelte">
+       ```bash
+       pnpm add @tesseron/svelte zod
+       pnpm add -D @tesseron/vite
        ```
      </TabItem>
      <TabItem label="React">
        ```bash
        pnpm add @tesseron/react zod
+       pnpm add -D @tesseron/vite
        ```
      </TabItem>
      <TabItem label="Node (server, worker)">
@@ -36,6 +50,8 @@ import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
        ```
      </TabItem>
    </Tabs>
+
+   Browser apps also need the [`@tesseron/vite`](/sdk/typescript/vite/) plugin registered in `vite.config.ts` to serve `/@tesseron/ws`. Node apps don't - `@tesseron/server` binds and announces itself automatically.
 
    `zod` is used in the examples here; swap it for any [Standard Schema](https://standardschema.dev)-compatible validator - Valibot, ArkType, Effect Schema.
 
@@ -153,4 +169,5 @@ import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
 - The [action builder](/sdk/typescript/action-builder/) in full - chaining, output validation, annotations, timeouts.
 - [Standard Schema validators](/sdk/typescript/standard-schema/) - Zod vs Valibot vs ArkType, and JSON Schema interop.
 - The [context API](/sdk/typescript/context/) - progress, sampling, elicitation, logging.
-- Framework adapters: [@tesseron/react](/sdk/typescript/react/).
+- Framework adapters: [@tesseron/react](/sdk/typescript/react/), [@tesseron/svelte](/sdk/typescript/svelte/), [@tesseron/vue](/sdk/typescript/vue/).
+- [@tesseron/vite](/sdk/typescript/vite/) - the dev-server bridge that makes browser apps reachable.

@@ -37,13 +37,13 @@ import Diagram from '../../components/Diagram.astro';
   pad={42}
   nodes={[
     { id: 'user',  label: 'USER',    sub: ['human at', 'the keyboard'],     icon: 'user' },
-    { id: 'app',   label: 'YOUR APP', sub: 'browser or node', code: '@tesseron/web', icon: 'window' },
-    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WebSocket + MCP', code: '@tesseron/mcp :7475', icon: 'bridge', variant: 'accent' },
+    { id: 'app',   label: 'YOUR APP', sub: '/@tesseron/ws', code: '@tesseron/web', icon: 'window' },
+    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WS client + MCP', code: '@tesseron/mcp', icon: 'bridge', variant: 'accent' },
     { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent' },
   ]}
   edges={[
     { from: 'user', to: 'app' },
-    { from: 'app',  to: 'gw',    label: 'WebSocket', bidirectional: true, accent: true },
+    { from: 'gw',   to: 'app',   label: 'WebSocket', bidirectional: true, accent: true },
     { from: 'gw',   to: 'agent', label: 'MCP stdio', bidirectional: true, accent: true },
   ]}
 />

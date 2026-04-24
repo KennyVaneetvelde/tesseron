@@ -1,8 +1,8 @@
 {
-  "name": "node-todo",
+  "name": "express-prompts",
   "version": "0.0.0",
   "private": true,
-  "description": "Minimal headless Node todo service: no browser, no Express, no HTTP server. Shows @tesseron/server in its simplest form — any Node process (CLI, daemon, worker) can expose actions to Claude.",
+  "description": "Express backend exposing a prompt library (actions + resources) to Claude via @tesseron/server, plus a REST HTTP API over the same state. Sampling-heavy domain: Claude tests, refines, and generates prompt variants via ctx.sample.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@tesseron/server": "workspace:*",
+    "express": "^4.21.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.0",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"

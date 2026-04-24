@@ -34,7 +34,7 @@ The gateway exposes those actions as MCP tools over stdio. Any MCP-capable agent
 
 ## Tradeoffs (be honest)
 
-- **Localhost by default.** Tesseron is a local-first developer tool. The default gateway binds to `127.0.0.1:7475` and rejects non-localhost origins. Remote agents require an allowlist.
+- **Localhost by default.** Tesseron is a local-first developer tool. Apps bind to `127.0.0.1`; the gateway only dials loopback URLs. Nothing leaks off the machine.
 - **Requires the tab to be open.** If the page is closed, the session is gone. This is a feature - it keeps the agent bound to what the user can see.
 - **Not a replacement for a headless API.** If you need scheduled or unattended automation, you want a server-side MCP. Tesseron complements it - it doesn't replace it.
 
