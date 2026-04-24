@@ -33,18 +33,13 @@ import Diagram from '../../components/Diagram.astro';
 <Diagram
   caption="Your web app declares actions. The MCP gateway bridges them to any MCP-capable agent (Claude Code, Cursor, Claude Desktop)."
   nodeWidth={130}
-  spacing={70}
+  spacing={140}
   pad={42}
   nodes={[
     { id: 'user',  label: 'USER',    sub: ['human at', 'the keyboard'],     icon: 'user' },
     { id: 'app',   label: 'YOUR APP', sub: 'browser or Node', icon: 'window' },
-    // `gw` and `agent` carry 70px extra left margin so the 70px global gap
-    // is only applied between user and app; the pill-bearing edges get the
-    // full 140px (70 spacing + 70 margin) they need for visible line + pill.
-    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WS client + MCP', icon: 'bridge', variant: 'accent',
-      layoutOptions: { 'elk.margins': '[top=0,left=70,bottom=0,right=0]' } },
-    { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent',
-      layoutOptions: { 'elk.margins': '[top=0,left=70,bottom=0,right=0]' } },
+    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WS client + MCP', icon: 'bridge', variant: 'accent' },
+    { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent' },
   ]}
   edges={[
     { from: 'user', to: 'app' },
