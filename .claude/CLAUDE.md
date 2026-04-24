@@ -44,7 +44,12 @@ Skills auto-activate from the keywords in their descriptions — describing the 
 
 ### typescript-lsp @ claude-plugins-official
 - **What it adds:** the `LSP` tool for `goToDefinition`, `findReferences`, `hover`, `documentSymbol`, `workspaceSymbol`, `goToImplementation`, call-hierarchy queries on `.ts/.tsx/.js/.jsx/.mts/.cts/.mjs/.cjs`.
-- **Setup:** requires `npm install -g typescript-language-server typescript`. If the tool fails, that install is almost certainly the reason.
+- **Setup (Windows, this machine):** install via **bun**, NOT npm — `bun add -g typescript-language-server typescript`. The Claude Code `LSP` tool spawns the language server via libuv's raw `uv_spawn`, which on Windows:
+  1. Finds npm's bare unix-style shell-script shim (e.g. `C:\nvm4w\nodejs\typescript-language-server` with `#!/bin/sh`) first in PATH and fails because Windows can't exec a shell script.
+  2. Even with that bare shim removed, Node's CVE-2024-27980 security fix blocks resolution of `.cmd` shims without `shell: true`, so libuv still returns `ENOENT`.
+  - bun creates real `typescript-language-server.exe` binaries that libuv resolves cleanly. If both are installed, npm's dir is earlier in PATH and wins — `npm uninstall -g typescript-language-server typescript` so libuv falls through to the bun `.exe`.
+  - **Diagnostic**: if `LSP` returns `ENOENT: no such file or directory, uv_spawn 'typescript-language-server'`, run `node -e "require('child_process').spawn('typescript-language-server', ['--version'], {shell:false}).on('error', console.log)"`. If it logs ENOENT, the shim chain is broken — reinstall via bun and uninstall the npm copy.
+- **Setup (Linux/macOS):** `npm install -g typescript-language-server typescript` works fine — the libuv/`.cmd` issue is Windows-only.
 - **Strategy:** prefer `LSP` over grep for "where is X defined / used / implemented" in TS code — it's precise and scoped; grep for string/regex patterns.
 - **No skills or commands**, so nothing to invoke by name.
 
