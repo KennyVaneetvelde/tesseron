@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
-import { WebSocketServer, type WebSocket, type RawData } from 'ws';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
+import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 
 export interface TesseronViteOptions {
   /** Human-readable app name written to the tab discovery file. Defaults to the Vite project directory name. */

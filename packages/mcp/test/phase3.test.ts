@@ -14,7 +14,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { ServerTesseronClient } from '@tesseron/server';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { McpAgentBridge, TesseronGateway } from '../src/index.js';
-import { dialSdk, prepareSandbox, type Sandbox } from './setup.js';
+import { type Sandbox, dialSdk, prepareSandbox } from './setup.js';
 
 let sandbox: Sandbox;
 let gateway: TesseronGateway;

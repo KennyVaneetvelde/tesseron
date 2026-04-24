@@ -20,7 +20,7 @@
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';

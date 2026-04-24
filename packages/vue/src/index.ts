@@ -1,5 +1,4 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { onMounted, onUnmounted, ref, type Ref } from 'vue';
 import {
   type ActionAnnotations,
   type ActionContext,
@@ -7,6 +6,7 @@ import {
   type WelcomeResult,
   tesseron,
 } from '@tesseron/web';
+import { type Ref, onMounted, onUnmounted, ref } from 'vue';
 
 export * from '@tesseron/web';
 

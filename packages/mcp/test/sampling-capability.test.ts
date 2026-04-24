@@ -9,7 +9,7 @@ import {
   TesseronErrorCode,
   TesseronGateway,
 } from '../src/index.js';
-import { prepareSandbox, type Sandbox, waitForTabFile } from './setup.js';
+import { type Sandbox, prepareSandbox, waitForTabFile } from './setup.js';
 
 let sandbox: Sandbox;
 let gateway: TesseronGateway;
