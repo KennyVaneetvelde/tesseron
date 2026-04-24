@@ -14,18 +14,17 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { ServerTesseronClient } from '@tesseron/server';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { McpAgentBridge, TesseronGateway } from '../src/index.js';
+import { dialSdk, prepareSandbox, type Sandbox } from './setup.js';
 
-const PORT = 7810;
-const URL = `ws://127.0.0.1:${PORT}`;
-
+let sandbox: Sandbox;
 let gateway: TesseronGateway;
 let bridge: McpAgentBridge;
 let client: Client;
 let activeSdks: ServerTesseronClient[] = [];
 
 beforeAll(async () => {
-  gateway = new TesseronGateway({ port: PORT });
-  await gateway.start();
+  sandbox = prepareSandbox();
+  gateway = new TesseronGateway();
   bridge = new McpAgentBridge({ gateway });
   const [agentSide, gatewaySide] = InMemoryTransport.createLinkedPair();
   await bridge.connect(gatewaySide);
@@ -44,6 +43,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await client.close().catch(() => {});
   await gateway.stop().catch(() => {});
+  sandbox.cleanup();
 });
 
 afterEach(async () => {
@@ -90,7 +90,7 @@ async function setupAndClaim(
   const sdk = newSdk();
   sdk.app({ id: appId, name: `${appId} app`, origin: 'http://localhost' });
   register(sdk);
-  const welcome = await sdk.connect(URL);
+  const welcome = await dialSdk(gateway, sandbox, () => sdk.connect());
   const code = welcome.claimCode!;
   await client.request(
     { method: 'tools/call', params: { name: 'tesseron__claim_session', arguments: { code } } },
@@ -328,6 +328,77 @@ describe('Phase 3 — sampling round trip', () => {
     expect(result.isError).toBe(false);
     expect(observedPrompt).toBe('summarize TypeScript');
     expect(result.text).toBe('you said: summarize TypeScript');
+  });
+
+  // Regression: ctx.sample with a schema must JSON-decode the string content
+  // before validating. Pre-fix, the SDK handed the raw string from
+  // result.content straight to standardValidate, so any z.object(...) schema
+  // tripped "Expected object, received string". The docs already promised
+  // validated values; the client.ts implementation didn't parse.
+  it('JSON-decodes the sampling result before schema validation', async () => {
+    client.setRequestHandler(CreateMessageRequestSchema, async () => ({
+      role: 'assistant',
+      model: 'json-model',
+      // Return a JSON-encoded object as the sampling content; the SDK must
+      // parse it before validating against the schema.
+      content: { type: 'text', text: JSON.stringify({ titles: ['A', 'B', 'C'] }) },
+    }));
+
+    const titlesSchema: StandardSchemaV1<{ titles: string[] }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: (v) => {
+          if (typeof v !== 'object' || v === null || !Array.isArray((v as { titles?: unknown }).titles)) {
+            return { issues: [{ message: 'expected { titles: string[] }' }] };
+          }
+          return { value: v as { titles: string[] } };
+        },
+      },
+    };
+
+    type Out = { titles: string[] };
+    await setupAndClaim('samp_json', (s) => {
+      s.action<Record<string, never>, Out>('suggest').handler(async (_input, ctx) => {
+        return ctx.sample<Out>({
+          prompt: 'Suggest 3 titles',
+          schema: titlesSchema,
+        });
+      });
+    });
+
+    const result = await callTool('samp_json__suggest', {});
+    expect(result.isError).toBe(false);
+    expect(JSON.parse(result.text)).toEqual({ titles: ['A', 'B', 'C'] });
+  });
+
+  // Regression: if the LLM returns non-JSON but the handler declared a schema,
+  // the SDK must produce a clear HandlerError rather than passing the string
+  // through to validation and failing with a confusing "Expected object" message.
+  it('throws a HandlerError with a clear message when schema is set but content is not JSON', async () => {
+    client.setRequestHandler(CreateMessageRequestSchema, async () => ({
+      role: 'assistant',
+      model: 'garbage-model',
+      content: { type: 'text', text: 'not json at all' },
+    }));
+
+    const anySchema: StandardSchemaV1<{ ok: boolean }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: () => ({ value: { ok: true } }),
+      },
+    };
+
+    await setupAndClaim('samp_badjson', (s) => {
+      s.action('trysample').handler(async (_input, ctx) => {
+        return ctx.sample({ prompt: 'whatever', schema: anySchema });
+      });
+    });
+
+    const result = await callTool('samp_badjson__trysample', {});
+    expect(result.isError).toBe(true);
+    expect(result.text).toMatch(/not valid JSON/i);
   });
 });
 

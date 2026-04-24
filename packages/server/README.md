@@ -77,7 +77,7 @@ app.listen(3000);
 await tesseron.connect();
 ```
 
-Both channels mutate the same state. See [`examples/express-todo`](https://github.com/BrainBlend-AI/tesseron/tree/main/examples/express-todo) for a working version.
+Both channels mutate the same state. See [`examples/express-prompts`](https://github.com/BrainBlend-AI/tesseron/tree/main/examples/express-prompts) for a working version (prompt library with sampling and elicitation).
 
 ## Docs
 

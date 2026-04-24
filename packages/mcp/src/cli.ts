@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { DEFAULT_GATEWAY_HOST, DEFAULT_GATEWAY_PORT, TesseronGateway } from './gateway.js';
+import { TesseronGateway } from './gateway.js';
 import { McpAgentBridge, type ToolSurfaceMode } from './mcp-bridge.js';
 
 function toolSurfaceFromEnv(): ToolSurfaceMode {
@@ -10,16 +10,11 @@ function toolSurfaceFromEnv(): ToolSurfaceMode {
 }
 
 async function main(): Promise<void> {
-  const portEnv = process.env['TESSERON_PORT'];
-  const port = portEnv ? Number(portEnv) : DEFAULT_GATEWAY_PORT;
-  const host = process.env['TESSERON_HOST'] ?? DEFAULT_GATEWAY_HOST;
-  const allowlistEnv = process.env['TESSERON_ORIGIN_ALLOWLIST'];
-  const originAllowlist = allowlistEnv ? allowlistEnv.split(',').map((s) => s.trim()) : undefined;
   const toolSurface = toolSurfaceFromEnv();
 
-  const gateway = new TesseronGateway({ port, host, originAllowlist });
-  await gateway.start();
-  process.stderr.write(`[tesseron] gateway listening on ws://${host}:${port}\n`);
+  const gateway = new TesseronGateway();
+  gateway.watchAppsJson();
+  process.stderr.write('[tesseron] watching ~/.tesseron/tabs/ for app connections\n');
   process.stderr.write(`[tesseron] tool surface mode: ${toolSurface}\n`);
 
   const bridge = new McpAgentBridge({ gateway, toolSurface });

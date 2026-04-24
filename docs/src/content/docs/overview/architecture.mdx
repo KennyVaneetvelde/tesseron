@@ -11,24 +11,27 @@ related:
 import Diagram from '../../../components/Diagram.astro';
 
 <Diagram
-  caption="Three processes, two protocols. Your app speaks JSON-RPC over WebSocket to the MCP gateway; the gateway speaks MCP stdio to the agent."
+  caption="Three processes, two protocols. Your app hosts a WebSocket endpoint and announces itself; the gateway dials in and speaks MCP stdio to the agent."
   nodes={[
     { id: 'user',  label: 'USER',    sub: ['human at', 'the keyboard'],     icon: 'user' },
-    { id: 'app',   label: 'YOUR APP', sub: 'browser or node', code: '@tesseron/web', icon: 'window' },
-    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WebSocket + MCP', code: '@tesseron/mcp :7475', icon: 'bridge', variant: 'accent' },
+    { id: 'app',   label: 'YOUR APP', sub: 'WS server + tab file', code: '@tesseron/vite | /server', icon: 'window' },
+    { id: 'gw',    label: 'MCP GATEWAY', sub: 'WS client + MCP', code: '@tesseron/mcp', icon: 'bridge', variant: 'accent' },
     { id: 'agent', label: 'AGENT',   sub: ['Claude Code,', 'Cursor, Desktop'], icon: 'agent' },
   ]}
   edges={[
     { from: 'user', to: 'app' },
-    { from: 'app',  to: 'gw',    label: 'WebSocket', bidirectional: true, accent: true },
+    { from: 'gw',   to: 'app',   label: 'WebSocket', bidirectional: true, accent: true },
     { from: 'gw',   to: 'agent', label: 'MCP stdio', bidirectional: true, accent: true },
   ]}
 />
 
 ## Three processes
 
-- **Your app** - browser tab, React / Svelte / Vue / vanilla-TS, or a Node process. Hosts the action handlers and the real state they mutate. Uses `@tesseron/web`, `@tesseron/server`, or a framework adapter.
-- **The MCP gateway** - a small Node process (`@tesseron/mcp`) bundled into the Claude Code plugin. Listens on `ws://127.0.0.1:7475` for your app and on stdio for the agent. Translates between the two.
+- **Your app** - browser tab, React / Svelte / Vue / vanilla-TS, or a Node / desktop process. Hosts the action handlers and the real state they mutate. Also hosts a WebSocket endpoint the gateway dials into:
+  - Browser apps get that endpoint for free by adding the `@tesseron/vite` plugin (or the equivalent for your dev server).
+  - Node apps get it via `@tesseron/server`, which binds a loopback port automatically.
+  - Anything else (Electron main, .NET, Python, Go, Rust, ...) can follow the same pattern: bind a WS server, drop a discovery file at `~/.tesseron/tabs/<tabId>.json`, speak the protocol.
+- **The MCP gateway** - a small Node process (`@tesseron/mcp`) bundled into the Claude Code plugin. Runs on stdio for the agent. Watches `~/.tesseron/tabs/` and dials each app it finds. The gateway never binds a port of its own.
 - **The agent** - Claude Code, Claude Desktop, Cursor, or any other MCP client. Doesn't know or care about WebSockets - it only sees standard MCP tools.
 
 ## Two protocols
@@ -64,7 +67,18 @@ The gateway is the only place that knows both dialects. Everything else is clean
 Because MCP doesn't run over WebSocket, and JSON-RPC-over-stdio doesn't work from a browser tab. The gateway reconciles the two, plus:
 
 - **Session claiming.** A 6-character code (`AB3X-7K`) that the user pastes into the agent binds one tab to one agent session. Keeps strangers out.
-- **Origin allowlist.** Non-localhost origins are rejected at the upgrade handshake unless explicitly allowed.
+- **Loopback only.** Apps bind to `127.0.0.1`; the gateway only dials loopback URLs. Nothing leaks off the machine.
 - **Multi-app fan-in.** You can run several apps at once; tools are namespaced by `app.id` so `shop__addItem` and `admin__banUser` never collide.
+
+## Discovery, not binding
+
+There is exactly one discovery mechanism and it works the same for every runtime:
+
+1. Your app binds a WebSocket server on a loopback port of its choosing.
+2. It writes `~/.tesseron/tabs/<tabId>.json` with the URL it bound.
+3. The gateway (watching that directory) picks up the file and dials the URL with the `tesseron-gateway` WebSocket subprotocol.
+4. Once connected, the app sends `tesseron/hello` and the normal protocol takes over.
+
+No fixed ports. No environment variables. No "which gateway do I connect to". Just bind, announce, serve. If you want to port Tesseron to a new language, that's the entire runtime contract - everything else is libraries of your language's choosing.
 
 Next: the [5-minute quickstart](/overview/quickstart/) walks through getting this running end-to-end.

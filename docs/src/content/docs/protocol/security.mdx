@@ -10,33 +10,29 @@ import Diagram from '../../../components/Diagram.astro';
 
 Tesseron's security model is **local-first, user-authorised**. The MCP gateway binds to localhost and won't expose any action until a human types a short code out-of-band. These are the two gates.
 
-## Gate 1 - origin allowlist
+## Gate 1 - loopback-only discovery
 
 <Diagram
-  caption="The MCP gateway inspects Origin at the upgrade handshake. Non-localhost origins are rejected unless explicitly allowed."
+  caption="Apps announce loopback URLs. The gateway only dials loopback. Nothing off the machine gets a connection."
   nodeWidth={200}
   spacing={80}
   nodes={[
-    { id: 'app',    label: 'YOUR APP',    sub: 'http://localhost:3000', icon: 'window' },
-    { id: 'evil',   label: 'ATTACKER',    sub: 'https://evil.com',       icon: 'x',       variant: 'danger' },
-    { id: 'gw',     label: 'MCP GATEWAY',     sub: 'verifyClient()',         icon: 'shield',  variant: 'accent' },
-    { id: 'accept', label: 'ACCEPT',      sub: '-> tesseron/hello',      icon: 'check' },
-    { id: 'reject', label: 'REJECT',      sub: '403, close 1008',        icon: 'lock',    variant: 'danger' },
+    { id: 'app',    label: 'YOUR APP',    sub: 'binds 127.0.0.1:*', icon: 'window' },
+    { id: 'file',   label: 'TAB FILE',    sub: '~/.tesseron/tabs/', icon: 'bridge' },
+    { id: 'gw',     label: 'MCP GATEWAY', sub: 'WS client',         icon: 'shield',  variant: 'accent' },
+    { id: 'evil',   label: 'ATTACKER',    sub: 'remote host',       icon: 'x',       variant: 'danger' },
   ]}
   edges={[
-    { from: 'app',  to: 'gw',     label: 'Origin: localhost' },
-    { from: 'evil', to: 'gw',     label: 'Origin: evil.com', danger: true },
-    { from: 'gw',   to: 'accept', label: 'allowlist match', accent: true },
-    { from: 'gw',   to: 'reject', label: 'otherwise', style: 'dashed', danger: true },
+    { from: 'app',  to: 'file', label: 'writes wsUrl', accent: true },
+    { from: 'gw',   to: 'file', label: 'reads', style: 'dashed' },
+    { from: 'gw',   to: 'app',  label: 'dials loopback', accent: true },
+    { from: 'evil', to: 'gw',   label: 'no inbound port', danger: true, style: 'dashed' },
   ]}
 />
 
-The WebSocket upgrade is accepted when:
+Apps bind to `127.0.0.1` (not `0.0.0.0`), so their WebSocket servers are unreachable from the network. The gateway refuses non-loopback URLs read from `~/.tesseron/tabs/`. The gateway itself binds no ports, so a remote attacker has nothing to dial. Every hop is on the machine.
 
-- `Origin` starts with `http://localhost:` or `http://127.0.0.1:`, or
-- `Origin` appears verbatim in `TESSERON_ORIGIN_ALLOWLIST` (comma-separated).
-
-Anything else returns HTTP 403. This is defence-in-depth - it prevents a drive-by page on `evil.com` from spraying `tesseron/hello` messages at your gateway and enumerating your app's surface.
+This is defence-in-depth. A drive-by page on `evil.com` can't reach your app's server - it would have to resolve `127.0.0.1` from the browser's origin, which the Same-Origin Policy blocks by default, and even a successful connection attempt would still face the claim-code gate below.
 
 ## Gate 2 - the claim code
 
@@ -82,14 +78,15 @@ This means you can, without coordinating, keep your dashboard and your customer 
 ## What Tesseron does NOT defend against
 
 - **Malicious code running in your app's process.** If an attacker already executes JS in your tab or on your Node server, they can call your SDK and declare whatever actions they want. Tesseron is no worse - and no better - than the process it's embedded in.
-- **Malicious MCP clients on the same machine.** Any local process can open a WebSocket to `ws://127.0.0.1:7475` and send `tesseron/hello`. The origin check only fires if the client sends an `Origin` header; non-browser clients may not. The claim code is the second gate, and it requires human cooperation.
+- **Malicious MCP clients on the same machine.** Any local process can read `~/.tesseron/tabs/` and dial one of the advertised WebSocket URLs. They would still need to send a valid `tesseron/hello` and convince the user to type the claim code into their agent. The claim code is the second gate, and it requires human cooperation - but it's the only thing stopping a rogue process from attaching to your session.
 - **Prompt injection.** If your handler's `description` or inputs are attacker-controlled, they can manipulate the agent's plans. Sanitise descriptions you show to the agent the same way you would sanitise HTML you show to users.
 - **Exfiltration via resources.** Anything you expose as a resource is readable by the claimed agent. Don't expose credentials, session tokens, or PII you haven't decided the user is okay sharing with Claude.
 
 ## Operational tips
 
-- **Never expand `TESSERON_ORIGIN_ALLOWLIST` by default.** Add origins only for specific agent integrations that need them.
+- **Bind to `127.0.0.1`, never `0.0.0.0`.** The default in `@tesseron/server` and `@tesseron/vite` is loopback-only; don't override it unless you know exactly why.
 - **Treat the claim code as short-lived.** Don't render it persistently in the UI after the session is claimed.
+- **Clean up tab files on app exit.** The built-in SDKs do this for you; if you port to a new runtime, handle the shutdown path so stale files don't pile up.
 - **Log the `agent.id` that claimed the session** - useful for auditing which agent actually ran which action.
 - **For production tools, use per-user app IDs.** `shop_kenny` vs `shop_sarah` prevents one user's agent from driving another user's tab, even if both are on the same machine.
 

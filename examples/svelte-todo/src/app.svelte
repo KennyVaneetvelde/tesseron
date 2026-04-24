@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { tesseron } from '@tesseron/web';
+  import { tesseron, tesseronConnection } from '@tesseron/svelte';
   import { z } from 'zod';
 
   interface Todo {
@@ -18,9 +17,6 @@
   let filter = $state<Filter>('all');
   let input = $state('');
   const FILTERS: readonly Filter[] = ['all', 'active', 'completed'];
-  let connection = $state<{ status: string; claimCode?: string; error?: string }>({
-    status: 'idle',
-  });
   let lastLog = $state<string>('');
 
   const visibleTodos = $derived(
@@ -301,15 +297,7 @@
     todos = todos.filter((t) => t.id !== id);
   }
 
-  onMount(async () => {
-    connection = { status: 'connecting' };
-    try {
-      const welcome = await tesseron.connect();
-      connection = { status: 'open', claimCode: welcome.claimCode };
-    } catch (e) {
-      connection = { status: 'error', error: (e as Error).message };
-    }
-  });
+  const connection = tesseronConnection();
 </script>
 
 <main>
@@ -317,24 +305,24 @@
     <h1>Svelte Todos <span class="badge">live</span></h1>
     <p>
       A real Svelte 5 app whose state is drivable by Claude through
-      <code>@tesseron/web</code>. Every Tesseron capability is wired in: actions,
+      <code>@tesseron/svelte</code>. Every Tesseron capability is wired in: actions,
       <code>ctx.progress</code>, <code>ctx.elicit</code>, <code>ctx.sample</code>,
       and subscribable resources.
     </p>
   </header>
 
-  <section class="connect-card" data-status={connection.status}>
+  <section class="connect-card" data-status={$connection.status}>
     <div>
       <strong>Status:</strong>
-      {connection.status}
-      {#if connection.error}<span class="error"> — {connection.error}</span>{/if}
+      {$connection.status}
+      {#if $connection.error}<span class="error"> — {$connection.error.message}</span>{/if}
     </div>
-    {#if connection.claimCode}
+    {#if $connection.claimCode}
       <div>
         <strong>Claim code:</strong>
-        <code class="claim-code">{connection.claimCode}</code>
+        <code class="claim-code">{$connection.claimCode}</code>
       </div>
-      <p class="hint">Tell Claude: "claim session {connection.claimCode}"</p>
+      <p class="hint">Tell Claude: "claim session {$connection.claimCode}"</p>
     {/if}
   </section>
 

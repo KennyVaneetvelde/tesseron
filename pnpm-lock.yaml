@@ -64,7 +64,7 @@ importers:
         specifier: ^4.19.2
         version: 4.21.0
 
-  examples/express-todo:
+  examples/express-prompts:
     dependencies:
       '@tesseron/server':
         specifier: workspace:*
@@ -89,7 +89,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  examples/node-todo:
+  examples/node-prompts:
     dependencies:
       '@tesseron/server':
         specifier: workspace:*
@@ -98,6 +98,12 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.29.0(zod@3.25.76)
+      '@tesseron/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
@@ -123,6 +129,12 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@tesseron/vite':
+        specifier: workspace:*
+        version: link:../../packages/vite
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       '@types/react':
         specifier: ^18.3.0
         version: 18.3.28
@@ -131,19 +143,19 @@ importers:
         version: 18.3.7(@types/react@18.3.28)
       '@vitejs/plugin-react':
         specifier: ^4.3.0
-        version: 4.7.0(vite@5.4.21(@types/node@24.12.2))
+        version: 4.7.0(vite@5.4.21(@types/node@22.19.17))
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@24.12.2)
+        version: 5.4.21(@types/node@22.19.17)
 
   examples/svelte-todo:
     dependencies:
-      '@tesseron/web':
+      '@tesseron/svelte':
         specifier: workspace:*
-        version: link:../../packages/web
+        version: link:../../packages/svelte
       svelte:
         specifier: ^5.0.0
         version: 5.55.4
@@ -153,7 +165,13 @@ importers:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^4.0.0
-        version: 4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2))
+        version: 4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17))
+      '@tesseron/vite':
+        specifier: workspace:*
+        version: link:../../packages/vite
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       svelte-check:
         specifier: ^4.0.0
         version: 4.4.6(picomatch@4.0.4)(svelte@5.55.4)(typescript@5.9.3)
@@ -162,7 +180,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@24.12.2)
+        version: 5.4.21(@types/node@22.19.17)
 
   examples/vanilla-todo:
     dependencies:
@@ -173,18 +191,24 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@tesseron/vite':
+        specifier: workspace:*
+        version: link:../../packages/vite
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@24.12.2)
+        version: 5.4.21(@types/node@22.19.17)
 
   examples/vue-todo:
     dependencies:
-      '@tesseron/web':
+      '@tesseron/vue':
         specifier: workspace:*
-        version: link:../../packages/web
+        version: link:../../packages/vue
       vue:
         specifier: ^3.5.0
         version: 3.5.32(typescript@5.9.3)
@@ -192,15 +216,21 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@tesseron/vite':
+        specifier: workspace:*
+        version: link:../../packages/vite
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       '@vitejs/plugin-vue':
         specifier: ^5.1.0
-        version: 5.2.4(vite@5.4.21(@types/node@24.12.2))(vue@3.5.32(typescript@5.9.3))
+        version: 5.2.4(vite@5.4.21(@types/node@22.19.17))(vue@3.5.32(typescript@5.9.3))
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@24.12.2)
+        version: 5.4.21(@types/node@22.19.17)
       vue-tsc:
         specifier: ^2.1.0
         version: 2.2.12(typescript@5.9.3)
@@ -323,6 +353,60 @@ importers:
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
+
+  packages/svelte:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.1.0
+      '@tesseron/core':
+        specifier: workspace:*
+        version: link:../core
+      '@tesseron/web':
+        specifier: workspace:*
+        version: link:../web
+    devDependencies:
+      svelte:
+        specifier: ^5.0.0
+        version: 5.55.4
+
+  packages/vite:
+    dependencies:
+      ws:
+        specifier: ^8.18.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@22.19.17)
+
+  packages/vue:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.1.0
+      '@tesseron/core':
+        specifier: workspace:*
+        version: link:../core
+      '@tesseron/web':
+        specifier: workspace:*
+        version: link:../web
+    devDependencies:
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.32(typescript@5.9.3)
 
   packages/web:
     dependencies:
@@ -6214,25 +6298,25 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@3.0.1(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2)))(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2))':
+  '@sveltejs/vite-plugin-svelte-inspector@3.0.1(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17)))(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2))
+      '@sveltejs/vite-plugin-svelte': 4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17))
       debug: 4.4.3
       svelte: 5.55.4
-      vite: 5.4.21(@types/node@24.12.2)
+      vite: 5.4.21(@types/node@22.19.17)
     transitivePeerDependencies:
       - supports-color
 
-  '@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2))':
+  '@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 3.0.1(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2)))(svelte@5.55.4)(vite@5.4.21(@types/node@24.12.2))
+      '@sveltejs/vite-plugin-svelte-inspector': 3.0.1(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17)))(svelte@5.55.4)(vite@5.4.21(@types/node@22.19.17))
       debug: 4.4.3
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.21
       svelte: 5.55.4
-      vite: 5.4.21(@types/node@24.12.2)
-      vitefu: 1.1.3(vite@5.4.21(@types/node@24.12.2))
+      vite: 5.4.21(@types/node@22.19.17)
+      vitefu: 1.1.3(vite@5.4.21(@types/node@22.19.17))
     transitivePeerDependencies:
       - supports-color
 
@@ -6516,7 +6600,7 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
-  '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@24.12.2))':
+  '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@22.19.17))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -6524,13 +6608,13 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 5.4.21(@types/node@24.12.2)
+      vite: 5.4.21(@types/node@22.19.17)
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@24.12.2))(vue@3.5.32(typescript@5.9.3))':
+  '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@22.19.17))(vue@3.5.32(typescript@5.9.3))':
     dependencies:
-      vite: 5.4.21(@types/node@24.12.2)
+      vite: 5.4.21(@types/node@22.19.17)
       vue: 3.5.32(typescript@5.9.3)
 
   '@vitest/expect@2.1.9':
@@ -10035,9 +10119,9 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vitefu@1.1.3(vite@5.4.21(@types/node@24.12.2)):
+  vitefu@1.1.3(vite@5.4.21(@types/node@22.19.17)):
     optionalDependencies:
-      vite: 5.4.21(@types/node@24.12.2)
+      vite: 5.4.21(@types/node@22.19.17)
 
   vitefu@1.1.3(vite@6.4.2(@types/node@24.12.2)(tsx@4.21.0)(yaml@2.8.3)):
     optionalDependencies:

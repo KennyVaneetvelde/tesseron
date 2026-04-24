@@ -1,6 +1,11 @@
 import { Buffer } from 'node:buffer';
 import { timingSafeEqual } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { existsSync } from 'node:fs';
+import { watch } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import {
   type ElicitationRequestParams,
   type ElicitationResult,
@@ -17,7 +22,7 @@ import {
   type WelcomeResult,
 } from '@tesseron/core';
 import { JsonRpcDispatcher } from '@tesseron/core/internal';
-import { type RawData, type WebSocket, WebSocketServer } from 'ws';
+import { type RawData, WebSocket } from 'ws';
 import {
   type Session,
   generateClaimCode,
@@ -29,12 +34,6 @@ import {
 
 /** Constructor options for {@link TesseronGateway}. */
 export interface GatewayOptions {
-  /** Port to bind. Defaults to {@link DEFAULT_GATEWAY_PORT}. */
-  port?: number;
-  /** Host/interface to bind. Defaults to {@link DEFAULT_GATEWAY_HOST} (loopback only). */
-  host?: string;
-  /** Extra origins accepted in addition to localhost/127.0.0.1. Anything else is rejected with 403. */
-  originAllowlist?: string[];
   /**
    * Milliseconds to retain a closed session as a "zombie" so a reconnecting SDK
    * can rejoin via `tesseron/resume`. Default {@link DEFAULT_RESUME_TTL_MS}.
@@ -95,10 +94,6 @@ export type ElicitationHandler = (
   context: { session: Session },
 ) => Promise<ElicitationResult>;
 
-/** Default gateway port (`7475`) — also the port SDK clients dial by default. */
-export const DEFAULT_GATEWAY_PORT = 7475;
-/** Default gateway bind host; loopback-only to prevent accidental LAN exposure. */
-export const DEFAULT_GATEWAY_HOST = '127.0.0.1';
 /**
  * Default zombie-session retention window (90 s). Long enough to cover a
  * manual tab refresh, a routine HMR cycle, or a brief network blip; short
@@ -130,6 +125,9 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilityInfo = {
   elicitation: false,
 };
 
+/** WebSocket subprotocol the gateway uses when connecting outbound to a Vite plugin tab. */
+const GATEWAY_SUBPROTOCOL = 'tesseron-gateway';
+
 interface ActiveInvocation {
   sessionId: string;
   options: InvokeActionOptions;
@@ -157,13 +155,13 @@ interface ZombieSession {
 }
 
 /**
- * Local WebSocket server that hosts Tesseron sessions. SDK clients connect
- * and send `tesseron/hello`; an {@link McpAgentBridge} consumes the gateway on
- * the MCP-server side to expose claimed sessions as tools and resources. Emits
- * `sessions-changed` whenever a session is claimed or its owning socket closes.
+ * Bridge between claimed Tesseron sessions and the MCP server exposed to the agent.
+ * The gateway is a WebSocket *client*: it discovers running apps by watching
+ * {@link watchAppsJson} (`~/.tesseron/tabs/`) and dials each one's WebSocket
+ * endpoint with the `tesseron-gateway` subprotocol. Emits `sessions-changed`
+ * whenever a session is claimed or its owning socket closes.
  */
 export class TesseronGateway extends EventEmitter {
-  private wss?: WebSocketServer;
   private readonly sessions = new Map<string, Session>();
   private readonly pendingClaims = new Map<string, string>();
   private readonly activeInvocations = new Map<string, ActiveInvocation>();
@@ -174,58 +172,23 @@ export class TesseronGateway extends EventEmitter {
   private readonly zombieSessions = new Map<string, ZombieSession>();
   /**
    * Flipped true by {@link stop} so in-flight `ws.on('close')` events queued by
-   * `ws.close()` during shutdown skip re-inserting zombies into the map we
-   * just cleared. Reset by {@link start} so the gateway can be restarted.
+   * shutdown skip re-inserting zombies into the map we just cleared.
    */
   private stopped = false;
   private samplingHandler?: SamplingHandler;
   private elicitationHandler?: ElicitationHandler;
   private agentCapabilities: AgentCapabilityInfo = { ...DEFAULT_AGENT_CAPABILITIES };
+  /** Tab IDs already connected via {@link watchAppsJson} so we don't double-connect. */
+  private readonly connectedTabs = new Map<string, WebSocket>();
+  private appsWatcher?: ReturnType<typeof watch>;
+  private appsWatchInterval?: ReturnType<typeof setInterval>;
 
   constructor(private readonly options: GatewayOptions = {}) {
     super();
   }
 
-  /** Binds the WebSocket server. Resolves when `listening` fires; rejects on bind error. */
-  async start(): Promise<void> {
-    this.stopped = false;
-    const port = this.options.port ?? DEFAULT_GATEWAY_PORT;
-    const host = this.options.host ?? DEFAULT_GATEWAY_HOST;
-    const allowlist = new Set(this.options.originAllowlist ?? []);
-
-    return new Promise<void>((resolve, reject) => {
-      const wss = new WebSocketServer({
-        port,
-        host,
-        verifyClient: (info, cb) => {
-          const origin = info.origin ?? '';
-          if (
-            !origin ||
-            origin.startsWith('http://localhost') ||
-            origin.startsWith('http://127.0.0.1')
-          ) {
-            cb(true);
-            return;
-          }
-          if (allowlist.has(origin)) {
-            cb(true);
-            return;
-          }
-          cb(false, 403, `Origin "${origin}" not allowed`);
-        },
-      });
-      wss.once('listening', () => resolve());
-      wss.once('error', (err) => reject(err));
-      wss.on('connection', (ws, req) => this.handleConnection(ws, req.headers.origin));
-      this.wss = wss;
-    });
-  }
-
-  /** Closes all sessions and shuts down the WebSocket server. */
+  /** Closes all sessions, outbound connections, and the tabs-dir watcher. */
   async stop(): Promise<void> {
-    // Mark stopped before closing sockets: ws.close() queues a 'close' event
-    // that runs AFTER this function returns, and without the guard each one
-    // would re-insert a zombie into the map we're about to clear.
     this.stopped = true;
     for (const session of this.sessions.values()) {
       session.ws.close(1001, 'Gateway shutting down');
@@ -233,16 +196,20 @@ export class TesseronGateway extends EventEmitter {
     this.sessions.clear();
     this.pendingClaims.clear();
     this.activeInvocations.clear();
-    // Cancel every outstanding zombie eviction timer; their sessions will never
-    // resume across a gateway restart regardless.
     for (const zombie of this.zombieSessions.values()) {
       clearTimeout(zombie.evictTimer);
     }
     this.zombieSessions.clear();
-    if (!this.wss) return;
-    return new Promise<void>((resolve, reject) => {
-      this.wss?.close((err) => (err ? reject(err) : resolve()));
-    });
+    this.appsWatcher?.close();
+    this.appsWatcher = undefined;
+    if (this.appsWatchInterval) {
+      clearInterval(this.appsWatchInterval);
+      this.appsWatchInterval = undefined;
+    }
+    for (const ws of this.connectedTabs.values()) {
+      ws.close(1001, 'Gateway shutting down');
+    }
+    this.connectedTabs.clear();
   }
 
   /** Installs the handler invoked for `sampling/request`. Pass `undefined` to clear. */
@@ -272,6 +239,121 @@ export class TesseronGateway extends EventEmitter {
   /** Returns a snapshot of the capabilities the attached bridge last reported. */
   getAgentCapabilities(): AgentCapabilityInfo {
     return { ...this.agentCapabilities };
+  }
+
+  /**
+   * Connects outbound to a Tesseron Vite plugin tab endpoint. The gateway becomes the
+   * WebSocket client; the Vite plugin bridges it to the browser tab. The session
+   * lifecycle (tesseron/hello, resume, zombie TTL) is identical to inbound connections.
+   *
+   * @param tabId - Unique ID assigned by the Vite plugin, used to deduplicate.
+   * @param wsUrl - Full WebSocket URL to connect to, e.g. `ws://127.0.0.1:5173/@tesseron/ws/tab-abc`.
+   */
+  async connectToApp(tabId: string, wsUrl: string): Promise<void> {
+    if (this.connectedTabs.has(tabId)) return;
+    const ws = new WebSocket(wsUrl, [GATEWAY_SUBPROTOCOL]);
+    // Reserve the slot immediately so concurrent watchAppsJson ticks don't double-connect.
+    this.connectedTabs.set(tabId, ws);
+
+    // Register the dispatcher and message handlers BEFORE awaiting 'open'.
+    // When gateway and SDK share a process, the SDK's attachGateway() runs
+    // synchronously inside handleUpgrade and sends `tesseron/hello` before the
+    // client-side 'open' event fires. If we waited for 'open' before wiring
+    // ws.on('message'), that frame would be emitted with no listener and
+    // silently dropped — the SDK's connect() then hangs waiting for a welcome
+    // that never comes. Subprocess dialling has enough cross-process latency
+    // to hide the race, which is why it only surfaced under in-process use.
+    this.handleConnection(ws, undefined);
+    ws.once('close', () => {
+      this.connectedTabs.delete(tabId);
+    });
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        ws.once('open', resolve);
+        ws.once('error', (err: Error) =>
+          reject(new Error(`Failed to connect to ${wsUrl}: ${err.message}`)),
+        );
+      });
+    } catch (err) {
+      this.connectedTabs.delete(tabId);
+      throw err;
+    }
+    logToStderr(`[tesseron] connected to app tab ${tabId} (${wsUrl})`);
+  }
+
+  /**
+   * Watches `~/.tesseron/tabs/` for per-tab JSON files written by `@tesseron/vite`.
+   * For each new tab file, calls {@link connectToApp}. Returns a cleanup function
+   * that cancels the watcher and polling interval.
+   */
+  watchAppsJson(): () => void {
+    const tabsDir = join(homedir(), '.tesseron', 'tabs');
+
+    const checkDir = async (): Promise<void> => {
+      if (!existsSync(tabsDir)) return;
+      let files: string[];
+      try {
+        files = await readdir(tabsDir);
+      } catch {
+        return;
+      }
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        const tabId = file.slice(0, -5);
+        if (this.connectedTabs.has(tabId)) continue;
+        try {
+          const content = await readFile(join(tabsDir, file), 'utf-8');
+          const data = JSON.parse(content) as { version: number; tabId: string; wsUrl: string };
+          if (typeof data.wsUrl !== 'string') continue;
+          this.connectToApp(data.tabId ?? tabId, data.wsUrl).catch((err: Error) => {
+            logToStderr(`[tesseron] could not connect to tab ${tabId}: ${err.message}`);
+          });
+        } catch {
+          // Malformed file or race with deletion — skip
+        }
+      }
+    };
+
+    checkDir().catch(() => {});
+
+    // Watch the tabs directory for new files (event-driven, fast)
+    if (existsSync(tabsDir)) {
+      try {
+        this.appsWatcher = watch(tabsDir, () => {
+          checkDir().catch(() => {});
+        });
+      } catch {
+        // fs.watch unavailable; fall through to polling only
+      }
+    } else {
+      // Directory doesn't exist yet; watch parent and re-try when it's created
+      const parent = join(homedir(), '.tesseron');
+      try {
+        this.appsWatcher = watch(parent, { recursive: false }, (_event, filename) => {
+          if (filename === 'tabs' || !filename) {
+            checkDir().catch(() => {});
+          }
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    // Polling fallback for platform quirks (Windows occasionally misses fs.watch events)
+    this.appsWatchInterval = setInterval(() => {
+      checkDir().catch(() => {});
+    }, 2_000);
+    this.appsWatchInterval.unref?.();
+
+    return () => {
+      this.appsWatcher?.close();
+      this.appsWatcher = undefined;
+      if (this.appsWatchInterval) {
+        clearInterval(this.appsWatchInterval);
+        this.appsWatchInterval = undefined;
+      }
+    };
   }
 
   /** Sessions that have completed the claim flow and are exposed to the MCP client. */

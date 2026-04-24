@@ -24,7 +24,7 @@
     "react-todo",
     "svelte-todo",
     "vue-todo",
-    "express-todo",
-    "node-todo"
+    "express-prompts",
+    "node-prompts"
   ]
 }

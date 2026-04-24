@@ -9,8 +9,16 @@ import { BrowserWebSocketTransport } from './transport.js';
 export * from '@tesseron/core';
 export { BrowserWebSocketTransport } from './transport.js';
 
-/** Default gateway endpoint the web client connects to when no URL is provided. */
-export const DEFAULT_GATEWAY_URL = 'ws://localhost:7475';
+/**
+ * Default gateway endpoint: the Tesseron Vite plugin exposes `/@tesseron/ws`
+ * on the same origin as the page, so no separate port is needed.
+ * Falls back to a non-browser safe string — in practice the browser always
+ * has `location` defined, this branch is only hit during SSR/bundler analysis.
+ */
+export const DEFAULT_GATEWAY_URL =
+  typeof location !== 'undefined'
+    ? `${location.origin.replace(/^http/, 'ws')}/@tesseron/ws`
+    : 'ws://localhost:5173/@tesseron/ws';
 
 /**
  * Browser-side {@link TesseronClient} with a WebSocket-aware `connect` overload.

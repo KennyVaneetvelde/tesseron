@@ -51,12 +51,15 @@ Test this in isolation against a pair of in-memory dispatchers. No networking ye
 
 ## Step 4 - write the transport
 
-A WebSocket client that:
+A WebSocket **server** that:
 
-- Connects to `ws://127.0.0.1:7475` (configurable).
-- Serialises objects with the language's standard JSON library.
-- Exposes `send`, `onMessage`, `onClose`, `close`.
-- Parses incoming text frames as JSON and calls the `onMessage` handler.
+- Binds `127.0.0.1` on an OS-picked port.
+- Writes `~/.tesseron/tabs/<tabId>.json` with `{ version: 1, tabId, appName, wsUrl, addedAt }` where `wsUrl` is the URL just bound.
+- Accepts exactly one upgrade request that advertises the `tesseron-gateway` WebSocket subprotocol; rejects every other attempt.
+- Serialises outgoing objects with the language's standard JSON library and parses incoming text frames as JSON.
+- Deletes its tab file on close.
+
+The gateway is always the WebSocket **client** - it watches `~/.tesseron/tabs/` and dials each `wsUrl` it finds. Your runtime never opens an outbound connection; it binds, announces, and waits.
 
 Don't reinvent backoff or reconnect inside the transport - that's the user's job.
 

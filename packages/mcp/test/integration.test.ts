@@ -6,18 +6,17 @@ import { TesseronError, TesseronErrorCode, type TesseronStructuredError } from '
 import { ServerTesseronClient } from '@tesseron/server';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { McpAgentBridge, TesseronGateway } from '../src/index.js';
+import { dialSdk, prepareSandbox, type Sandbox } from './setup.js';
 
-const PORT = 7800;
-const URL = `ws://127.0.0.1:${PORT}`;
-
+let sandbox: Sandbox;
 let gateway: TesseronGateway;
 let bridge: McpAgentBridge;
 let client: Client;
 let activeSdks: ServerTesseronClient[] = [];
 
 beforeAll(async () => {
-  gateway = new TesseronGateway({ port: PORT });
-  await gateway.start();
+  sandbox = prepareSandbox();
+  gateway = new TesseronGateway();
   bridge = new McpAgentBridge({ gateway });
   const [agentSide, gatewaySide] = InMemoryTransport.createLinkedPair();
   await bridge.connect(gatewaySide);
@@ -28,6 +27,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await client.close().catch(() => {});
   await gateway.stop().catch(() => {});
+  sandbox.cleanup();
 });
 
 afterEach(async () => {
@@ -47,6 +47,13 @@ function newSdk(): ServerTesseronClient {
   const sdk = new ServerTesseronClient();
   activeSdks.push(sdk);
   return sdk;
+}
+
+async function connectSdk(
+  sdk: ServerTesseronClient,
+  options?: Parameters<ServerTesseronClient['connect']>[1],
+): Promise<Awaited<ReturnType<ServerTesseronClient['connect']>>> {
+  return dialSdk(gateway, sandbox, () => sdk.connect(undefined, options));
 }
 
 async function listToolNames(): Promise<string[]> {
@@ -83,7 +90,7 @@ async function setupAndClaim(
   const sdk = newSdk();
   sdk.app({ id: appId, name: `${appId} app`, origin: 'http://localhost' });
   register(sdk);
-  const welcome = await sdk.connect(URL);
+  const welcome = await connectSdk(sdk);
   const code = welcome.claimCode;
   expect(code, 'gateway should always issue a claim code').toBeTruthy();
   const claimResult = await callTool('tesseron__claim_session', { code: code! });
@@ -218,7 +225,7 @@ describe('Tesseron MCP integration', () => {
     const sdk = newSdk();
     sdk.app({ id: 'dbl1', name: 'dbl', origin: 'http://localhost' });
     sdk.action('a').handler(() => 'a');
-    const welcome = await sdk.connect(URL);
+    const welcome = await connectSdk(sdk);
     const code = welcome.claimCode!;
 
     const r1 = await callTool('tesseron__claim_session', { code });
@@ -297,7 +304,7 @@ describe('Tesseron MCP integration', () => {
     const sdk = newSdk();
     sdk.app({ id: 'tok1', name: 'tok', origin: 'http://localhost' });
     sdk.action('ping').handler(() => 'pong');
-    const welcome = await sdk.connect(URL);
+    const welcome = await connectSdk(sdk);
     expect(welcome.resumeToken).toBeTruthy();
     expect(typeof welcome.resumeToken).toBe('string');
     // base64url, 24 bytes → 32 chars, no padding
@@ -310,7 +317,7 @@ describe('Tesseron MCP integration', () => {
     const sdk1 = newSdk();
     sdk1.app({ id: 'rsm1', name: 'rsm1', origin: 'http://localhost' });
     sdk1.action('greet').handler(() => 'hi-before');
-    const welcome1 = await sdk1.connect(URL);
+    const welcome1 = await connectSdk(sdk1);
     await callTool('tesseron__claim_session', { code: welcome1.claimCode! });
     expect(await listToolNames()).toContain('rsm1__greet');
 
@@ -323,7 +330,7 @@ describe('Tesseron MCP integration', () => {
     const sdk2 = newSdk();
     sdk2.app({ id: 'rsm1', name: 'rsm1', origin: 'http://localhost' });
     sdk2.action('greet').handler(() => 'hi-after');
-    const welcome2 = await sdk2.connect(URL, {
+    const welcome2 = await connectSdk(sdk2, {
       resume: {
         sessionId: welcome1.sessionId,
         resumeToken: welcome1.resumeToken!,
@@ -350,7 +357,7 @@ describe('Tesseron MCP integration', () => {
     const sdk1 = newSdk();
     sdk1.app({ id: 'rsm2', name: 'rsm2', origin: 'http://localhost' });
     sdk1.action('greet').handler(() => 'hi');
-    const welcome1 = await sdk1.connect(URL);
+    const welcome1 = await connectSdk(sdk1);
     await callTool('tesseron__claim_session', { code: welcome1.claimCode! });
     await sdk1.disconnect();
     await new Promise((r) => setTimeout(r, 100));
@@ -359,7 +366,7 @@ describe('Tesseron MCP integration', () => {
     sdk2.app({ id: 'rsm2', name: 'rsm2', origin: 'http://localhost' });
     sdk2.action('greet').handler(() => 'hi');
     await expect(
-      sdk2.connect(URL, {
+      connectSdk(sdk2, {
         resume: {
           sessionId: welcome1.sessionId,
           resumeToken: '0000000000000000000000000000000x', // 32 chars, wrong value
@@ -373,7 +380,7 @@ describe('Tesseron MCP integration', () => {
     sdk.app({ id: 'unk1', name: 'unk1', origin: 'http://localhost' });
     sdk.action('x').handler(() => 'x');
     await expect(
-      sdk.connect(URL, {
+      connectSdk(sdk, {
         resume: {
           sessionId: 's_does_not_exist',
           resumeToken: '00000000000000000000000000000000',
@@ -386,7 +393,7 @@ describe('Tesseron MCP integration', () => {
     const sdk1 = newSdk();
     sdk1.app({ id: 'unc1', name: 'unc1', origin: 'http://localhost' });
     sdk1.action('x').handler(() => 'x');
-    const welcome1 = await sdk1.connect(URL);
+    const welcome1 = await connectSdk(sdk1);
     // Deliberately don't claim.
     await sdk1.disconnect();
     await new Promise((r) => setTimeout(r, 100));
@@ -395,7 +402,7 @@ describe('Tesseron MCP integration', () => {
     sdk2.app({ id: 'unc1', name: 'unc1', origin: 'http://localhost' });
     sdk2.action('x').handler(() => 'x');
     await expect(
-      sdk2.connect(URL, {
+      connectSdk(sdk2, {
         resume: {
           sessionId: welcome1.sessionId,
           resumeToken: welcome1.resumeToken!,
@@ -408,7 +415,7 @@ describe('Tesseron MCP integration', () => {
     const sdk1 = newSdk();
     sdk1.app({ id: 'rot1', name: 'rot1', origin: 'http://localhost' });
     sdk1.action('x').handler(() => 'x');
-    const welcome1 = await sdk1.connect(URL);
+    const welcome1 = await connectSdk(sdk1);
     await callTool('tesseron__claim_session', { code: welcome1.claimCode! });
     await sdk1.disconnect();
     await new Promise((r) => setTimeout(r, 100));
@@ -416,7 +423,7 @@ describe('Tesseron MCP integration', () => {
     const sdk2 = newSdk();
     sdk2.app({ id: 'rot1', name: 'rot1', origin: 'http://localhost' });
     sdk2.action('x').handler(() => 'x');
-    const welcome2 = await sdk2.connect(URL, {
+    const welcome2 = await connectSdk(sdk2, {
       resume: {
         sessionId: welcome1.sessionId,
         resumeToken: welcome1.resumeToken!,
@@ -432,7 +439,7 @@ describe('Tesseron MCP integration', () => {
     sdk3.app({ id: 'rot1', name: 'rot1', origin: 'http://localhost' });
     sdk3.action('x').handler(() => 'x');
     await expect(
-      sdk3.connect(URL, {
+      connectSdk(sdk3, {
         resume: {
           sessionId: welcome1.sessionId,
           resumeToken: welcome1.resumeToken!,
@@ -444,7 +451,7 @@ describe('Tesseron MCP integration', () => {
     const sdk4 = newSdk();
     sdk4.app({ id: 'rot1', name: 'rot1', origin: 'http://localhost' });
     sdk4.action('x').handler(() => 'x');
-    const welcome4 = await sdk4.connect(URL, {
+    const welcome4 = await connectSdk(sdk4, {
       resume: {
         sessionId: welcome1.sessionId,
         resumeToken: welcome2.resumeToken!,
@@ -461,7 +468,7 @@ describe('Tesseron MCP integration', () => {
     const sdkA = newSdk();
     sdkA.app({ id: 'owner_app', name: 'owner_app', origin: 'http://localhost' });
     sdkA.action('x').handler(() => 'x');
-    const welcomeA = await sdkA.connect(URL);
+    const welcomeA = await connectSdk(sdkA);
     await callTool('tesseron__claim_session', { code: welcomeA.claimCode! });
     await sdkA.disconnect();
     await new Promise((r) => setTimeout(r, 100));
@@ -470,7 +477,7 @@ describe('Tesseron MCP integration', () => {
     sdkB.app({ id: 'hijacker_app', name: 'hijacker_app', origin: 'http://localhost' });
     sdkB.action('x').handler(() => 'x');
     await expect(
-      sdkB.connect(URL, {
+      connectSdk(sdkB, {
         resume: {
           sessionId: welcomeA.sessionId,
           resumeToken: welcomeA.resumeToken!,
@@ -484,7 +491,7 @@ describe('Tesseron MCP integration', () => {
     sdk.app({ id: 'tesseron', name: 'evil', origin: 'http://localhost' });
     sdk.action('x').handler(() => 'x');
 
-    await expect(sdk.connect(URL)).rejects.toThrow(/reserved/i);
+    await expect(connectSdk(sdk)).rejects.toThrow(/reserved/i);
   });
 
   it('rejects malformed app ids during handshake', async () => {
@@ -492,7 +499,7 @@ describe('Tesseron MCP integration', () => {
     sdk.app({ id: 'BAD-ID', name: 'bad', origin: 'http://localhost' });
     sdk.action('x').handler(() => 'x');
 
-    await expect(sdk.connect(URL)).rejects.toThrow(/invalid app id/i);
+    await expect(connectSdk(sdk)).rejects.toThrow(/invalid app id/i);
   });
 
   it('passes through arbitrary input when no input schema is declared', async () => {
@@ -650,7 +657,6 @@ describe('Tesseron MCP integration', () => {
 
 describe('Tool surface modes', () => {
   async function buildBridge(
-    port: number,
     toolSurface: 'dynamic' | 'meta' | 'both',
   ): Promise<{
     gateway: TesseronGateway;
@@ -658,8 +664,11 @@ describe('Tool surface modes', () => {
     sdk: ServerTesseronClient;
     cleanup: () => Promise<void>;
   }> {
-    const gw = new TesseronGateway({ port });
-    await gw.start();
+    // Each test needs its own gateway + sandbox because the toolSurface mode is
+    // a gateway-level config. The shared top-level sandbox is fine to reuse as
+    // HOME — the tab file ids are unique per SDK connect, and we only connect
+    // one SDK per bridge, so there's no cross-talk.
+    const gw = new TesseronGateway();
     const br = new McpAgentBridge({ gateway: gw, toolSurface });
     const [agentSide, gatewaySide] = InMemoryTransport.createLinkedPair();
     await br.connect(gatewaySide);
@@ -668,7 +677,7 @@ describe('Tool surface modes', () => {
     const sdk = new ServerTesseronClient();
     sdk.app({ id: 'modeapp', name: 'mode test', origin: 'http://localhost' });
     sdk.action('ping').handler(() => 'pong');
-    const welcome = await sdk.connect(`ws://127.0.0.1:${port}`);
+    const welcome = await dialSdk(gw, sandbox, () => sdk.connect());
     const claim = await c.request(
       {
         method: 'tools/call',
@@ -690,7 +699,7 @@ describe('Tool surface modes', () => {
   }
 
   it('dynamic: advertises claim + per-app tools, no meta dispatcher', async () => {
-    const { client: c, cleanup } = await buildBridge(7801, 'dynamic');
+    const { client: c, cleanup } = await buildBridge('dynamic');
     try {
       const result = await c.request({ method: 'tools/list' }, ListToolsResultSchema);
       const names = result.tools.map((t) => t.name);
@@ -705,7 +714,7 @@ describe('Tool surface modes', () => {
   });
 
   it('meta: advertises claim + meta dispatcher only, no per-app tools', async () => {
-    const { client: c, cleanup } = await buildBridge(7802, 'meta');
+    const { client: c, cleanup } = await buildBridge('meta');
     try {
       const result = await c.request({ method: 'tools/list' }, ListToolsResultSchema);
       const names = result.tools.map((t) => t.name);
@@ -732,7 +741,7 @@ describe('Tool surface modes', () => {
   });
 
   it('both (default): advertises claim + meta dispatcher + per-app tools', async () => {
-    const { client: c, cleanup } = await buildBridge(7803, 'both');
+    const { client: c, cleanup } = await buildBridge('both');
     try {
       const result = await c.request({ method: 'tools/list' }, ListToolsResultSchema);
       const names = result.tools.map((t) => t.name);
@@ -749,17 +758,20 @@ describe('Tool surface modes', () => {
 
 describe('Resume options', () => {
   async function buildResumeBridge(
-    port: number,
     opts: { resumeTtlMs?: number; maxZombies?: number } = {},
   ): Promise<{
     gateway: TesseronGateway;
-    url: string;
+    connect: (
+      sdk: ServerTesseronClient,
+      options?: Parameters<ServerTesseronClient['connect']>[1],
+    ) => Promise<Awaited<ReturnType<ServerTesseronClient['connect']>>>;
     agentClient: Client;
     newSdk: () => ServerTesseronClient;
     cleanup: () => Promise<void>;
   }> {
-    const gw = new TesseronGateway({ port, ...opts });
-    await gw.start();
+    // Each test needs its own gateway so resume-ttl / max-zombies options apply
+    // per-suite. We reuse the top-level sandbox — tab IDs are unique per SDK.
+    const gw = new TesseronGateway(opts);
     const br = new McpAgentBridge({ gateway: gw });
     const [agentSide, gatewaySide] = InMemoryTransport.createLinkedPair();
     await br.connect(gatewaySide);
@@ -768,7 +780,7 @@ describe('Resume options', () => {
     const sdks: ServerTesseronClient[] = [];
     return {
       gateway: gw,
-      url: `ws://127.0.0.1:${port}`,
+      connect: (sdk, options) => dialSdk(gw, sandbox, () => sdk.connect(undefined, options)),
       agentClient: c,
       newSdk: () => {
         const sdk = new ServerTesseronClient();
@@ -792,14 +804,14 @@ describe('Resume options', () => {
   }
 
   it('evicts zombies past their TTL (resume after TTL fails with no-resumable-session)', async () => {
-    const { url, agentClient, newSdk, cleanup } = await buildResumeBridge(7810, {
+    const { connect, agentClient, newSdk, cleanup } = await buildResumeBridge({
       resumeTtlMs: 150,
     });
     try {
       const sdk1 = newSdk();
       sdk1.app({ id: 'ttl1', name: 'ttl1', origin: 'http://localhost' });
       sdk1.action('x').handler(() => 'x');
-      const welcome1 = await sdk1.connect(url);
+      const welcome1 = await connect(sdk1);
       await claim(agentClient, welcome1.claimCode!);
       await sdk1.disconnect();
       // Wait past the TTL so the eviction timer fires.
@@ -809,7 +821,7 @@ describe('Resume options', () => {
       sdk2.app({ id: 'ttl1', name: 'ttl1', origin: 'http://localhost' });
       sdk2.action('x').handler(() => 'x');
       await expect(
-        sdk2.connect(url, {
+        connect(sdk2, {
           resume: {
             sessionId: welcome1.sessionId,
             resumeToken: welcome1.resumeToken!,
@@ -822,14 +834,14 @@ describe('Resume options', () => {
   });
 
   it('resumeTtlMs: 0 disables zombification; immediate resume fails', async () => {
-    const { url, agentClient, newSdk, cleanup } = await buildResumeBridge(7811, {
+    const { connect, agentClient, newSdk, cleanup } = await buildResumeBridge({
       resumeTtlMs: 0,
     });
     try {
       const sdk1 = newSdk();
       sdk1.app({ id: 'ttl0', name: 'ttl0', origin: 'http://localhost' });
       sdk1.action('x').handler(() => 'x');
-      const welcome1 = await sdk1.connect(url);
+      const welcome1 = await connect(sdk1);
       await claim(agentClient, welcome1.claimCode!);
       await sdk1.disconnect();
       await new Promise((r) => setTimeout(r, 100));
@@ -838,7 +850,7 @@ describe('Resume options', () => {
       sdk2.app({ id: 'ttl0', name: 'ttl0', origin: 'http://localhost' });
       sdk2.action('x').handler(() => 'x');
       await expect(
-        sdk2.connect(url, {
+        connect(sdk2, {
           resume: {
             sessionId: welcome1.sessionId,
             resumeToken: welcome1.resumeToken!,
@@ -854,14 +866,14 @@ describe('Resume options', () => {
     // Regression guard: before the fix, maxZombies=0 was silently ignored —
     // the cap-eviction branch found an empty map and fell through to insert
     // the new zombie anyway, so the cap did nothing.
-    const { url, agentClient, newSdk, cleanup } = await buildResumeBridge(7812, {
+    const { connect, agentClient, newSdk, cleanup } = await buildResumeBridge({
       maxZombies: 0,
     });
     try {
       const sdk1 = newSdk();
       sdk1.app({ id: 'maxz0', name: 'maxz0', origin: 'http://localhost' });
       sdk1.action('x').handler(() => 'x');
-      const welcome1 = await sdk1.connect(url);
+      const welcome1 = await connect(sdk1);
       await claim(agentClient, welcome1.claimCode!);
       await sdk1.disconnect();
       await new Promise((r) => setTimeout(r, 100));
@@ -870,7 +882,7 @@ describe('Resume options', () => {
       sdk2.app({ id: 'maxz0', name: 'maxz0', origin: 'http://localhost' });
       sdk2.action('x').handler(() => 'x');
       await expect(
-        sdk2.connect(url, {
+        connect(sdk2, {
           resume: {
             sessionId: welcome1.sessionId,
             resumeToken: welcome1.resumeToken!,
@@ -883,7 +895,7 @@ describe('Resume options', () => {
   });
 
   it('maxZombies: 2 evicts the oldest zombie FIFO when the cap is reached', async () => {
-    const { url, agentClient, newSdk, cleanup } = await buildResumeBridge(7813, {
+    const { connect, agentClient, newSdk, cleanup } = await buildResumeBridge({
       maxZombies: 2,
     });
     try {
@@ -891,7 +903,7 @@ describe('Resume options', () => {
         const sdk = newSdk();
         sdk.app({ id, name: id, origin: 'http://localhost' });
         sdk.action('x').handler(() => 'x');
-        const w = await sdk.connect(url);
+        const w = await connect(sdk);
         await claim(agentClient, w.claimCode!);
         await sdk.disconnect();
         await new Promise((r) => setTimeout(r, 60));
@@ -906,7 +918,7 @@ describe('Resume options', () => {
       sdkA2.app({ id: 'cap_a', name: 'cap_a', origin: 'http://localhost' });
       sdkA2.action('x').handler(() => 'x');
       await expect(
-        sdkA2.connect(url, {
+        connect(sdkA2, {
           resume: { sessionId: wa.sessionId, resumeToken: wa.resumeToken! },
         }),
       ).rejects.toThrow(/no resumable session/i);
@@ -915,7 +927,7 @@ describe('Resume options', () => {
       const sdkB2 = newSdk();
       sdkB2.app({ id: 'cap_b', name: 'cap_b', origin: 'http://localhost' });
       sdkB2.action('x').handler(() => 'x');
-      const wb2 = await sdkB2.connect(url, {
+      const wb2 = await connect(sdkB2, {
         resume: { sessionId: wb.sessionId, resumeToken: wb.resumeToken! },
       });
       expect(wb2.sessionId).toBe(wb.sessionId);
@@ -923,7 +935,7 @@ describe('Resume options', () => {
       const sdkC2 = newSdk();
       sdkC2.app({ id: 'cap_c', name: 'cap_c', origin: 'http://localhost' });
       sdkC2.action('x').handler(() => 'x');
-      const wc2 = await sdkC2.connect(url, {
+      const wc2 = await connect(sdkC2, {
         resume: { sessionId: wc.sessionId, resumeToken: wc.resumeToken! },
       });
       expect(wc2.sessionId).toBe(wc.sessionId);
@@ -937,13 +949,13 @@ describe('Resume options', () => {
     // `zombieSessions.get(...)` or `Buffer.from(...)` below and escaped as
     // an untyped InternalError instead of the ResumeFailed the ConnectOptions
     // contract promises.
-    const { url, newSdk, cleanup } = await buildResumeBridge(7814);
+    const { connect, newSdk, cleanup } = await buildResumeBridge();
     try {
       const sdk = newSdk();
       sdk.app({ id: 'bad1', name: 'bad1', origin: 'http://localhost' });
       sdk.action('x').handler(() => 'x');
       await expect(
-        sdk.connect(url, {
+        connect(sdk, {
           resume: {
             sessionId: 12345 as unknown as string,
             resumeToken: 'any-value',
@@ -956,7 +968,7 @@ describe('Resume options', () => {
   });
 
   it('replaces the session manifest on resume (added tool appears, removed tool disappears)', async () => {
-    const { url, agentClient, newSdk, cleanup } = await buildResumeBridge(7815);
+    const { connect, agentClient, newSdk, cleanup } = await buildResumeBridge();
     try {
       async function listTools() {
         const r = await agentClient.request({ method: 'tools/list' }, ListToolsResultSchema);
@@ -967,7 +979,7 @@ describe('Resume options', () => {
       sdk1.app({ id: 'man1', name: 'man1', origin: 'http://localhost' });
       sdk1.action('keep').handler(() => 'keep');
       sdk1.action('removeMe').handler(() => 'remove');
-      const welcome1 = await sdk1.connect(url);
+      const welcome1 = await connect(sdk1);
       await claim(agentClient, welcome1.claimCode!);
       await new Promise((r) => setTimeout(r, 50));
       let tools = await listTools();
@@ -982,7 +994,7 @@ describe('Resume options', () => {
       sdk2.app({ id: 'man1', name: 'man1', origin: 'http://localhost' });
       sdk2.action('keep').handler(() => 'still-here');
       sdk2.action('newAction').handler(() => 'new');
-      await sdk2.connect(url, {
+      await connect(sdk2, {
         resume: { sessionId: welcome1.sessionId, resumeToken: welcome1.resumeToken! },
       });
       await new Promise((r) => setTimeout(r, 50));

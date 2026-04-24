@@ -1,17 +1,19 @@
 # Tesseron examples
 
-**The same todo app in six environments.** Tesseron is a protocol SDK — these examples show the same action surface (`addTodo`, `toggleTodo`, `deleteTodo`, `listTodos`, `setFilter`, plus `clearCompleted` for `ctx.confirm`, `renameTodo` for `ctx.elicit` with a schema, `importTodos` for `ctx.progress`, and `suggestTodos` for `ctx.sample`) plus the same two subscribable resources (`currentFilter`, `todoStats`) implemented in every runtime the SDK targets. Read any two side-by-side to see what the SDK abstracts and what stays idiomatic per stack.
+**Two domains, six environments.** Tesseron is a protocol SDK — these examples show the SDK in every runtime it targets, paired to the domain that best fits that environment. Read any two side-by-side to see what the SDK abstracts and what stays idiomatic per stack.
+
+The four client examples share a **todo** domain: the same action surface (`addTodo`, `toggleTodo`, `deleteTodo`, `listTodos`, `setFilter`, plus `clearCompleted` for `ctx.confirm`, `renameTodo` for `ctx.elicit` with a schema, `importTodos` for `ctx.progress`, and `suggestTodos` for `ctx.sample`) and the same two subscribable resources (`currentFilter`, `todoStats`). The server examples share a **prompt-library** domain where agent sampling is first-class: Claude adds prompts, tests them via `ctx.sample`, asks you (via `ctx.elicit`) how to improve them, then rewrites and stores variants.
 
 They all talk to the same official MCP gateway, [`@tesseron/mcp`](../packages/mcp), and prove the same point: **what the AI does on the other end of MCP shows up live in your real app, no browser automation involved.**
 
-| Example | Side | Stack | What's different about this flavor |
-|---|---|---|---|
-| [`vanilla-todo`](./vanilla-todo) | client | Vite + vanilla TS | Zero-framework baseline. Hand-rolled `render()`. Read this first. |
-| [`react-todo`](./react-todo) | client | Vite + React 18 + [`@tesseron/react`](../packages/react) | Hook-based integration: `useTesseronAction`, `useTesseronConnection`, `useTesseronResource`. |
-| [`svelte-todo`](./svelte-todo) | client | Vite + Svelte 5 (runes) | `$state` + `$derived` reactivity from handlers. |
-| [`vue-todo`](./vue-todo) | client | Vite + Vue 3 composition API | `ref` + `computed`, composition-style. |
-| [`express-todo`](./express-todo) | server | Node + Express + [`@tesseron/server`](../packages/server) | Same todo store served two ways: MCP actions for Claude **and** REST endpoints for curl/other services. Both channels mutate the same `Map`. |
-| [`node-todo`](./node-todo) | server | Plain Node script + `@tesseron/server` | No HTTP, no framework — shows that any Node process (CLI, daemon, worker) can expose actions. |
+| Example | Side | Stack | Domain | What's different about this flavor |
+|---|---|---|---|---|
+| [`vanilla-todo`](./vanilla-todo) | client | Vite + vanilla TS | todo | Zero-framework baseline. Hand-rolled `render()`. Read this first. |
+| [`react-todo`](./react-todo) | client | Vite + React 18 + [`@tesseron/react`](../packages/react) | todo | Hook-based integration: `useTesseronAction`, `useTesseronConnection`, `useTesseronResource`. |
+| [`svelte-todo`](./svelte-todo) | client | Vite + Svelte 5 (runes) | todo | `$state` + `$derived` reactivity from handlers. |
+| [`vue-todo`](./vue-todo) | client | Vite + Vue 3 composition API | todo | `ref` + `computed`, composition-style. |
+| [`express-prompts`](./express-prompts) | server | Node + Express + [`@tesseron/server`](../packages/server) | prompt library | Same prompt store served two ways: MCP actions for Claude (including sampling + elicitation) **and** REST endpoints for curl/other services. Both channels mutate the same `Map`. |
+| [`node-prompts`](./node-prompts) | server | Plain Node script + `@tesseron/server` | prompt library | No HTTP, no framework — shows that any Node process (CLI, daemon, worker) can expose actions. Sampling-heavy domain: `testPrompt`, `refinePrompt`, `generateVariants`. |
 
 ---
 
@@ -148,4 +150,4 @@ Each example's README has concrete prompts to try.
 
 ## Writing your own example
 
-The shortest path is to copy `vanilla-todo`, change the `id` in `tesseron.app({...})`, define your actions, and you're done. The same pattern works in any framework: handlers mutate your reactive state (React `useState`, Svelte `$state`, Vue `ref`), and the user sees the change live. For a server-side example copy `node-todo` (minimal) or `express-todo` (with HTTP).
+The shortest path is to copy `vanilla-todo`, change the `id` in `tesseron.app({...})`, define your actions, and you're done. The same pattern works in any framework: handlers mutate your reactive state (React `useState`, Svelte `$state`, Vue `ref`), and the user sees the change live. For a server-side example copy `node-prompts` (minimal) or `express-prompts` (with HTTP).

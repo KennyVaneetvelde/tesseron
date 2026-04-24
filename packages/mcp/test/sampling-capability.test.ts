@@ -9,17 +9,16 @@ import {
   TesseronErrorCode,
   TesseronGateway,
 } from '../src/index.js';
+import { prepareSandbox, type Sandbox, waitForTabFile } from './setup.js';
 
-const PORT = 7820;
-const URL = `ws://127.0.0.1:${PORT}`;
-
+let sandbox: Sandbox;
 let gateway: TesseronGateway;
 let bridge: McpAgentBridge;
 let client: Client;
 
 beforeAll(async () => {
-  gateway = new TesseronGateway({ port: PORT });
-  await gateway.start();
+  sandbox = prepareSandbox();
+  gateway = new TesseronGateway();
   bridge = new McpAgentBridge({ gateway });
   const [agentSide, gatewaySide] = InMemoryTransport.createLinkedPair();
   await bridge.connect(gatewaySide);
@@ -32,7 +31,26 @@ beforeAll(async () => {
 afterAll(async () => {
   await client.close().catch(() => {});
   await gateway.stop().catch(() => {});
+  sandbox.cleanup();
 });
+
+async function connectSdkAndClaim(sdk: ServerTesseronClient): Promise<string> {
+  const startedAt = Date.now();
+  const connectPromise = sdk.connect();
+  const tab = await waitForTabFile(sandbox, { since: startedAt - 50 });
+  await gateway.connectToApp(tab.tabId, tab.wsUrl);
+  const welcome = await connectPromise;
+  const code = welcome.claimCode;
+  if (!code) throw new Error('gateway did not return a claim code');
+  await client.request(
+    {
+      method: 'tools/call',
+      params: { name: 'tesseron__claim_session', arguments: { code } },
+    },
+    CallToolResultSchema,
+  );
+  return code;
+}
 
 async function callTool(name: string, args: unknown): Promise<{ text: string; isError: boolean }> {
   const result = await client.request(
@@ -58,19 +76,12 @@ describe('sampling capability detection', () => {
       };
       return observed;
     });
-    const welcome = await sdk.connect(URL);
-    expect(welcome.capabilities.sampling).toBe(false);
-    expect(welcome.capabilities.elicitation).toBe(false);
+    await connectSdkAndClaim(sdk);
+    const welcome = sdk.getWelcome();
+    expect(welcome?.capabilities.sampling).toBe(false);
+    expect(welcome?.capabilities.elicitation).toBe(false);
     // Reflect the client's real identity so handlers can include it in user-facing errors.
-    expect(welcome.agent.name).toBe('no-sampling-agent');
-
-    await client.request(
-      {
-        method: 'tools/call',
-        params: { name: 'tesseron__claim_session', arguments: { code: welcome.claimCode } },
-      },
-      CallToolResultSchema,
-    );
+    expect(welcome?.agent.name).toBe('no-sampling-agent');
 
     const result = await callTool('capapp__probe', {});
     expect(result.isError).toBe(false);
@@ -92,14 +103,7 @@ describe('sampling capability detection', () => {
         throw error;
       }
     });
-    const welcome = await sdk.connect(URL);
-    await client.request(
-      {
-        method: 'tools/call',
-        params: { name: 'tesseron__claim_session', arguments: { code: welcome.claimCode } },
-      },
-      CallToolResultSchema,
-    );
+    await connectSdkAndClaim(sdk);
 
     const result = await callTool('samp_nocap__suggest', {});
     expect(result.isError).toBe(true);
@@ -122,14 +126,7 @@ describe('sampling capability detection', () => {
       }
       return { added: 1 };
     });
-    const welcome = await sdk.connect(URL);
-    await client.request(
-      {
-        method: 'tools/call',
-        params: { name: 'tesseron__claim_session', arguments: { code: welcome.claimCode } },
-      },
-      CallToolResultSchema,
-    );
+    await connectSdkAndClaim(sdk);
 
     const result = await callTool('samp_fallback__suggest', {});
     expect(result.isError).toBe(false);

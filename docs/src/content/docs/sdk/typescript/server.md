@@ -1,13 +1,24 @@
 ---
 title: "@tesseron/server"
-description: The Node SDK. Same action surface as @tesseron/web, different transport.
+description: The Node SDK. Binds a loopback WebSocket server, announces itself via ~/.tesseron/tabs/, and waits for the gateway to dial in.
 related:
   - sdk/typescript/core
   - protocol/transport
   - sdk/typescript/action-builder
 ---
 
-`@tesseron/server` is what you use in a Node process - an Express server, a NestJS app, a CLI tool, a background worker. The builder API is identical to `@tesseron/web`; only the transport differs.
+`@tesseron/server` is what you use in a Node process - an Express server, a NestJS app, a CLI tool, a background worker, an Electron main process. The builder API is identical to `@tesseron/web`; the transport is what's different.
+
+## How it connects
+
+Unlike the browser SDK, Node can bind ports. `@tesseron/server` uses that directly:
+
+1. On `tesseron.connect()` it creates a WebSocket server on `127.0.0.1` with an OS-picked port.
+2. Writes `~/.tesseron/tabs/<tabId>.json` with the URL it bound.
+3. Waits for the gateway to dial in with the `tesseron-gateway` subprotocol.
+4. On the first and only accepted connection, sends `tesseron/hello` and runs the normal Tesseron handshake.
+
+No environment variables, no fixed ports, no client URL. The discovery file does everything.
 
 ## When to use server vs web
 
@@ -23,10 +34,14 @@ Both can run at the same time against the same MCP gateway - [multi-app coexiste
 
 ```ts
 import {
+  // Singleton client - pre-constructed, use directly.
   tesseron,
+  // Class (if you need multiple clients per process).
   ServerTesseronClient,
-  NodeWebSocketTransport,
-  DEFAULT_GATEWAY_URL,   // 'ws://localhost:7475'
+  // Transport — WS server + tab file writer.
+  NodeWebSocketServerTransport,
+  // Transport options (appName, host, port).
+  type NodeWebSocketServerTransportOptions,
 } from '@tesseron/server';
 ```
 
@@ -69,43 +84,60 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 ```
 
-## Express example
+## Customising the bind
 
-The [`express-todo` example](/examples/express-todo/) shows the canonical "HTTP + Tesseron on one Node process" pattern. Keep the shared state outside of both entry points; each channel calls the same functions:
+Pass options to `connect()` if you need them:
 
 ```ts
-const todos = new Map<string, Todo>();
+await tesseron.connect({ appName: 'notes_api', host: '127.0.0.1', port: 0 });
+```
+
+- `appName` - stamped into the tab discovery file so the gateway log names your app usefully. Defaults to `'node'`.
+- `host` - always `127.0.0.1` in practice; exposed for tests that need `::1`.
+- `port` - `0` (OS picks) is almost always what you want. Setting a fixed port only matters if you're reverse-tunnelling the transport.
+
+Pass a `Transport` instead to bypass bind-and-announce entirely - useful in tests or when you're piping frames through some other channel.
+
+## Express example
+
+The [`express-prompts` example](/examples/express-prompts/) shows the canonical "HTTP + Tesseron on one Node process" pattern. Keep the shared state outside both entry points; each channel calls the same functions:
+
+```ts
+const prompts = new Map<string, Prompt>();
 
 // REST surface
-app.post('/todos', (req, res) => {
-  const todo = createTodo(todos, req.body);
-  res.json(todo);
+app.post('/prompts', (req, res) => {
+  const p = createPrompt(prompts, req.body);
+  res.status(201).json(p);
 });
 
 // Tesseron surface - same underlying function
-tesseron.action('addTodo')
-  .input(z.object({ text: z.string() }))
-  .handler(({ text }) => createTodo(todos, { text }));
+tesseron.action('addPrompt')
+  .input(z.object({ name: z.string(), template: z.string() }))
+  .handler((input) => createPrompt(prompts, input));
 ```
 
 ## Transport details
 
-`NodeWebSocketTransport` wraps the [`ws`](https://github.com/websockets/ws) npm package (v8). Differences from the browser transport:
+`NodeWebSocketServerTransport` wraps the [`ws`](https://github.com/websockets/ws) npm package (v8). It:
 
-- Accepts every frame shape `ws` hands back - `string`, `Buffer`, `Buffer[]`, `ArrayBuffer` - and coerces to UTF-8 before parsing. The browser transport is string-only.
-- Tolerates the gateway sending fragmented messages; `ws` reassembles automatically.
-- No auto-reconnect; see the [reconnect pattern](/sdk/typescript/web/#reconnect-pattern) from the web page - it transfers.
+- Binds a WebSocket server via Node's built-in `http.createServer`.
+- Accepts exactly one upgrade request that advertises the `tesseron-gateway` subprotocol; every other upgrade attempt is destroyed.
+- Tolerates every frame shape `ws` hands back - `string`, `Buffer`, `Buffer[]`, `ArrayBuffer` - and coerces to UTF-8 before parsing.
+- Writes its tab file on `listen()` and deletes it on `close()`.
 
 ## Running under Docker / systemd
 
 Two things to get right:
 
-1. **Stdout / stderr** go to the process manager's log, not the gateway's. The claim code surfaces in *your* logs. Plan your startup flow to copy it somewhere humans can see - or, if the service is meant to be headless and always-on, log the claim code only to a file you rotate.
-2. **Signal handling.** `process.on('SIGTERM', …)` to call `tesseron.disconnect()` before exit gives the gateway a clean close (code 1001) and stops the agent from seeing abrupt tool failures.
+1. **Same HOME dir as the gateway.** The gateway reads `~/.tesseron/tabs/`; your Node process has to write there. In containers, mount `~/.tesseron` into the container's `$HOME`.
+2. **Signal handling.** `process.on('SIGTERM', …)` to call `tesseron.disconnect()` before exit cleans up the tab file and gives the gateway a clean close (code 1001) so the agent doesn't see abrupt tool failures.
+
+Claim codes surface on stdout/stderr of your Node process, not the gateway's. Plan how you expose them to humans - a web UI endpoint, a file you rotate, whatever fits.
 
 ## Capabilities
 
-Server handlers get the same `ActionContext` as browser handlers. There are two differences worth being aware of:
+Server handlers get the same `ActionContext` as browser handlers. Two differences to know:
 
 - `ctx.client.origin` - fabricated. Typically the string `"node:<app.id>"` or similar. Don't use it for auth.
 - `ctx.client.route` - always `undefined`. There's no "current route" on the server.

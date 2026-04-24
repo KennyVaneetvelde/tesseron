@@ -17,14 +17,18 @@ import {
   tesseron,
   // Class (if you need multiple clients, e.g. for multiple apps in one tab).
   WebTesseronClient,
-  // WebSocket transport.
+  // WebSocket transport (WS client; dials the Vite plugin's bridge endpoint).
   BrowserWebSocketTransport,
-  // Default gateway URL.
-  DEFAULT_GATEWAY_URL,   // 'ws://localhost:7475'
+  // Default endpoint — same-origin `/@tesseron/ws`, derived from `location.origin`.
+  // Served by the `@tesseron/vite` plugin. In a dev browser this resolves to e.g.
+  // `ws://localhost:5173/@tesseron/ws` when the page is served from Vite on :5173.
+  DEFAULT_GATEWAY_URL,
 } from '@tesseron/web';
 
 // The full `@tesseron/core` surface is also re-exported.
 ```
+
+Browsers can't bind ports, so `@tesseron/web` is a WebSocket **client**. It dials the [`@tesseron/vite`](/sdk/typescript/vite/) plugin at the same origin; the plugin bridges the connection to the gateway that dialed in with the `tesseron-gateway` subprotocol.
 
 ## Singleton usage
 
@@ -46,9 +50,11 @@ console.log('claim code:', welcome.claimCode);
 
 | Argument | Behaviour |
 |---|---|
-| `undefined` | Connects to `ws://localhost:7475`. |
-| `string` (URL) | Connects to that URL. |
+| `undefined` | Dials `<location.origin>/@tesseron/ws` - the endpoint exposed by the `@tesseron/vite` plugin. |
+| `string` (URL) | Dials that URL. |
 | `Transport` | Uses the supplied transport - mostly for tests. |
+
+Browser apps need the [`@tesseron/vite`](/sdk/typescript/vite/) plugin in their `vite.config.ts` to serve `/@tesseron/ws`. Without it, `tesseron.connect()` will fail with a WebSocket error. If you use another dev server, pass a URL explicitly or build your own transport.
 
 Returns `WelcomeResult`:
 

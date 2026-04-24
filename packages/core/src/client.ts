@@ -365,7 +365,22 @@ export class TesseronClient implements BuilderRegistry {
           { signal: controller.signal },
         );
         if (req.schema) {
-          const validated = await standardValidate(req.schema, result.content);
+          // MCP sampling returns a text string; when a schema is declared the
+          // caller expects the LLM output to be JSON. Parse first, validate
+          // second, so `schema: z.object(...)` works against `content: "{...}"`.
+          let decoded: unknown = result.content;
+          if (typeof decoded === 'string') {
+            try {
+              decoded = JSON.parse(decoded);
+            } catch (parseError) {
+              throw new TesseronError(
+                TesseronErrorCode.HandlerError,
+                'Sampling result was not valid JSON (schema was declared, so JSON was expected)',
+                { raw: decoded, parseError: (parseError as Error).message },
+              );
+            }
+          }
+          const validated = await standardValidate(req.schema, decoded);
           if (!validated.ok) {
             throw new TesseronError(
               TesseronErrorCode.HandlerError,

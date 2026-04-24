@@ -1,6 +1,6 @@
 ---
 title: All examples
-description: Six runnable Todo apps that together cover every framework adapter and every major feature of the SDK.
+description: Six runnable apps across two domains that together cover every framework adapter and every major feature of the SDK.
 related:
   - overview/quickstart
   - sdk/typescript/index
@@ -8,14 +8,14 @@ related:
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-All six examples live in [`examples/`](https://github.com/BrainBlend-AI/tesseron/tree/main/examples). Each is a complete, runnable Todo app, intentionally simple so the Tesseron-specific code is easy to read.
+All six examples live in [`examples/`](https://github.com/BrainBlend-AI/tesseron/tree/main/examples). Each is complete, runnable, and intentionally simple so the Tesseron-specific code is easy to read. Client-side examples share a **todo** domain; server-side examples share a sampling-heavy **prompt-library** domain.
 
 <CardGrid>
   <LinkCard title="vanilla-todo" href="./vanilla-todo/"
     description="Zero-framework baseline. Start here." />
-  <LinkCard title="node-todo" href="./node-todo/"
-    description="Headless Node service. No browser." />
-  <LinkCard title="express-todo" href="./express-todo/"
+  <LinkCard title="node-prompts" href="./node-prompts/"
+    description="Headless Node prompt library. No browser." />
+  <LinkCard title="express-prompts" href="./express-prompts/"
     description="HTTP REST + MCP on the same Node process." />
   <LinkCard title="react-todo" href="./react-todo/"
     description="React 18 + `@tesseron/react` hooks." />
@@ -33,10 +33,10 @@ All six examples live in [`examples/`](https://github.com/BrainBlend-AI/tesseron
 | Subscribable resources | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Annotations (`destructive`, `requiresConfirmation`, `readOnly`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Zod input validation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ctx.confirm` (in `clearCompleted`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ctx.elicit` with schema (in `renameTodo`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ctx.progress` (in `importTodos`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ctx.sample` (in `suggestTodos`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.confirm` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.elicit` with schema | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.progress` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ctx.sample` | ✅ | ✅ (first-class) | ✅ (first-class) | ✅ | ✅ | ✅ |
 | Framework hooks | ✗ | - | ✗ | ✅ | ✗ | ✗ |
 | Runs in the browser | ✅ | ✗ | ✗ | ✅ | ✅ | ✅ |
 | Runs in Node | ✗ | ✅ | ✅ | ✗ | ✗ | ✗ |
@@ -45,8 +45,8 @@ All six examples live in [`examples/`](https://github.com/BrainBlend-AI/tesseron
 ## Recommended reading order
 
 1. **[vanilla-todo](/examples/vanilla-todo/)** - plain DOM, no framework. The SDK's builder API with nothing in the way.
-2. **[node-todo](/examples/node-todo/)** - the same action declarations on Node. Proves nothing's tied to the browser.
-3. **[express-todo](/examples/express-todo/)** - adds a REST API next to Tesseron. Shows the "same state, two channels" pattern.
+2. **[node-prompts](/examples/node-prompts/)** - a headless prompt library on Node. Shows the same builder API on the server, with `ctx.sample` and `ctx.elicit` as the center of the domain.
+3. **[express-prompts](/examples/express-prompts/)** - the same prompt library plus a REST API. Demonstrates "same state, two channels": HTTP writes fire Tesseron resource notifications and vice versa.
 4. **[react-todo](/examples/react-todo/)** - hooks-based integration.
 5. **[svelte-todo](/examples/svelte-todo/)** - mutation via `$state` runes.
 6. **[vue-todo](/examples/vue-todo/)** - mutation via `ref().value` / `computed()`.

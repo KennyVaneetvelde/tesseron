@@ -89,7 +89,6 @@ Two knobs on `new TesseronGateway({ ... })` shape how aggressive resume is:
 
 ```ts
 const gateway = new TesseronGateway({
-  port: 7475,
   resumeTtlMs: 300_000, // 5 minutes (default: 90_000)
   maxZombies: 500,      // cap on zombies held simultaneously (default: 100)
 });
@@ -110,7 +109,7 @@ tesseron.action('searchProducts').handler(/* ... */);
 
 const saved = localStorage.getItem('tesseron:shop');
 const welcome = await tesseron.connect(
-  'ws://127.0.0.1:7475',
+  undefined, // defaults to the @tesseron/vite bridge at `<origin>/@tesseron/ws`
   saved ? { resume: JSON.parse(saved) } : undefined,
 );
 

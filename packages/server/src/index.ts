@@ -4,30 +4,39 @@ import {
   type Transport,
   type WelcomeResult,
 } from '@tesseron/core';
-import { NodeWebSocketTransport } from './transport.js';
+import {
+  NodeWebSocketServerTransport,
+  type NodeWebSocketServerTransportOptions,
+} from './transport.js';
 
 export * from '@tesseron/core';
-export { NodeWebSocketTransport } from './transport.js';
-
-/** Default gateway endpoint the Node client connects to when no URL is provided. */
-export const DEFAULT_GATEWAY_URL = 'ws://localhost:7475';
+export {
+  NodeWebSocketServerTransport,
+  type NodeWebSocketServerTransportOptions,
+} from './transport.js';
 
 /**
- * Node-side {@link TesseronClient} with a WebSocket-aware `connect` overload.
- * Pass nothing to use {@link DEFAULT_GATEWAY_URL}, a URL string to connect to
- * another gateway, or a custom {@link Transport} to bypass WebSocket entirely.
- * The optional second argument forwards {@link ConnectOptions} (e.g. session
- * resume) to the core client.
+ * Node-side {@link TesseronClient}. Call `connect()` to bind a WebSocket server
+ * on loopback and announce this process to the gateway via `~/.tesseron/tabs/`.
+ * The gateway dials in with the `tesseron-gateway` subprotocol; standard Tesseron
+ * JSON-RPC traffic flows from there.
+ *
+ * Pass {@link NodeWebSocketServerTransportOptions} to customise the app name,
+ * bind host, or bind port. Pass a custom {@link Transport} to bypass the
+ * bind-and-announce flow entirely — useful in tests or when tunnelling through
+ * another channel.
  */
 export class ServerTesseronClient extends TesseronClient {
   override async connect(
-    target?: Transport | string,
+    target?: Transport | NodeWebSocketServerTransportOptions,
     options?: ConnectOptions,
   ): Promise<WelcomeResult> {
-    if (target && typeof target !== 'string') {
-      return super.connect(target, options);
+    if (target && typeof target === 'object' && 'send' in target && 'onMessage' in target) {
+      return super.connect(target as Transport, options);
     }
-    const transport = new NodeWebSocketTransport(target ?? DEFAULT_GATEWAY_URL);
+    const transport = new NodeWebSocketServerTransport(
+      target as NodeWebSocketServerTransportOptions | undefined,
+    );
     await transport.ready();
     return super.connect(transport, options);
   }

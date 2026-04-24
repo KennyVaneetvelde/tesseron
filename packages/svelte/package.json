@@ -1,0 +1,65 @@
+{
+  "name": "@tesseron/svelte",
+  "version": "1.1.0",
+  "description": "Svelte adapter for Tesseron. tesseronAction, tesseronResource, tesseronConnection.",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://brainblendai.com/"
+  },
+  "homepage": "https://github.com/BrainBlend-AI/tesseron#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BrainBlend-AI/tesseron.git",
+    "directory": "packages/svelte"
+  },
+  "bugs": {
+    "url": "https://github.com/BrainBlend-AI/tesseron/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agents",
+    "typescript",
+    "sdk",
+    "svelte",
+    "svelte5",
+    "tesseron"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@tesseron/core": "workspace:*",
+    "@tesseron/web": "workspace:*"
+  },
+  "devDependencies": {
+    "svelte": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@standard-schema/spec": "^1.0.0",
+    "svelte": ">=4.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    }
+  }
+}

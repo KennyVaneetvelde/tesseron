@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { tesseron } from '@tesseron/web';
+import { computed, ref, watch } from 'vue';
+import { tesseron, tesseronConnection } from '@tesseron/vue';
 import { z } from 'zod';
 
 interface Todo {
@@ -18,9 +18,6 @@ const todos = ref<Todo[]>([]);
 const filter = ref<Filter>('all');
 const input = ref('');
 const lastLog = ref('');
-const connection = ref<{ status: string; claimCode?: string; error?: string }>({
-  status: 'idle',
-});
 
 const FILTERS: readonly Filter[] = ['all', 'active', 'completed'];
 
@@ -269,15 +266,7 @@ function remove(id: string): void {
   todos.value = todos.value.filter((t) => t.id !== id);
 }
 
-onMounted(async () => {
-  connection.value = { status: 'connecting' };
-  try {
-    const welcome = await tesseron.connect();
-    connection.value = { status: 'open', claimCode: welcome.claimCode };
-  } catch (e) {
-    connection.value = { status: 'error', error: (e as Error).message };
-  }
-});
+const connection = tesseronConnection();
 </script>
 
 <template>
@@ -286,7 +275,7 @@ onMounted(async () => {
       <h1>Vue Todos <span class="badge">live</span></h1>
       <p>
         A real Vue 3 app whose state is drivable by Claude through
-        <code>@tesseron/web</code>. Every Tesseron capability is wired in:
+        <code>@tesseron/vue</code>. Every Tesseron capability is wired in:
         actions, <code>ctx.progress</code>, <code>ctx.elicit</code>,
         <code>ctx.sample</code>, and subscribable resources.
       </p>
@@ -296,7 +285,7 @@ onMounted(async () => {
       <div>
         <strong>Status:</strong>
         {{ connection.status }}
-        <span v-if="connection.error" class="error"> — {{ connection.error }}</span>
+        <span v-if="connection.error" class="error"> — {{ connection.error.message }}</span>
       </div>
       <template v-if="connection.claimCode">
         <div>
