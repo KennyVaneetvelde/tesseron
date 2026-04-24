@@ -50,6 +50,13 @@ interface NodeSpec {
   variant?: Variant;
   width?: number;
   height?: number;
+  /**
+   * ELK-level per-node options. Used for per-edge spacing overrides —
+   * `{ 'elk.margins': '[left=70,...]' }` effectively lengthens the gap
+   * on this node's incoming edge, so the gap on preceding edges can be
+   * kept short globally while other edges stay comfortable.
+   */
+  layoutOptions?: Record<string, string>;
 }
 
 interface EdgeSpec {
@@ -155,6 +162,7 @@ const layout = (await elk.layout({
     id: n.id,
     width: n.width ?? nodeWidth,
     height: n.height ?? nodeHeight,
+    ...(n.layoutOptions ? { layoutOptions: n.layoutOptions } : {}),
   })),
   edges: edges.map((e, i) => ({
     id: `e-${i}`,
