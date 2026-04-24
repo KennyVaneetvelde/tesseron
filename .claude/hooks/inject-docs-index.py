@@ -27,65 +27,115 @@ SECTION_LABELS = {
 }
 
 
-def parse_frontmatter(text: str) -> dict:
-    """Extract top-level string fields from a YAML frontmatter block.
+def _strip_quotes(v: str) -> str:
+    if v.startswith(('"', "'")) and v.endswith(v[0]) and len(v) >= 2:
+        return v[1:-1]
+    return v
 
-    Only handles the subset we need: `title:` and `description:`, single-line
-    or block-scalar (`|`, `>`). Avoids a PyYAML dependency.
+
+def parse_frontmatter(text: str) -> dict:
+    """Extract top-level fields from a YAML frontmatter block.
+
+    Supported shapes:
+      - `key: value` scalars (with optional single/double quotes)
+      - `key: |` / `key: >` folded/literal scalars
+      - `key:` followed by `  - item` block lists
+    Avoids a PyYAML dependency.
     """
     if not text.startswith("---"):
         return {}
     end = text.find("\n---", 3)
     if end == -1:
         return {}
-    block = text[3:end].strip("\n")
+    lines = text[3:end].strip("\n").splitlines()
     result: dict = {}
-    key: str | None = None
-    folded_indent: int | None = None
-    folded_lines: list[str] = []
+    i = 0
+    key_re = re.compile(r"^([A-Za-z_][\w-]*):\s*(.*)$")
+    list_re = re.compile(r"^(\s+)-\s+(.*)$")
 
-    def flush_folded():
-        nonlocal key, folded_indent, folded_lines
-        if key is not None and folded_lines:
-            result[key] = " ".join(line.strip() for line in folded_lines).strip()
-        key = None
-        folded_indent = None
-        folded_lines = []
-
-    for raw in block.splitlines():
-        if folded_indent is not None:
-            stripped = raw.lstrip(" ")
-            indent = len(raw) - len(stripped)
-            if raw.strip() and indent >= folded_indent:
-                folded_lines.append(stripped)
-                continue
-            flush_folded()
-        m = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", raw)
+    while i < len(lines):
+        raw = lines[i]
+        m = key_re.match(raw)
         if not m:
+            i += 1
             continue
         k, v = m.group(1), m.group(2).strip()
+
         if v in ("|", ">"):
-            key = k
-            folded_indent = 2  # assume two-space indent for folded content
-            folded_lines = []
+            j = i + 1
+            folded: list[str] = []
+            indent: int | None = None
+            while j < len(lines):
+                nl = lines[j]
+                if not nl.strip():
+                    j += 1
+                    continue
+                stripped = nl.lstrip(" ")
+                ind = len(nl) - len(stripped)
+                if indent is None:
+                    indent = ind
+                if ind < indent:
+                    break
+                folded.append(stripped)
+                j += 1
+            if folded:
+                result[k] = " ".join(line.strip() for line in folded).strip()
+            i = j
             continue
-        if v.startswith(('"', "'")) and v.endswith(v[0]) and len(v) >= 2:
-            v = v[1:-1]
-        result[k] = v
-    flush_folded()
+
+        if v == "":
+            j = i + 1
+            items: list[str] = []
+            while j < len(lines):
+                nl = lines[j]
+                if not nl.strip():
+                    j += 1
+                    continue
+                lm = list_re.match(nl)
+                if not lm:
+                    break
+                items.append(_strip_quotes(lm.group(2).strip()))
+                j += 1
+            if items:
+                result[k] = items
+                i = j
+                continue
+            i += 1
+            continue
+
+        result[k] = _strip_quotes(v)
+        i += 1
+
     return result
 
 
-def extract(doc_path: Path, project_root: Path) -> tuple[str, str, str]:
-    """Return (title, description, repo-relative-path) for a doc file."""
+def extract(doc_path: Path, project_root: Path) -> tuple[str, str, str, list[str]]:
+    """Return (title, description, repo-relative-path, related-slugs)."""
     try:
         text = doc_path.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return ("", "", str(doc_path.relative_to(project_root)))
+        return ("", "", str(doc_path.relative_to(project_root)), [])
     fm = parse_frontmatter(text)
-    title = fm.get("title", "").strip() or doc_path.stem
-    desc = fm.get("description", "").strip()
-    return (title, desc, str(doc_path.relative_to(project_root)).replace("\\", "/"))
+    title = (fm.get("title") or "").strip() if isinstance(fm.get("title"), str) else ""
+    if not title:
+        title = doc_path.stem
+    desc_raw = fm.get("description") or ""
+    desc = desc_raw.strip() if isinstance(desc_raw, str) else ""
+    related_raw = fm.get("related") or []
+    related = [s.strip() for s in related_raw if isinstance(s, str) and s.strip()] \
+        if isinstance(related_raw, list) else []
+    rel = str(doc_path.relative_to(project_root)).replace("\\", "/")
+    return (title, desc, rel, related)
+
+
+Entry = tuple[str, str, str, list[str]]
+
+
+def _render_entry(lines: list[str], entry: Entry) -> None:
+    title, desc, rel, related = entry
+    lines.append(f"- **{title}** ({rel}) - {desc}" if desc else f"- **{title}** ({rel})")
+    if related:
+        lines.append(f"  Related: {', '.join(related)}")
 
 
 def build_index(project_root: Path) -> str:
@@ -93,8 +143,8 @@ def build_index(project_root: Path) -> str:
     if not docs_root.is_dir():
         return ""
 
-    buckets: dict[str, list[tuple[str, str, str]]] = {name: [] for name in SECTION_ORDER}
-    root_entries: list[tuple[str, str, str]] = []
+    buckets: dict[str, list[Entry]] = {name: [] for name in SECTION_ORDER}
+    root_entries: list[Entry] = []
 
     for path in sorted(docs_root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in (".md", ".mdx"):
@@ -117,12 +167,18 @@ def build_index(project_root: Path) -> str:
         "just this index - before answering questions about Tesseron behavior."
     )
     lines.append("")
+    lines.append(
+        "Entries with a `Related:` line name adjacent pages by slug "
+        "(`<section>/<basename>` without extension). Follow those edges "
+        "when a question spans topics."
+    )
+    lines.append("")
 
     if root_entries:
         lines.append("## Landing")
         lines.append("")
-        for title, desc, rel in root_entries:
-            lines.append(f"- **{title}** ({rel}) - {desc}" if desc else f"- **{title}** ({rel})")
+        for entry in root_entries:
+            _render_entry(lines, entry)
         lines.append("")
 
     for section in SECTION_ORDER:
@@ -131,16 +187,16 @@ def build_index(project_root: Path) -> str:
             continue
         lines.append(f"## {SECTION_LABELS.get(section, section.title())}")
         lines.append("")
-        for title, desc, rel in entries:
-            lines.append(f"- **{title}** ({rel}) - {desc}" if desc else f"- **{title}** ({rel})")
+        for entry in entries:
+            _render_entry(lines, entry)
         lines.append("")
 
     extras = {k: v for k, v in buckets.items() if k not in SECTION_ORDER and v}
     for section, entries in sorted(extras.items()):
         lines.append(f"## {section.title()}")
         lines.append("")
-        for title, desc, rel in entries:
-            lines.append(f"- **{title}** ({rel}) - {desc}" if desc else f"- **{title}** ({rel})")
+        for entry in entries:
+            _render_entry(lines, entry)
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"

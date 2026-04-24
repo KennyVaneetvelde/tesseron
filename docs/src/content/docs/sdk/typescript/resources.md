@@ -1,6 +1,9 @@
 ---
 title: Resources
 description: Declaring readable and subscribable state for the agent to observe.
+related:
+  - protocol/resources
+  - sdk/typescript/core
 ---
 
 A resource is a named piece of app state. The agent can read it on demand and, if your resource supports it, subscribe for live updates.

@@ -1,6 +1,9 @@
 ---
 title: Python SDK (planned)
 description: Status and intended shape of a Python implementation of the Tesseron SDK.
+related:
+  - sdk/index
+  - sdk/porting
 ---
 
 A Python SDK is on the roadmap but **not yet shipped**.

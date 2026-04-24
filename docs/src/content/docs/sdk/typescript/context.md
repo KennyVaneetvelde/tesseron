@@ -1,6 +1,10 @@
 ---
 title: Context API (progress, sampling, elicit)
 description: Everything available on the `ctx` argument of an action handler.
+related:
+  - protocol/elicitation
+  - protocol/sampling
+  - protocol/progress-cancellation
 ---
 
 Every action handler receives `(input, ctx)`. `ctx: ActionContext` is where the protocol-level capabilities are exposed as methods.

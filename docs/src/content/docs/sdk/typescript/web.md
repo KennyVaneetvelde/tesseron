@@ -1,6 +1,10 @@
 ---
 title: "@tesseron/web"
 description: The browser SDK. Singleton client, WebSocket transport, framework-agnostic.
+related:
+  - sdk/typescript/core
+  - protocol/transport
+  - sdk/typescript/action-builder
 ---
 
 The package for anything running in a browser tab - vanilla TS, Vite, Next, Svelte, Vue. If you use React, the [@tesseron/react](/sdk/typescript/react/) adapter is the ergonomic wrapper on top of this.

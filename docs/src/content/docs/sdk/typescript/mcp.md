@@ -1,6 +1,10 @@
 ---
 title: "@tesseron/mcp (MCP gateway)"
 description: The MCP gateway process - WebSocket server + MCP stdio bridge. Bundled into the Claude Code plugin; you rarely run it by hand.
+related:
+  - protocol/handshake
+  - protocol/security
+  - protocol/transport
 ---
 
 `@tesseron/mcp` is the MCP gateway. It:

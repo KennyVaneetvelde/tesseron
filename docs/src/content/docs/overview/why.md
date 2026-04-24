@@ -1,6 +1,9 @@
 ---
 title: Why Tesseron?
 description: The problem Tesseron solves, and where it fits relative to browser automation, chat widgets, and custom APIs.
+related:
+  - overview/architecture
+  - protocol/index
 ---
 
 Agents are great at reasoning about what to do. They're bad at reaching into your app to do it.

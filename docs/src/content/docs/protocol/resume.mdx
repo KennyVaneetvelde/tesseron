@@ -1,6 +1,11 @@
 ---
 title: Session resume
 description: How a Tesseron app rejoins a previously-claimed session after a transport drop via tesseron/resume - protocol shape, gateway behaviour, and the 4-line localStorage recipe.
+related:
+  - protocol/handshake
+  - protocol/transport
+  - protocol/wire-format
+  - protocol/lifecycle
 ---
 
 A Tesseron session lives in the gateway's memory. When the underlying WebSocket drops (tab refresh, window close, network blip, HMR reload), the session normally goes away and a reconnecting app would have to go through the full `tesseron/hello` + claim-code dance again - even if the user had already paired it.

@@ -1,6 +1,11 @@
 ---
 title: Port Tesseron to your language
 description: Step-by-step guide to writing a new Tesseron SDK and a conformance checklist for testing it.
+related:
+  - sdk/index
+  - protocol/index
+  - protocol/wire-format
+  - sdk/typescript/core
 ---
 
 Tesseron's wire protocol is small enough that a competent engineer can implement an SDK for a new language in a couple of days. This page is your map.

@@ -1,6 +1,9 @@
 ---
 title: Transport (WebSocket)
 description: URL, framing, origin enforcement, reconnection, and what happens to pending work on disconnect.
+related:
+  - protocol/handshake
+  - protocol/wire-format
 ---
 
 ## Endpoint

@@ -1,6 +1,8 @@
 ---
 title: node-todo
 description: Headless Node service - no HTTP, no browser. Proves the SDK isn't tied to DOM.
+related:
+  - sdk/typescript/server
 ---
 
 **What it teaches:** a pure-Node Tesseron integration. No Express, no web server - just a Node script that registers actions and connects. Good when you're building a CLI, a daemon, or a worker that Claude should drive.
