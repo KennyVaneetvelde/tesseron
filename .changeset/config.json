@@ -3,7 +3,14 @@
   "changelog": ["@changesets/changelog-github", { "repo": "BrainBlend-AI/tesseron" }],
   "commit": false,
   "fixed": [
-    ["@tesseron/core", "@tesseron/web", "@tesseron/server", "@tesseron/react", "@tesseron/mcp"]
+    [
+      "@tesseron/core",
+      "@tesseron/web",
+      "@tesseron/server",
+      "@tesseron/react",
+      "@tesseron/mcp",
+      "@tesseron/docs-mcp"
+    ]
   ],
   "linked": [],
   "access": "public",
