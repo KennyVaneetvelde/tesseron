@@ -1,7 +1,14 @@
 /* Tesseron Starlight theme overrides. Anchored on warm, high-contrast neutrals
-   that match the amber gateway color used in the D2 diagrams. */
+   that match the amber gateway color used in the diagrams.
+ *
+ * Note on Starlight's palette convention: Starlight treats `:root` as the
+ * DARK palette and `:root[data-theme="light"]` as the LIGHT one (the theme
+ * loader always sets `data-theme` explicitly). Override grays inside the
+ * appropriate scope — putting dark values at bare `:root` bleeds into light
+ * mode because `data-theme="light"` alone doesn't re-set every variable. */
 
 :root {
+  /* Accent + theme-agnostic tokens */
   --sl-color-accent-low: #3a1f00;
   --sl-color-accent: #f59e0b;
   --sl-color-accent-high: #fed7aa;
@@ -10,6 +17,16 @@
      render at their full intrinsic size without scaling down. */
   --sl-content-width: 64rem;
 
+  --tesseron-sdk: #3b6bb3;
+  --tesseron-gateway: #c97a00;
+  --tesseron-agent: #6b46c1;
+  --tesseron-user: #2e7d32;
+  --tesseron-error: #c62828;
+}
+
+/* Dark-mode gray scale — slightly cooler / denser than Starlight's default
+   so the amber accent stays legible against the page chrome. */
+:root[data-theme="dark"] {
   --sl-color-white: #ffffff;
   --sl-color-gray-1: #eef1f6;
   --sl-color-gray-2: #c2c8d1;
@@ -18,12 +35,6 @@
   --sl-color-gray-5: #2a303a;
   --sl-color-gray-6: #1b1f27;
   --sl-color-black: #0d1017;
-
-  --tesseron-sdk: #3b6bb3;
-  --tesseron-gateway: #c97a00;
-  --tesseron-agent: #6b46c1;
-  --tesseron-user: #2e7d32;
-  --tesseron-error: #c62828;
 }
 
 :root[data-theme="light"] {
