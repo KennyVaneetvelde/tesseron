@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "chokidar": "^4.0.3",
+    "starlight-llms-txt": "^0.8.1",
     "tsx": "^4.19.2"
   }
 }

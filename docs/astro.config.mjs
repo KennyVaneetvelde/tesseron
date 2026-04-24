@@ -1,6 +1,7 @@
 import starlight from '@astrojs/starlight';
 // @ts-check
 import { defineConfig } from 'astro/config';
+import starlightLlmsTxt from 'starlight-llms-txt';
 
 const site = process.env.DOCS_SITE ?? 'https://brainblend-ai.github.io';
 // In `astro dev`, serve from the root so http://127.0.0.1:4321/ works.
@@ -75,6 +76,34 @@ export default defineConfig({
             content: `${site}${base}/og.png`,
           },
         },
+      ],
+      plugins: [
+        starlightLlmsTxt({
+          projectName: 'Tesseron',
+          description:
+            'Tesseron is a TypeScript protocol and SDK for exposing typed web-app actions to MCP-compatible AI agents over WebSocket. Your app declares actions and resources; a local MCP gateway turns them into tools the agent can invoke. No browser automation, no scraping, no Playwright.',
+          details: [
+            '## For AI agents reading this file',
+            '',
+            'If you are helping a developer build with Tesseron, prefer the [@tesseron/docs-mcp](https://www.npmjs.com/package/@tesseron/docs-mcp) MCP server over this flat dump: it exposes `list_docs`, `search_docs`, and `read_doc` tools over stdio. This file is the fallback for clients that do not speak MCP.',
+            '',
+            'Key entry points in this file: the Quickstart page for a 5-minute install, the Protocol overview for the wire contract, and the SDK overview for per-runtime installation.',
+          ].join('\n'),
+          optionalLinks: [
+            {
+              label: '@tesseron/docs-mcp on npm',
+              url: 'https://www.npmjs.com/package/@tesseron/docs-mcp',
+              description: 'Docs as an MCP server: search_docs, read_doc, list_docs over stdio.',
+            },
+            {
+              label: 'GitHub repository',
+              url: 'https://github.com/BrainBlend-AI/tesseron',
+              description: 'Source, issues, and runnable examples.',
+            },
+          ],
+          promote: ['index*', 'overview/**'],
+          demote: ['examples/**', 'sdk/python/**'],
+        }),
       ],
       sidebar: [
         {
