@@ -349,7 +349,11 @@ describe('Phase 3 — sampling round trip', () => {
         version: 1,
         vendor: 'test',
         validate: (v) => {
-          if (typeof v !== 'object' || v === null || !Array.isArray((v as { titles?: unknown }).titles)) {
+          if (
+            typeof v !== 'object' ||
+            v === null ||
+            !Array.isArray((v as { titles?: unknown }).titles)
+          ) {
             return { issues: [{ message: 'expected { titles: string[] }' }] };
           }
           return { value: v as { titles: string[] } };

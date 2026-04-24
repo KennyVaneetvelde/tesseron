@@ -656,9 +656,7 @@ describe('Tesseron MCP integration', () => {
 });
 
 describe('Tool surface modes', () => {
-  async function buildBridge(
-    toolSurface: 'dynamic' | 'meta' | 'both',
-  ): Promise<{
+  async function buildBridge(toolSurface: 'dynamic' | 'meta' | 'both'): Promise<{
     gateway: TesseronGateway;
     client: Client;
     sdk: ServerTesseronClient;

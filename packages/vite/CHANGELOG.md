@@ -1,4 +1,4 @@
-# @tesseron/svelte
+# @tesseron/vite
 
 ## 2.0.0
 
@@ -18,15 +18,3 @@
   Required migration:
   - Browser apps: add `@tesseron/vite` to `devDependencies` and register `tesseron()` in `vite.config.ts`.
   - Node apps: no env vars or URLs to configure; `tesseron.connect()` handles bind-and-announce automatically.
-
-### Patch Changes
-
-- Updated dependencies [[`21ce314`](https://github.com/BrainBlend-AI/tesseron/commit/21ce31470232bbdfad3843ed0399ce850302e7a4)]:
-  - @tesseron/web@2.0.0
-  - @tesseron/core@2.0.0
-
-## 1.1.0
-
-### Minor Changes
-
-- Initial release: `tesseronAction`, `tesseronResource`, `tesseronConnection`.

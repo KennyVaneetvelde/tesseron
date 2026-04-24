@@ -81,93 +81,88 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
         }
       });
 
-      server.httpServer?.on(
-        'upgrade',
-        (req: IncomingMessage, socket: Socket, head: Buffer) => {
-          const url = req.url ?? '';
+      server.httpServer?.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+        const url = req.url ?? '';
 
-          // Browser tab connecting to /@tesseron/ws
-          if (url === WS_PATH_PREFIX || url === `${WS_PATH_PREFIX}/`) {
-            const protocols =
-              req.headers['sec-websocket-protocol']
-                ?.split(',')
-                .map((s: string) => s.trim()) ?? [];
-            // Reject if somehow the gateway is trying the plain path
-            if (protocols.includes(GATEWAY_SUBPROTOCOL)) return;
+        // Browser tab connecting to /@tesseron/ws
+        if (url === WS_PATH_PREFIX || url === `${WS_PATH_PREFIX}/`) {
+          const protocols =
+            req.headers['sec-websocket-protocol']?.split(',').map((s: string) => s.trim()) ?? [];
+          // Reject if somehow the gateway is trying the plain path
+          if (protocols.includes(GATEWAY_SUBPROTOCOL)) return;
 
-            wss.handleUpgrade(req, socket, head, (ws) => {
-              const tabId = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-              const wsUrl = `${serverUrl.replace(/^http/, 'ws')}${WS_PATH_PREFIX}/${tabId}`;
-              const appName =
-                options.appName ??
-                (server.config.root ? server.config.root.split('/').pop() : undefined) ??
-                'unknown';
-              const entry: PendingTab = { tabId, appName, wsUrl, browserWs: ws, queue: [] };
-              tabs.set(tabId, entry);
+          wss.handleUpgrade(req, socket, head, (ws) => {
+            const tabId = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            const wsUrl = `${serverUrl.replace(/^http/, 'ws')}${WS_PATH_PREFIX}/${tabId}`;
+            const appName =
+              options.appName ??
+              (server.config.root ? server.config.root.split('/').pop() : undefined) ??
+              'unknown';
+            const entry: PendingTab = { tabId, appName, wsUrl, browserWs: ws, queue: [] };
+            tabs.set(tabId, entry);
 
-              writeTabFile(entry).catch((err: Error) =>
-                process.stderr.write(`[tesseron] failed to write tab file: ${err.message}\n`),
-              );
+            writeTabFile(entry).catch((err: Error) =>
+              process.stderr.write(`[tesseron] failed to write tab file: ${err.message}\n`),
+            );
 
-              ws.on('message', (data: RawData) => {
-                if (entry.gatewayWs?.readyState === 1 /* OPEN */) {
-                  entry.gatewayWs.send(data as Buffer);
-                } else {
-                  entry.queue.push(data);
-                }
-              });
-
-              ws.on('close', () => {
-                tabs.delete(tabId);
-                entry.gatewayWs?.close(1000, 'Browser disconnected');
-                deleteTabFile(tabId).catch(() => {});
-              });
-
-              ws.on('error', () => {
-                tabs.delete(tabId);
-                entry.gatewayWs?.close(1000, 'Browser error');
-                deleteTabFile(tabId).catch(() => {});
-              });
-            });
-            return;
-          }
-
-          // Gateway connecting to /@tesseron/ws/:tabId
-          if (url.startsWith(`${WS_PATH_PREFIX}/`)) {
-            const tabId = url.slice(WS_PATH_PREFIX.length + 1).split('?')[0]!;
-            const entry = tabs.get(tabId);
-            if (!entry) {
-              socket.destroy();
-              return;
-            }
-
-            wss.handleUpgrade(req, socket, head, (ws) => {
-              entry.gatewayWs = ws;
-
-              // Drain messages buffered while waiting for the gateway
-              for (const msg of entry.queue) {
-                ws.send(msg as Buffer);
+            ws.on('message', (data: RawData) => {
+              if (entry.gatewayWs?.readyState === 1 /* OPEN */) {
+                entry.gatewayWs.send(data as Buffer);
+              } else {
+                entry.queue.push(data);
               }
-              entry.queue = [];
-
-              ws.on('message', (data: RawData) => {
-                if (entry.browserWs.readyState === 1 /* OPEN */) {
-                  entry.browserWs.send(data as Buffer);
-                }
-              });
-
-              ws.on('close', () => {
-                entry.gatewayWs = undefined;
-              });
-
-              ws.on('error', () => {
-                entry.gatewayWs = undefined;
-              });
             });
+
+            ws.on('close', () => {
+              tabs.delete(tabId);
+              entry.gatewayWs?.close(1000, 'Browser disconnected');
+              deleteTabFile(tabId).catch(() => {});
+            });
+
+            ws.on('error', () => {
+              tabs.delete(tabId);
+              entry.gatewayWs?.close(1000, 'Browser error');
+              deleteTabFile(tabId).catch(() => {});
+            });
+          });
+          return;
+        }
+
+        // Gateway connecting to /@tesseron/ws/:tabId
+        if (url.startsWith(`${WS_PATH_PREFIX}/`)) {
+          const tabId = url.slice(WS_PATH_PREFIX.length + 1).split('?')[0]!;
+          const entry = tabs.get(tabId);
+          if (!entry) {
+            socket.destroy();
             return;
           }
-        },
-      );
+
+          wss.handleUpgrade(req, socket, head, (ws) => {
+            entry.gatewayWs = ws;
+
+            // Drain messages buffered while waiting for the gateway
+            for (const msg of entry.queue) {
+              ws.send(msg as Buffer);
+            }
+            entry.queue = [];
+
+            ws.on('message', (data: RawData) => {
+              if (entry.browserWs.readyState === 1 /* OPEN */) {
+                entry.browserWs.send(data as Buffer);
+              }
+            });
+
+            ws.on('close', () => {
+              entry.gatewayWs = undefined;
+            });
+
+            ws.on('error', () => {
+              entry.gatewayWs = undefined;
+            });
+          });
+          return;
+        }
+      });
 
       server.httpServer?.on('close', () => {
         for (const tab of tabs.values()) {
