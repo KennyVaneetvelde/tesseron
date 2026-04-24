@@ -35,9 +35,7 @@ export function loadSnapshot(override?: string): Snapshot {
   const path = resolveSnapshotPath(override);
   if (!existsSync(path)) {
     throw new Error(
-      `[tesseron-docs-mcp] snapshot not found at ${path}. ` +
-        'Run "pnpm --filter @tesseron/docs-mcp build" to generate it, ' +
-        `or set ${ENV_SNAPSHOT_PATH}=/abs/path/to/docs-index.json.`,
+      `[tesseron-docs-mcp] snapshot not found at ${path}. Run "pnpm --filter @tesseron/docs-mcp build" to generate it, or set ${ENV_SNAPSHOT_PATH}=/abs/path/to/docs-index.json.`,
     );
   }
   const raw = readFileSync(path, 'utf8');

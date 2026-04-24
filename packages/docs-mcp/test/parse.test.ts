@@ -69,7 +69,7 @@ describe('toSearchText', () => {
 describe('parseDoc', () => {
   it('parses title, description, related list, and strips frontmatter from body', () => {
     const { root, file } = makeTmpDoc(
-      `---\ntitle: Session resume\ndescription: Short description.\nrelated:\n  - protocol/handshake\n  - protocol/transport\n---\n\nBody text.`,
+      '---\ntitle: Session resume\ndescription: Short description.\nrelated:\n  - protocol/handshake\n  - protocol/transport\n---\n\nBody text.',
       'resume.mdx',
     );
     const entry = parseDoc(file, root);
@@ -83,7 +83,7 @@ describe('parseDoc', () => {
 
   it('falls back to the filename stem when title is missing', () => {
     const { root, file } = makeTmpDoc(
-      `---\ndescription: Only description.\n---\n\nBody.`,
+      '---\ndescription: Only description.\n---\n\nBody.',
       'plain.md',
     );
     const entry = parseDoc(file, root);
@@ -91,7 +91,7 @@ describe('parseDoc', () => {
   });
 
   it('returns an empty related array when the field is absent', () => {
-    const { root, file } = makeTmpDoc(`---\ntitle: T\n---\nBody.`, 'x.md');
+    const { root, file } = makeTmpDoc('---\ntitle: T\n---\nBody.', 'x.md');
     expect(parseDoc(file, root).related).toEqual([]);
   });
 });
