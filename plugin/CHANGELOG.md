@@ -4,6 +4,26 @@ All notable changes to the Tesseron Claude Code plugin will be documented in thi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-24
+
+Bumps the bundled gateway (`server/index.cjs`) to `@tesseron/mcp@2.0.0` — the reverse-connection architecture. The gateway is now a pure WebSocket client; apps host their own loopback endpoints and announce themselves via `~/.tesseron/tabs/<tabId>.json`. One discovery mechanism for every runtime, no fixed ports.
+
+### Breaking
+
+- **Gateway no longer binds a port.** `TESSERON_PORT`, `TESSERON_HOST`, and `TESSERON_ORIGIN_ALLOWLIST` env vars are removed (silently ignored if set). The `.mcp.json` that ships with the plugin no longer declares them.
+- **`NodeWebSocketTransport` replaced with `NodeWebSocketServerTransport`** on the Node SDK side. `tesseron.connect()` no longer accepts a gateway URL string.
+- **Browser apps require `@tesseron/vite`** (new package) to expose `/@tesseron/ws` on the dev server. Without it, `tesseron.connect()` has nothing to dial.
+
+### Added
+
+- **New adapter packages**: `@tesseron/svelte` (Svelte 5 runes), `@tesseron/vue` (Composition API), `@tesseron/vite` (dev-server bridge). The `tesseron-dev` skill now routes to them when appropriate.
+
+### Changed
+
+- `plugin/skills/framework/references/gateway.md` rewritten for the reverse-connection model: describes tab-file discovery, drops the env-vars section down to just `TESSERON_TOOL_SURFACE`, removes the `0.0.0.0` / origin-allowlist guidance that no longer applies.
+- `plugin/README.md` updated: gateway is now "dials apps via `~/.tesseron/tabs/`", compatibility section notes `/svelte`, `/vue`, `/vite` as part of the lockstep release.
+- `plugin/agents/tesseron-explorer.md` and `plugin/agents/tesseron-reviewer.md` updated to look for `NodeWebSocketServerTransport` + `@tesseron/vite` wiring and to flag stale `TESSERON_PORT` / `ws://localhost:7475` references as v2 regressions.
+
 ## [1.0.2] - 2026-04-23
 
 This release brings the plugin into version lockstep with the Tesseron SDK packages (`@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/mcp`). Going forward, the plugin version matches the SDK version so users have one number to remember across all Tesseron surfaces. This is honest about what ships inside: the bundled gateway (`plugin/server/index.cjs`) is built from `@tesseron/mcp`, so sharing the version number reflects what users actually run.

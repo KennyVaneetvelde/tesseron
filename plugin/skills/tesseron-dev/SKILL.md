@@ -11,13 +11,16 @@ This skill does not create projects, pick build tooling, or template framework-s
 
 ## What Tesseron officially supports
 
-Tesseron ships three consumer packages. Everything else — package managers, bundlers, TypeScript configs, framework-specific idioms — is outside Tesseron's responsibility.
+Tesseron ships five consumer packages plus one build-tool plugin. Everything else — package managers, TypeScript configs, framework-specific idioms — is outside Tesseron's responsibility.
 
 | Package | Scope |
 |---|---|
-| `@tesseron/react` | React projects — exports `useTesseronAction`, `useTesseronResource`, `useTesseronConnection`. Tesseron ships framework-specific ergonomics here because React's hook model warrants them. |
+| `@tesseron/react` | React projects — exports `useTesseronAction`, `useTesseronResource`, `useTesseronConnection`. |
+| `@tesseron/svelte` | Svelte 5 projects — exports `tesseronAction`, `tesseronResource`, `tesseronConnection` runes-style helpers with lifecycle-scoped registration. |
+| `@tesseron/vue` | Vue 3 projects — Composition API equivalents of the Svelte helpers with the same lifecycle-scoped semantics. |
 | `@tesseron/server` | Node processes — headless services, CLIs, backend adapters. |
-| `@tesseron/web` | **Any other browser context.** A framework-neutral singleton — the same singleton API serves vanilla JS and any browser framework Tesseron does not officially ship a dedicated adapter for. Tesseron has no framework-specific code for non-React browser contexts; the singleton is called from whatever module scope or startup hook the framework provides. |
+| `@tesseron/web` | **Any other browser context.** A framework-neutral singleton — the same singleton API serves vanilla JS and any browser framework Tesseron does not officially ship a dedicated adapter for. |
+| `@tesseron/vite` | Vite dev-server plugin. **Required for every browser app in v2** — exposes the `/@tesseron/ws` bridge the gateway dials into. Add it to `vite.config.ts` alongside the consumer package. |
 
 `@tesseron/core` (protocol types) and `@tesseron/mcp` (the gateway binary) are not consumer packages; ignore them here.
 
@@ -25,11 +28,15 @@ Tesseron ships three consumer packages. Everything else — package managers, bu
 
 Detect from the project's `package.json` + file layout:
 
+- `svelte` in dependencies → `@tesseron/svelte`.
+- `vue` in dependencies → `@tesseron/vue`.
 - `react` and `react-dom` in dependencies → `@tesseron/react`.
 - Node process without a browser bundle (no `index.html`, no Vite/webpack/etc., `@types/node` present) → `@tesseron/server`.
 - Anything else that runs in a browser → `@tesseron/web`.
 
-If the signals conflict (e.g. a React app embedded in a Node workspace — which package applies is usually about where the `tesseron.connect()` will run), ask the user which process needs the agent surface. Only one `@tesseron/*` package per process.
+For browser apps, ALSO install `@tesseron/vite` as a dev dependency and register it in `vite.config.ts` — v2 relies on the plugin to bridge the browser WebSocket to the gateway.
+
+If the signals conflict (e.g. a React app embedded in a Node workspace — which package applies is usually about where the `tesseron.connect()` will run), ask the user which process needs the agent surface. Only one consumer `@tesseron/*` package per process.
 
 If the project is on a non-JS/TS stack (Rails, Django, Go, raw PHP, etc.), stop. Tesseron consumes the SDK from JS/TS only.
 
@@ -41,7 +48,7 @@ Every action needs a Standard-Schema-compatible validator for its `.input(...)`.
 
 Detect the package manager from the lockfile (`pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `bun.lockb` → bun, `package-lock.json` or none → npm) and use it. Never swap managers.
 
-Install the chosen `@tesseron/*` package (+ the validator if missing) pinned as `^1.0.0`. All `@tesseron/*` packages release in lockstep, so this range resolves them compatibly as new minors land.
+Install the chosen `@tesseron/*` package (+ the validator if missing, + `@tesseron/vite` as a devDependency for browser apps) pinned as `^2.0.0`. All `@tesseron/*` packages release in lockstep, so this range resolves them compatibly as new minors land. If an older project is still on `^1.0.0`, upgrade it to `^2.0.0` — v2 is a breaking reverse-connection migration and mixing majors will fail at connect time.
 
 ## Phase 4 — Insert the canonical Tesseron API
 

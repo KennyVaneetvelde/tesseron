@@ -82,15 +82,14 @@ Work through the categories below in order. Raise an issue only at ≥75% confid
 
 ### 7. Transports
 
-- `BrowserWebSocketTransport` used in browser code, `NodeWebSocketTransport` in Node. Mixing causes runtime errors (one expects `WebSocket` global, the other uses the `ws` package).
-- Gateway URL override done through a constant or env var, not hardcoded scattered throughout the codebase. `DEFAULT_GATEWAY_URL` is `ws://localhost:7475` for both SDKs.
+- `BrowserWebSocketTransport` used in browser code (dials `/@tesseron/ws`, provided by `@tesseron/vite`), `NodeWebSocketServerTransport` used in Node (hosts a loopback endpoint and writes a tab file). Mixing causes runtime errors (one expects `WebSocket` global, the other uses the `ws` package).
+- Browser apps register the `@tesseron/vite` plugin in `vite.config.ts`. Without it there's no `/@tesseron/ws` endpoint and `tesseron.connect()` fails with a connect error.
 - Custom transports implement the full `Transport` interface: `send`, `onMessage`, `onClose`, `close`. Missing `close` leaks resources.
 
 ### 8. Gateway (`@tesseron/mcp`) configuration
 
-- `TESSERON_ORIGIN_ALLOWLIST` set when the gateway is served to a non-localhost origin. Default allowlist is localhost/127.0.0.1 only; exposing to a LAN or public origin without an allowlist is a security bug.
-- `TESSERON_HOST=0.0.0.0` paired with an explicit allowlist. Binding to all interfaces without an allowlist exposes the gateway.
 - `TESSERON_TOOL_SURFACE` left as `both` (default) unless there is a concrete reason to restrict. `meta` drops per-app tools and breaks dynamic tool-list-changed updates for Claude.
+- No code should rely on `TESSERON_PORT` / `TESSERON_HOST` / `TESSERON_ORIGIN_ALLOWLIST` / `DEFAULT_GATEWAY_PORT` / `DEFAULT_GATEWAY_HOST`. Those were removed in v2.0 along with the inbound WebSocket server; the gateway now dials apps via `~/.tesseron/tabs/`.
 
 ### 9. Errors
 

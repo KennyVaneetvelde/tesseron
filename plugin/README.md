@@ -28,7 +28,7 @@ Restart Claude Code. The plugin's MCP server (`tesseron`) starts automatically. 
 
 ## How to use the gateway
 
-1. **In your web app**, import `@tesseron/web` (or `/server`, `/react`), declare actions with the Zod-style builder, and call `tesseron.connect()`. The SDK opens a WebSocket to `ws://127.0.0.1:7475` (the gateway this plugin spawned).
+1. **In your web app**, import `@tesseron/web` (or `/server`, `/svelte`, `/vue`, `/react`), declare actions with the Zod-style builder, and call `tesseron.connect()`. The SDK binds a loopback WebSocket endpoint and writes a tab file to `~/.tesseron/tabs/<tabId>.json`. The plugin's gateway is watching that directory and dials in — no port to configure, no env vars to set.
 
 2. **The web app displays a 6-character claim code** (returned in the welcome handshake).
 
@@ -52,8 +52,7 @@ For complete runnable walkthroughs, see the repo's [examples/](https://github.co
 
 ## What the MCP gateway does
 
-- Listens on `ws://127.0.0.1:7475` (override with `TESSERON_PORT` env var).
-- Origin allowlist: localhost / 127.0.0.1 by default. Override with `TESSERON_ORIGIN_ALLOWLIST=https://your-app.example,https://staging.example`.
+- **No fixed port.** The gateway is a WebSocket *client*: it watches `~/.tesseron/tabs/` and dials each app it finds. Apps bind their own loopback endpoint and announce themselves by writing `<tabId>.json`.
 - Exposes a meta-tool `tesseron__claim_session({code})` for the click-to-connect handshake.
 - Forwards SDK→agent: action invocations, streaming progress, structured logs, sampling, elicitation, resource read/subscribe.
 - Forwards agent→SDK: tool calls, cancellations, MCP-side `notifications/progress`.
@@ -63,12 +62,9 @@ For complete runnable walkthroughs, see the repo's [examples/](https://github.co
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TESSERON_PORT` | `7475` | WebSocket server port |
-| `TESSERON_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` only with an explicit allowlist) |
-| `TESSERON_ORIGIN_ALLOWLIST` | (none) | Comma-separated additional origins beyond localhost |
 | `TESSERON_TOOL_SURFACE` | `both` | `dynamic` \| `meta` \| `both` — see `skills/framework/references/gateway.md` |
 
-Set these in your Claude Code env, your shell, or override per-launch.
+v2.0 removed `TESSERON_PORT`, `TESSERON_HOST`, and `TESSERON_ORIGIN_ALLOWLIST`: the gateway no longer binds a port or accepts inbound connections.
 
 ## How the skills work
 
@@ -85,7 +81,7 @@ Read the `framework` skill's `SKILL.md` if you want to see the routing table and
 - TypeScript 5.7+ (strict mode, `noUncheckedIndexedAccess` recommended).
 - Node 20+ for server / gateway processes.
 - Protocol version `1.0.0`. Session resume added in SDK v1.1.
-- `@tesseron/core`, `/web`, `/server`, `/react`, `/mcp` released in lockstep — match them within a minor version.
+- `@tesseron/core`, `/web`, `/server`, `/react`, `/svelte`, `/vue`, `/vite`, `/mcp` released in lockstep — match them within a major version (currently `2.x`).
 
 ## Building the gateway from source
 

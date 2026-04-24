@@ -31,7 +31,7 @@ If the caller does not specify, start from the directory the parent thread is op
    - `useTesseronAction(` / `useTesseronResource(` / `useTesseronConnection(` — React hook sites.
    - `ctx.sample(` / `ctx.confirm(` / `ctx.elicit(` / `ctx.progress(` / `ctx.log(` / `ctx.signal` — context method use.
    - `ResumeCredentials` / `resumeToken` / `sessionId` — resume-flow persistence.
-   - `BrowserWebSocketTransport` / `NodeWebSocketTransport` / `implements Transport` — transport wiring.
+   - `BrowserWebSocketTransport` / `NodeWebSocketServerTransport` / `@tesseron/vite` plugin / `implements Transport` — transport wiring.
    - `TesseronError` / `SamplingNotAvailableError` / `ElicitationNotAvailableError` / `TimeoutError` / `ResumeFailedError` — error handling.
 
 3. **Component mapping.** For each match, open just enough of the file to capture the component's shape. Do not read the whole file if a targeted span will do.
@@ -72,8 +72,8 @@ If the caller does not specify, start from the directory the parent thread is op
 
 **Transport**
 
-- Which transport implementation (built-in WebSocket, custom postMessage, in-memory for tests).
-- URL or pairing target (default `ws://localhost:7475` vs override).
+- Which transport implementation: `BrowserWebSocketTransport` (client, dials a `/@tesseron/ws` bridge), `NodeWebSocketServerTransport` (server, hosts a loopback endpoint and writes a tab file), custom postMessage, in-memory for tests.
+- For browser apps: whether `@tesseron/vite` is configured (required in v2.0 — it bridges browser tabs to the gateway via `/@tesseron/ws`).
 - Resume usage — whether `ConnectOptions.resume` is wired.
 
 **React hook site**

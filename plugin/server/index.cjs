@@ -19223,6 +19223,10 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     if (this.connectedTabs.has(tabId)) return;
     const ws = new import_websocket.default(wsUrl, [GATEWAY_SUBPROTOCOL]);
     this.connectedTabs.set(tabId, ws);
+    this.handleConnection(ws, void 0);
+    ws.once("close", () => {
+      this.connectedTabs.delete(tabId);
+    });
     try {
       await new Promise((resolve, reject) => {
         ws.once("open", resolve);
@@ -19235,11 +19239,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
       this.connectedTabs.delete(tabId);
       throw err;
     }
-    ws.once("close", () => {
-      this.connectedTabs.delete(tabId);
-    });
     logToStderr(`[tesseron] connected to app tab ${tabId} (${wsUrl})`);
-    this.handleConnection(ws, void 0);
   }
   /**
    * Watches `~/.tesseron/tabs/` for per-tab JSON files written by `@tesseron/vite`.

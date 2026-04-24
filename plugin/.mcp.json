@@ -3,11 +3,7 @@
     "tesseron": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"],
-      "env": {
-        "TESSERON_PORT": "${TESSERON_PORT:-7475}",
-        "TESSERON_HOST": "${TESSERON_HOST:-127.0.0.1}"
-      }
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"]
     },
     "tesseron-docs": {
       "type": "stdio",

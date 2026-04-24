@@ -2,12 +2,12 @@
 
 ## Contents
 - What the gateway does
+- Discovery via `~/.tesseron/tabs/`
 - Environment variables
 - Tool naming convention
 - Tool surface modes
 - Meta tools (dispatcher fallback)
 - Multi-app sessions
-- Origin allowlist and security
 - Running as a plugin (default) vs standalone
 - Common mistakes
 
@@ -15,11 +15,30 @@
 
 `@tesseron/mcp` is the bridge between Tesseron apps and MCP clients:
 
-- **SDK side**: listens on `ws://host:port` for app connections speaking the `tesseron/*` JSON-RPC protocol.
+- **SDK side**: the gateway is a WebSocket *client*. It watches `~/.tesseron/tabs/` for per-app discovery files and dials each app's loopback endpoint. Apps never need to know the gateway's address — the gateway finds them.
 - **MCP side**: exposes the joined app manifests as MCP tools and resources to a host (Claude Code, Claude Desktop, Cursor, etc.) over stdio.
 - **Routes both directions**: agent tool calls become `actions/invoke` on the SDK; SDK-side `ctx.sample` / `ctx.elicit` round-trip to the agent as MCP sampling / elicitation; `ctx.progress` and `ctx.log` become MCP notifications.
 
 When installed as a Claude Code plugin, the gateway is started automatically by the plugin's `.mcp.json` — users don't run it by hand. Running standalone is useful for development or for integrating with clients that are not auto-managed.
+
+## Discovery via `~/.tesseron/tabs/`
+
+Each app process writes a JSON file when it calls `tesseron.connect()`:
+
+```jsonc
+// ~/.tesseron/tabs/tab-mocythay-v0hh50.json
+{
+  "version": 1,
+  "tabId": "tab-mocythay-v0hh50",
+  "appName": "node-prompts",
+  "wsUrl": "ws://127.0.0.1:64872/",
+  "addedAt": 1777038462692
+}
+```
+
+The gateway polls + `fs.watch`es the directory and dials the `wsUrl` of each new tab. The app's WebSocket server only accepts upgrades on the `tesseron-gateway` subprotocol, so nothing else on loopback can impersonate a gateway.
+
+When an app disconnects (process exits, `sdk.disconnect()`), the tab file is deleted and the gateway's WebSocket client notices the socket close.
 
 ## Environment variables
 
@@ -27,18 +46,9 @@ Read at gateway startup:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TESSERON_PORT` | `7475` | WebSocket server port the SDK connects to |
-| `TESSERON_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only with an explicit allowlist |
-| `TESSERON_ORIGIN_ALLOWLIST` | *(none)* | Comma-separated origins beyond localhost (e.g. `https://app.example,https://staging.example`) |
 | `TESSERON_TOOL_SURFACE` | `both` | `dynamic` \| `meta` \| `both` (see below) |
 
-The companion constants are exported from `@tesseron/mcp`:
-
-```ts
-export const DEFAULT_GATEWAY_PORT = 7475;
-export const DEFAULT_GATEWAY_HOST = '127.0.0.1';
-export const DEFAULT_RESUME_TTL_MS = 90_000; // zombie-session retention for resume
-```
+v2.0 removed `TESSERON_PORT`, `TESSERON_HOST`, `TESSERON_ORIGIN_ALLOWLIST`, `DEFAULT_GATEWAY_PORT`, and `DEFAULT_GATEWAY_HOST`. The gateway no longer binds a port or accepts inbound connections, so none of those options apply.
 
 ## Tool naming convention
 
@@ -106,26 +116,9 @@ Multiple Tesseron apps can connect to the same gateway simultaneously. Each gets
 Use cases:
 - Developing a frontend + backend that both expose actions.
 - Claiming several sub-apps of a single product (shop + admin + CRM).
-- Running the showcase admin dashboard alongside the app it's inspecting.
+- Running an admin dashboard alongside the app it's inspecting.
 
 Apps disconnect independently; the gateway emits `actions/list_changed` / `resources/list_changed` on each event.
-
-## Origin allowlist and security
-
-The gateway is a local WebSocket server. Default bind is `127.0.0.1` — no LAN or external access. This is deliberately restrictive.
-
-**If you bind to a non-localhost interface (`TESSERON_HOST=0.0.0.0`)**, always pair with `TESSERON_ORIGIN_ALLOWLIST`:
-
-```
-TESSERON_HOST=0.0.0.0
-TESSERON_ORIGIN_ALLOWLIST=https://myapp.internal,https://staging.myapp.internal
-```
-
-Requests with an `Origin` header not in the allowlist are rejected with HTTP 403 before the WebSocket upgrades. `null` origins (file://, some embeds) are rejected unconditionally unless `null` is explicitly allowlisted.
-
-**Do not disable the allowlist "temporarily for testing".** A gateway bound to `0.0.0.0` with no allowlist lets any browser on the network invoke any handler.
-
-The allowlist is origin-prefix-matching — it compares the `Origin` header to each entry exactly; there's no wildcard support. For dynamic preview environments, configure the allowlist at gateway start (from config) rather than whitelisting `*`.
 
 ## Running as a plugin (default)
 
@@ -137,17 +130,13 @@ The default install path — the Tesseron Claude Code plugin — ships `server/i
     "tesseron": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"],
-      "env": {
-        "TESSERON_PORT": "${TESSERON_PORT:-7475}",
-        "TESSERON_HOST": "${TESSERON_HOST:-127.0.0.1}"
-      }
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"]
     }
   }
 }
 ```
 
-Claude Code starts the gateway automatically on session launch. The user's Claude Code `.env` / shell can override `TESSERON_PORT`, `TESSERON_HOST`, `TESSERON_ORIGIN_ALLOWLIST`, and `TESSERON_TOOL_SURFACE`.
+Claude Code starts the gateway automatically on session launch. Nothing to configure — the gateway picks up tab files as apps announce themselves.
 
 ## Running standalone
 
@@ -165,9 +154,10 @@ Combined with a custom MCP client, this lets you iterate on the SDK without runn
 
 ## Common mistakes
 
-- **`TESSERON_HOST=0.0.0.0` without `TESSERON_ORIGIN_ALLOWLIST`.** Exposes the gateway to anything on the network that can reach that interface. Always pair them.
+- **Expecting the gateway to accept an inbound WebSocket.** It doesn't — the architecture inverted in v2.0. Apps bind loopback WebSocket servers; the gateway dials them. Old code that connected an SDK to `ws://localhost:7475` will fail because no such server exists.
+- **Setting `TESSERON_PORT` / `TESSERON_HOST` / `TESSERON_ORIGIN_ALLOWLIST`.** These env vars no longer exist in v2.0. They're silently ignored.
 - **Changing the app `id` across releases.** Agents cache tool names `<app_id>__<action>`; renaming breaks their memory of which tool does what. Pick a stable `id` early.
 - **Relying on `TESSERON_TOOL_SURFACE=dynamic` alone with clients that don't honor list-changed.** If you know the target client freezes tools at startup, use `both` (default) or `meta`.
 - **Pasting the claim code into the terminal instead of the agent.** The claim code is consumed by the MCP client (Claude) calling `tesseron__claim_session`, not by the shell.
 - **Persisting the claim code.** It's one-shot; it expires quickly after the welcome handshake. Use the resume token for reconnection, not the claim code.
-- **Expecting a single gateway to route to SDKs on a different host.** The gateway is local-only by design. For remote apps, run a gateway on the remote host or tunnel the WebSocket (and still set an origin allowlist).
+- **Expecting a single gateway to route to SDKs on a different host.** The gateway only reads `~/.tesseron/tabs/` on the local filesystem and only dials loopback URLs. Remote apps need their own gateway or a WebSocket tunnel.
