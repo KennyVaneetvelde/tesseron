@@ -8,6 +8,11 @@
         "TESSERON_PORT": "${TESSERON_PORT:-7475}",
         "TESSERON_HOST": "${TESSERON_HOST:-127.0.0.1}"
       }
+    },
+    "tesseron-docs": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@tesseron/docs-mcp"]
     }
   }
 }
