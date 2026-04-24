@@ -22,6 +22,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  process.stderr.write(`[tesseron-docs] fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
+  process.stderr.write(
+    `[tesseron-docs] fatal: ${err instanceof Error ? err.stack : String(err)}\n`,
+  );
   process.exit(1);
 });
