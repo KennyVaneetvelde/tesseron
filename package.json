@@ -20,7 +20,9 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "version-packages": "changeset version && biome format --write .",
+    "sync-plugin-version": "node scripts/sync-plugin-version.mjs",
+    "build:plugin": "pnpm --filter @tesseron/mcp build:plugin",
+    "version-packages": "changeset version && pnpm sync-plugin-version && pnpm build:plugin && biome format --write .",
     "docs:dev": "pnpm --filter @tesseron/docs start",
     "docs:build": "pnpm --filter @tesseron/docs build"
   },

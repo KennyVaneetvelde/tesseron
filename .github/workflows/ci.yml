@@ -35,3 +35,22 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      # Plugin manifest version must match @tesseron/mcp's version. Run after
+      # tests so the cheap fail signals (typecheck, lint) surface first.
+      - name: Verify plugin manifests in sync with @tesseron/mcp
+        run: pnpm sync-plugin-version --check
+
+      # Plugin bundle under `plugin/server/` is the actual gateway shipped to
+      # Claude Code installs. Rebuild from current source and assert nothing
+      # changed — catches the failure mode where someone bumps the version
+      # but forgets to rebuild the bundle, so users still run cached old code
+      # under a fresh manifest. Diffs the whole `plugin/server/` directory so
+      # any future sibling artifact (sourcemap, .d.ts) is covered too.
+      - name: Verify plugin bundle is up to date
+        run: |
+          pnpm build:plugin
+          if ! git diff --exit-code plugin/server/; then
+            echo "::error::plugin/server/ is stale; run 'pnpm build:plugin' and commit the result"
+            exit 1
+          fi

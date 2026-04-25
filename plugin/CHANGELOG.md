@@ -4,6 +4,20 @@ All notable changes to the Tesseron Claude Code plugin will be documented in thi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-25
+
+Bumps the bundled gateway (`server/index.cjs`) to `@tesseron/mcp@2.1.0`, which adds the multi-binding transport layer (PROTOCOL_VERSION → 1.1.0). Apps can now host UDS as well as WebSocket.
+
+### Added
+
+- **Unix domain socket binding** in the bundled gateway. `@tesseron/server` apps can opt in with `tesseron.connect({ transport: 'uds' })`; the gateway dials whichever binding the app advertises in `~/.tesseron/instances/<id>.json`.
+- **v2 instance manifest** with discriminated `transport: { kind, ... }`. The gateway reads both `~/.tesseron/instances/` (v2) and `~/.tesseron/tabs/` (v1) for one minor version of compat.
+
+### Changed
+
+- `PROTOCOL_VERSION` 1.0.0 → 1.1.0. Gateway hard-rejects on major mismatch, warns on minor, so 1.0.x SDKs continue to work against this plugin until users rebuild.
+- Plugin manifest version is now synced with `@tesseron/mcp` automatically by `pnpm version-packages`; CI guards against drift. Closes the recurring failure mode where `/plugin update` reported nothing after an npm release because the manifest stayed at the old version.
+
 ## [2.0.0] - 2026-04-24
 
 Bumps the bundled gateway (`server/index.cjs`) to `@tesseron/mcp@2.0.0` — the reverse-connection architecture. The gateway is now a pure WebSocket client; apps host their own loopback endpoints and announce themselves via `~/.tesseron/tabs/<tabId>.json`. One discovery mechanism for every runtime, no fixed ports.
