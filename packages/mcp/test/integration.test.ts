@@ -577,6 +577,47 @@ describe('Tesseron MCP integration', () => {
     });
   });
 
+  it('auto-derives JSON Schema from validators that expose toJSONSchema (Zod 4 path)', async () => {
+    // Mirrors the bug from issue #43: callers that follow the documented
+    // `.input(z.object(...))` idiom (without passing JSON Schema as the
+    // second argument) used to ship every action with a permissive
+    // `{type:'object', additionalProperties:true}` because no auto-derive
+    // existed in core. Here we verify the typed schema reaches the agent.
+    const zodLikeSchema = {
+      '~standard': {
+        version: 1,
+        vendor: 'zod',
+        validate: (value: unknown) => ({ value }),
+      },
+      toJSONSchema: () => ({
+        type: 'object',
+        properties: {
+          clipId: { type: 'string' },
+          volume: { type: 'number', minimum: 0, maximum: 1 },
+        },
+        required: ['clipId', 'volume'],
+      }),
+    } as never;
+    await setupAndClaim('schema_autoderive', (s) => {
+      s.action('set_audio_volume')
+        .input(zodLikeSchema)
+        .handler(() => ({ ok: true }));
+    });
+    const tools = await client.request({ method: 'tools/list' }, ListToolsResultSchema);
+    const tool = tools.tools.find((t) => t.name === 'schema_autoderive__set_audio_volume');
+    expect(tool).toBeTruthy();
+    expect(tool?.inputSchema).toMatchObject({
+      type: 'object',
+      properties: {
+        clipId: { type: 'string' },
+        volume: { type: 'number', minimum: 0, maximum: 1 },
+      },
+      required: ['clipId', 'volume'],
+    });
+    // The bug symptom — what the agent saw before the fix:
+    expect(tool?.inputSchema).not.toEqual({ type: 'object', additionalProperties: true });
+  });
+
   it('tesseron__invoke_action dispatches to the handler of a claimed session', async () => {
     await setupAndClaim('dispatch1', (s) => {
       s.action('echo')

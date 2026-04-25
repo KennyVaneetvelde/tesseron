@@ -73,8 +73,8 @@ importers:
         specifier: ^4.21.0
         version: 4.22.1
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@types/express':
         specifier: ^4.17.0
@@ -95,12 +95,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
-        version: 1.29.0(zod@3.25.76)
+        version: 1.29.0(zod@4.3.6)
       '@tesseron/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
@@ -126,8 +126,8 @@ importers:
         specifier: ^18.3.0
         version: 18.3.1(react@18.3.1)
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@tesseron/vite':
         specifier: workspace:*
@@ -160,8 +160,8 @@ importers:
         specifier: ^5.0.0
         version: 5.55.4
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^4.0.0
@@ -188,8 +188,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/web
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@tesseron/vite':
         specifier: workspace:*
@@ -213,8 +213,8 @@ importers:
         specifier: ^3.5.0
         version: 3.5.32(typescript@5.9.3)
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.0
+        version: 4.3.6
     devDependencies:
       '@tesseron/vite':
         specifier: workspace:*

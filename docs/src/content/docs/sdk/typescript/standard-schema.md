@@ -65,15 +65,28 @@ The SDK validates the handler's return value the same way it validates input. Fa
 
 ## JSON Schema export
 
-The wire protocol transports each action's input and output as JSON Schema (for the MCP tool descriptor). There are two paths:
+The wire protocol transports each action's input and output as JSON Schema (for the MCP tool descriptor). The agent reads it to know which fields exist, what types they expect, and how to format invocations. A typeless permissive schema means the LLM has to guess - including, sometimes, JSON-encoding numbers as strings.
 
-### 1. Your validator provides it
+There are three paths the SDK checks, in order:
 
-Modern Zod, TypeBox, and Effect Schema can produce JSON Schema natively. The SDK picks it up automatically. No extra work.
+### 1. Auto-derive from the validator
+
+If your schema's vendor exposes a JSON Schema converter on the schema object, the SDK calls it automatically. No extra work in your action code.
+
+| Validator | Auto-derive | How |
+|---|---|---|
+| **Zod 4+** | ✅ | calls `schema.toJSONSchema()` (instance method) |
+| **TypeBox** | ✅ | the schema object IS the JSON Schema; the SDK strips the Standard Schema metadata and passes it through |
+| **ArkType** | ✅ | calls `schema.toJsonSchema()` (instance method) |
+| Zod 3 | ❌ | no native exporter; pass JSON Schema explicitly (see below), or use `zod-to-json-schema` |
+| Valibot | ❌ | install `@valibot/to-json-schema` and pass the result explicitly |
+| Effect Schema | ❌ | call `JSONSchema.make(schema)` from `@effect/schema/JSONSchema` and pass the result explicitly |
+
+If auto-derivation throws (e.g. the validator hits an unsupported feature), the SDK silently falls back - no exception escapes into your action wiring.
 
 ### 2. Pass it manually
 
-Some validators don't emit JSON Schema, or the export isn't great for a given shape. Pass the JSON Schema as the second argument:
+Always wins over auto-derivation. Pass the JSON Schema as the second argument:
 
 ```ts
 .input(
@@ -86,9 +99,11 @@ Some validators don't emit JSON Schema, or the export isn't great for a given sh
 )
 ```
 
+For Valibot, Effect Schema, or Zod 3, this is the path you'll typically take. Run your validator's converter once and pass the result.
+
 ### 3. Fallback
 
-If neither path produces a schema, the SDK sends `{ type: 'object', additionalProperties: true }` - permissive, unhelpful to the agent, but the call still works.
+If both paths above produce nothing, the SDK sends `{ type: 'object', additionalProperties: true }` - permissive, unhelpful to the agent, but the call still works. Avoid this where you can: agents on a permissive schema sometimes JSON-encode numbers as strings (because they have no type signal), and the call then fails Zod runtime validation.
 
 ## Zod idioms that help the agent
 

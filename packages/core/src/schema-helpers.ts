@@ -35,6 +35,69 @@ export function permissiveJsonSchema(): unknown {
 }
 
 /**
+ * Try to extract a JSON Schema from a Standard Schema validator without
+ * dragging the validator package in as a dependency. Auto-derivation is the
+ * documented happy path — the agent sees real property types instead of the
+ * `{type: 'object', additionalProperties: true}` fallback, which makes Claude
+ * dramatically more likely to JSON-encode field values correctly.
+ *
+ * Detection is duck-typed and conservative — we never throw, and any failure
+ * (vendor we can't introspect, a validator that throws inside its converter)
+ * silently returns `undefined` so the caller falls back to the permissive
+ * default. Callers that want a guaranteed schema should pass one explicitly
+ * as the second argument to `.input()` / `.output()`.
+ *
+ * Supported today:
+ *   - **Zod 4+**         – `schema.toJSONSchema()` (instance method).
+ *   - **ArkType**        – `schema.toJsonSchema()` (instance method, lowerCamelCase).
+ *   - **TypeBox**        – the schema object IS a JSON Schema; we strip the
+ *                          Standard Schema metadata field and return the rest.
+ *
+ * Not auto-derived (caller must pass JSON Schema explicitly):
+ *   - **Zod ≤ 3**        – no native export; pair `.input(schema, zodToJsonSchema(schema))`.
+ *   - **Valibot**        – needs `@valibot/to-json-schema` separately.
+ *   - **Effect Schema**  – needs `JSONSchema.make` from `@effect/schema` separately.
+ */
+export function deriveJsonSchema(schema: unknown): unknown | undefined {
+  if (!schema || typeof schema !== 'object') return undefined;
+  const s = schema as Record<string, unknown>;
+
+  // Zod 4 (and any other validator that ships an instance-method exporter
+  // following Zod's casing): `schema.toJSONSchema()`.
+  const toJSONSchema = s['toJSONSchema'];
+  if (typeof toJSONSchema === 'function') {
+    try {
+      const result = (toJSONSchema as () => unknown).call(schema);
+      if (result && typeof result === 'object') return result;
+    } catch {
+      // fall through to other strategies
+    }
+  }
+
+  // ArkType: lowerCamelCase variant.
+  const toJsonSchema = s['toJsonSchema'];
+  if (typeof toJsonSchema === 'function') {
+    try {
+      const result = (toJsonSchema as () => unknown).call(schema);
+      if (result && typeof result === 'object') return result;
+    } catch {
+      // fall through
+    }
+  }
+
+  // TypeBox: the schema object already conforms to JSON Schema; strip the
+  // Standard Schema metadata key so we don't leak `~standard` (which carries
+  // a `validate` function) into the wire manifest.
+  const standard = s['~standard'] as { vendor?: unknown } | undefined;
+  if (standard && standard.vendor === 'typebox' && typeof s['type'] === 'string') {
+    const { '~standard': _ignored, ...rest } = s;
+    return rest;
+  }
+
+  return undefined;
+}
+
+/**
  * Schema used by `ctx.confirm` — an object with zero properties, so MCP
  * clients render pure Accept/Decline without any input field. Verified
  * against the MCP SDK's `ElicitRequestFormParamsSchema` (ZodRecord with no

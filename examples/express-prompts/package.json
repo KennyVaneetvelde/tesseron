@@ -12,7 +12,7 @@
   "dependencies": {
     "@tesseron/server": "workspace:*",
     "express": "^4.21.0",
-    "zod": "^3.24.0"
+    "zod": "^4.3.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.0",

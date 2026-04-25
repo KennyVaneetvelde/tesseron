@@ -10,6 +10,7 @@ import type {
   TimeoutOptions,
 } from './builder.js';
 import type { ActionAnnotations } from './protocol.js';
+import { deriveJsonSchema } from './schema-helpers.js';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -45,13 +46,17 @@ export class ActionBuilderImpl<I, O> implements ActionBuilder<I, O> {
 
   input<NewI>(schema: StandardSchemaV1<NewI>, jsonSchema?: unknown): ActionBuilder<NewI, O> {
     this.inputSchema = schema as unknown as StandardSchemaV1<I>;
-    if (jsonSchema !== undefined) this.inputJsonSchema = jsonSchema;
+    // Caller-provided JSON Schema always wins; otherwise opportunistically
+    // derive from the validator. Fixes the documented Zod path where
+    // `.input(z.object({...}))` shipped permissive `additionalProperties:true`
+    // because no auto-derivation existed.
+    this.inputJsonSchema = jsonSchema ?? deriveJsonSchema(schema);
     return this as unknown as ActionBuilder<NewI, O>;
   }
 
   output<NewO>(schema: StandardSchemaV1<NewO>, jsonSchema?: unknown): ActionBuilder<I, NewO> {
     this.outputSchema = schema as unknown as StandardSchemaV1<O>;
-    if (jsonSchema !== undefined) this.outputJsonSchema = jsonSchema;
+    this.outputJsonSchema = jsonSchema ?? deriveJsonSchema(schema);
     return this as unknown as ActionBuilder<I, NewO>;
   }
 
@@ -109,7 +114,7 @@ export class ResourceBuilderImpl<T> implements ResourceBuilder<T> {
 
   output<NewT>(schema: StandardSchemaV1<NewT>, jsonSchema?: unknown): ResourceBuilder<NewT> {
     this.outputSchema = schema as unknown as StandardSchemaV1<T>;
-    if (jsonSchema !== undefined) this.outputJsonSchema = jsonSchema;
+    this.outputJsonSchema = jsonSchema ?? deriveJsonSchema(schema);
     return this as unknown as ResourceBuilder<NewT>;
   }
 

@@ -18914,6 +18914,46 @@ var TransportClosedError = class extends TesseronError {
   }
 };
 
+// ../core/src/schema-helpers.ts
+function assertValidElicitSchema(schema) {
+  if (!schema || typeof schema !== "object") {
+    throw new TesseronError(
+      TesseronErrorCode.InvalidParams,
+      "elicit jsonSchema must be a JSON Schema object."
+    );
+  }
+  const s = schema;
+  if (s["type"] !== "object") {
+    throw new TesseronError(
+      TesseronErrorCode.InvalidParams,
+      `elicit jsonSchema must be { type: "object" } at the top level; got type="${String(
+        s["type"]
+      )}". Compose a flat object of primitives.`
+    );
+  }
+  if (s["oneOf"] || s["anyOf"] || s["allOf"] || s["not"]) {
+    throw new TesseronError(
+      TesseronErrorCode.InvalidParams,
+      "elicit jsonSchema must not use top-level oneOf/anyOf/allOf/not \u2014 MCP elicit clients require a single flat object shape."
+    );
+  }
+  const props = s["properties"] ?? {};
+  for (const [name, prop] of Object.entries(props)) {
+    if (!prop || typeof prop !== "object") continue;
+    const p = prop;
+    const type = Array.isArray(p["type"]) ? p["type"][0] : p["type"];
+    if (!type) continue;
+    const t = String(type);
+    if (!["string", "number", "integer", "boolean"].includes(t)) {
+      throw new TesseronError(
+        TesseronErrorCode.InvalidParams,
+        `elicit jsonSchema property "${name}" has unsupported type "${t}". MCP elicitation requires primitive-typed leaves (string, number, integer, boolean).`
+      );
+    }
+  }
+  return schema;
+}
+
 // ../core/src/dispatcher.ts
 var JsonRpcDispatcher = class {
   constructor(send) {
@@ -19046,46 +19086,6 @@ function toErrorPayload(error2) {
     return { code: TesseronErrorCode.InternalError, message: error2.message };
   }
   return { code: TesseronErrorCode.InternalError, message: String(error2) };
-}
-
-// ../core/src/schema-helpers.ts
-function assertValidElicitSchema(schema) {
-  if (!schema || typeof schema !== "object") {
-    throw new TesseronError(
-      TesseronErrorCode.InvalidParams,
-      "elicit jsonSchema must be a JSON Schema object."
-    );
-  }
-  const s = schema;
-  if (s["type"] !== "object") {
-    throw new TesseronError(
-      TesseronErrorCode.InvalidParams,
-      `elicit jsonSchema must be { type: "object" } at the top level; got type="${String(
-        s["type"]
-      )}". Compose a flat object of primitives.`
-    );
-  }
-  if (s["oneOf"] || s["anyOf"] || s["allOf"] || s["not"]) {
-    throw new TesseronError(
-      TesseronErrorCode.InvalidParams,
-      "elicit jsonSchema must not use top-level oneOf/anyOf/allOf/not \u2014 MCP elicit clients require a single flat object shape."
-    );
-  }
-  const props = s["properties"] ?? {};
-  for (const [name, prop] of Object.entries(props)) {
-    if (!prop || typeof prop !== "object") continue;
-    const p = prop;
-    const type = Array.isArray(p["type"]) ? p["type"][0] : p["type"];
-    if (!type) continue;
-    const t = String(type);
-    if (!["string", "number", "integer", "boolean"].includes(t)) {
-      throw new TesseronError(
-        TesseronErrorCode.InvalidParams,
-        `elicit jsonSchema property "${name}" has unsupported type "${t}". MCP elicitation requires primitive-typed leaves (string, number, integer, boolean).`
-      );
-    }
-  }
-  return schema;
 }
 
 // src/dialer.ts
