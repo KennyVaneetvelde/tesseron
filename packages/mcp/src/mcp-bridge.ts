@@ -16,7 +16,6 @@ import {
   type ResourceManifestEntry,
   SamplingNotAvailableError,
   TesseronError,
-  TesseronErrorCode,
   type TesseronStructuredError,
 } from '@tesseron/core';
 import { assertValidElicitSchema } from '@tesseron/core/internal';

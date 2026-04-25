@@ -19,7 +19,7 @@ export interface BuilderRegistry {
   registerResource(resource: ResourceDefinition): void;
 }
 
-export interface ActionBuilderInit<I, O> {
+export interface ActionBuilderInit {
   inputJsonSchema?: unknown;
   outputJsonSchema?: unknown;
 }

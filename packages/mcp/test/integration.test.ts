@@ -622,7 +622,7 @@ describe('Tesseron MCP integration', () => {
     await setupAndClaim('dispatch1', (s) => {
       s.action('echo')
         .describe('echo the text back')
-        .handler(({ text }: { text: string }) => ({ said: text }));
+        .handler((input) => ({ said: (input as { text: string }).text }));
     });
     const result = await callTool('tesseron__invoke_action', {
       app_id: 'dispatch1',
