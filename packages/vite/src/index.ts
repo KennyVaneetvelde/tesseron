@@ -12,6 +12,12 @@ export interface TesseronViteOptions {
   appName?: string;
 }
 
+/** A frame buffered or forwarded across the bridge. Text frames are kept as
+ * `string` so that re-`send()` produces a text frame; binary frames stay as
+ * the original `RawData` (Buffer/ArrayBuffer/Buffer[]) and re-`send()` produces
+ * a binary frame. */
+type BridgePayload = string | RawData;
+
 interface PendingTab {
   tabId: string;
   appName?: string;
@@ -19,12 +25,21 @@ interface PendingTab {
   browserWs: WebSocket;
   gatewayWs?: WebSocket;
   /** Messages from browser buffered while the gateway connection is being established. */
-  queue: RawData[];
+  queue: BridgePayload[];
 }
 
 const WS_PATH_PREFIX = '/@tesseron/ws';
 const TABS_DIR = join(homedir(), '.tesseron', 'tabs');
 const GATEWAY_SUBPROTOCOL = 'tesseron-gateway';
+
+/** Decode a `ws` text-frame payload back to a string. `ws` always emits a
+ * Buffer (or Buffer fragments) for text frames; we just need UTF-8 it. */
+function rawDataToString(data: RawData): string {
+  if (typeof data === 'string') return data;
+  if (Buffer.isBuffer(data)) return data.toString('utf8');
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
+  return Buffer.from(data as ArrayBuffer).toString('utf8');
+}
 
 async function ensureTabsDir(): Promise<void> {
   await mkdir(TABS_DIR, { recursive: true });
@@ -105,11 +120,17 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
               process.stderr.write(`[tesseron] failed to write tab file: ${err.message}\n`),
             );
 
-            ws.on('message', (data: RawData) => {
+            ws.on('message', (data: RawData, isBinary: boolean) => {
+              // `ws` hands us a Buffer for both text and binary frames. Calling
+              // send(Buffer) without options forwards as a binary frame, which
+              // the browser receives as a Blob and the @tesseron/web transport
+              // drops (it only handles string frames). Decode text frames back
+              // to a string so the frame type round-trips correctly.
+              const payload: RawData | string = isBinary ? data : rawDataToString(data);
               if (entry.gatewayWs?.readyState === 1 /* OPEN */) {
-                entry.gatewayWs.send(data as Buffer);
+                entry.gatewayWs.send(payload);
               } else {
-                entry.queue.push(data);
+                entry.queue.push(payload);
               }
             });
 
@@ -140,15 +161,18 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
           wss.handleUpgrade(req, socket, head, (ws) => {
             entry.gatewayWs = ws;
 
-            // Drain messages buffered while waiting for the gateway
+            // Drain messages buffered while waiting for the gateway. Each
+            // entry preserves its original frame type (string for text,
+            // Buffer/etc. for binary) so re-`send` re-emits the correct frame.
             for (const msg of entry.queue) {
-              ws.send(msg as Buffer);
+              ws.send(msg);
             }
             entry.queue = [];
 
-            ws.on('message', (data: RawData) => {
+            ws.on('message', (data: RawData, isBinary: boolean) => {
+              const payload: RawData | string = isBinary ? data : rawDataToString(data);
               if (entry.browserWs.readyState === 1 /* OPEN */) {
-                entry.browserWs.send(data as Buffer);
+                entry.browserWs.send(payload);
               }
             });
 
