@@ -54,6 +54,7 @@ yarn-error.log*
 .claude/settings.local.json
 .claude/worktrees/
 .claude/skills/reddit-author/
+.claude/scheduled_tasks.lock
 
 # Project-specific internals (not for public consumption)
 /outputs/

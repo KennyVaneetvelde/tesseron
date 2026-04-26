@@ -111,6 +111,14 @@ export const SDK_CAPABILITIES: TesseronCapabilities = {
   elicitation: true,
 };
 
+/**
+ * Default wall-clock cap on a single `resources/read` handler. Resource reads
+ * are expected to be cheap projections of in-memory state - 30s is generous
+ * but bounded so a stuck `read()` cannot hang the agent indefinitely. Distinct
+ * from {@link ActionBuilder.timeout}, which the caller configures per action.
+ */
+export const DEFAULT_RESOURCE_READ_TIMEOUT_MS = 30_000;
+
 interface ActionDefinitionWithSchema extends ActionDefinition {
   inputJsonSchema?: unknown;
   outputJsonSchema?: unknown;
@@ -497,8 +505,27 @@ export class TesseronClient implements BuilderRegistry {
         `Resource not readable: ${params.name}`,
       );
     }
-    const value = await resource.reader();
-    return { value };
+    // Bound the read against a wall-clock budget. A reader that hangs (a stuck
+    // promise, an awaited state setter that never settles) would otherwise
+    // park the gateway's `resources/read` request forever, which in turn parks
+    // the bridge's MCP tool call and the agent. Surface a typed Timeout
+    // instead so the agent can recover and the bug is visible.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(
+            new TimeoutError(DEFAULT_RESOURCE_READ_TIMEOUT_MS, `Resource read "${params.name}"`),
+          ),
+        DEFAULT_RESOURCE_READ_TIMEOUT_MS,
+      );
+    });
+    try {
+      const value = await Promise.race([Promise.resolve(resource.reader()), timeout]);
+      return { value };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private handleResourceSubscribe(params: ResourceSubscribeParams): void {
