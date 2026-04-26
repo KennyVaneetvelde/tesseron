@@ -505,39 +505,27 @@ export class TesseronClient implements BuilderRegistry {
         `Resource not readable: ${params.name}`,
       );
     }
-    const reader = resource.reader;
     // Bound the read against a wall-clock budget. A reader that hangs (a stuck
     // promise, an awaited state setter that never settles) would otherwise
     // park the gateway's `resources/read` request forever, which in turn parks
     // the bridge's MCP tool call and the agent. Surface a typed Timeout
     // instead so the agent can recover and the bug is visible.
-    const value = await new Promise<unknown>((resolve, reject) => {
-      let settled = false;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        reject(
-          new TimeoutError(DEFAULT_RESOURCE_READ_TIMEOUT_MS, `Resource read "${params.name}"`),
-        );
-      }, DEFAULT_RESOURCE_READ_TIMEOUT_MS);
-      Promise.resolve()
-        .then(() => reader())
-        .then(
-          (result) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            resolve(result);
-          },
-          (err: unknown) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            reject(err instanceof Error ? err : new Error(String(err)));
-          },
-        );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(
+            new TimeoutError(DEFAULT_RESOURCE_READ_TIMEOUT_MS, `Resource read "${params.name}"`),
+          ),
+        DEFAULT_RESOURCE_READ_TIMEOUT_MS,
+      );
     });
-    return { value };
+    try {
+      const value = await Promise.race([Promise.resolve(resource.reader()), timeout]);
+      return { value };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private handleResourceSubscribe(params: ResourceSubscribeParams): void {

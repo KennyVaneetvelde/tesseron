@@ -194,6 +194,25 @@ describe('TesseronClient resource reads', () => {
     expect(result).toEqual({ value: [{ id: 'cmp1' }, { id: 'cmp2' }] });
   });
 
+  it('clears the timeout timer when the reader resolves quickly (no leak)', async () => {
+    vi.useFakeTimers();
+    try {
+      const { gateway } = await setupConnectedClient((c) => {
+        c.resource('quick').read(() => 'ok');
+      });
+
+      const before = vi.getTimerCount();
+      const result = await gateway.request('resources/read', { name: 'quick' });
+
+      expect(result).toEqual({ value: 'ok' });
+      // The race should clear its timer in the `finally` block. If a timer
+      // leaks the count grows by one per call.
+      expect(vi.getTimerCount()).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('still surfaces synchronous reader errors as JSON-RPC errors', async () => {
     const { gateway } = await setupConnectedClient((c) => {
       c.resource('boom').read(() => {
