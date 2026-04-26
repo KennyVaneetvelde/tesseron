@@ -19135,10 +19135,7 @@ var WsDialer = class {
     });
     const transport = {
       send(message) {
-        try {
-          ws.send(JSON.stringify(message));
-        } catch {
-        }
+        ws.send(JSON.stringify(message));
       },
       onMessage(handler) {
         messageHandlers.push(handler);
@@ -19201,11 +19198,8 @@ var UdsDialer = class {
     });
     const transport = {
       send(message) {
-        try {
-          socket.write(`${JSON.stringify(message)}
+        socket.write(`${JSON.stringify(message)}
 `);
-        } catch {
-        }
       },
       onMessage(handler) {
         messageHandlers.push(handler);
