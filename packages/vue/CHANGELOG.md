@@ -1,5 +1,13 @@
 # @tesseron/vue
 
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @tesseron/core@2.2.2
+  - @tesseron/web@2.2.2
+
 ## 2.1.3
 
 ### Patch Changes

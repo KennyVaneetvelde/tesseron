@@ -8,13 +8,13 @@
   },
   "metadata": {
     "description": "Tesseron marketplace — ships the Tesseron Claude Code plugin: MCP gateway (reverse-connection architecture, no fixed ports) plus the `framework` mental-model skill, the `tesseron-docs` authoritative-lookup skill (backed by the bundled `@tesseron/docs-mcp` server), the `tesseron-dev` wiring skill, and explorer/reviewer subagents for building and auditing web apps that speak the Tesseron protocol.",
-    "version": "2.2.1"
+    "version": "2.2.2"
   },
   "plugins": [
     {
       "name": "tesseron",
       "source": "./plugin",
-      "version": "2.2.1",
+      "version": "2.2.2",
       "description": "Tesseron for Claude Code: MCP gateway for typed web-app actions over WebSocket. v2.0 reverse-connection architecture — the gateway is a pure WebSocket client that discovers apps via `~/.tesseron/tabs/`; no fixed ports, no env vars. Includes a `framework` skill for the Tesseron mental model, a `tesseron-docs` skill that calls the bundled `@tesseron/docs-mcp` server for authoritative chapter-and-verse spec lookups (`search_docs`, `read_doc`, `list_docs`), a `tesseron-dev` skill that integrates Tesseron into any JS/TS project by picking the right consumer package (`@tesseron/react`, `/svelte`, `/vue`, `/server`, or `/web`) and inserting the canonical API, and isolated-context explorer/reviewer subagents.",
       "category": "integration",
       "tags": [

@@ -1,5 +1,13 @@
 # @tesseron/react
 
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @tesseron/core@2.2.2
+  - @tesseron/web@2.2.2
+
 ## 2.2.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/vue",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Vue 3 adapter for Tesseron. tesseronAction, tesseronResource, tesseronConnection.",
   "license": "BUSL-1.1",
   "author": {
