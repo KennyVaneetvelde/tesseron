@@ -301,7 +301,7 @@ export interface TesseronMethods {
 export interface ClaimedParams {
   /** Identity of the agent that just claimed this session. */
   agent: AgentIdentity;
-  /** Wall-clock timestamp (ms) at which the claim was processed. */
+  /** Unix epoch milliseconds at which the gateway processed the claim. */
   claimedAt: number;
 }
 

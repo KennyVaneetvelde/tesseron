@@ -445,21 +445,24 @@ export class TesseronGateway extends EventEmitter {
     // Tell the SDK side the session is now claimed. The browser app's
     // `useTesseronConnection` hook clears `connection.claimCode` on receipt
     // so the UI stops displaying a code that can no longer be redeemed.
-    // Catching exceptions defensively: notify is fire-and-forget but we
-    // never want a transport hiccup here to abort the claim transition.
-    try {
-      session.dispatcher.notify('tesseron/claimed', {
-        agent: {
-          id: this.agentCapabilities.clientName ?? 'unknown',
-          name: this.agentCapabilities.clientName ?? 'unknown',
-        },
-        claimedAt: session.claimedAt,
-      });
-    } catch (err) {
-      logToStderr(
-        `[tesseron] failed to notify SDK of claim for ${session.id}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+    // notify() is fire-and-forget; the dispatcher's send wrapper handles any
+    // transport-level failures by closing the channel, so no try/catch here.
+    //
+    // Use the same `pending` / `Awaiting agent` fallback the welcome uses
+    // (gateway.ts:731-734) when `clientName` isn't populated. The MCP
+    // `initialize` always runs before `tools/call`, so in practice
+    // `clientName` is set by the time we get here, but the symmetric
+    // fallback avoids silently regressing a previously-meaningful welcome
+    // agent if some embedder reaches `claimSession` without an `initialize`
+    // having happened.
+    const clientName = this.agentCapabilities.clientName;
+    session.dispatcher.notify('tesseron/claimed', {
+      agent: {
+        id: clientName ?? 'pending',
+        name: clientName ?? 'Awaiting agent',
+      },
+      claimedAt: session.claimedAt,
+    });
     this.emit('sessions-changed');
     return session;
   }

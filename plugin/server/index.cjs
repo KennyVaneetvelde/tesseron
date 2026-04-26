@@ -19515,19 +19515,14 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     session.claimed = true;
     session.claimedAt = Date.now();
     this.pendingClaims.delete(claimCode.toUpperCase());
-    try {
-      session.dispatcher.notify("tesseron/claimed", {
-        agent: {
-          id: this.agentCapabilities.clientName ?? "unknown",
-          name: this.agentCapabilities.clientName ?? "unknown"
-        },
-        claimedAt: session.claimedAt
-      });
-    } catch (err) {
-      logToStderr(
-        `[tesseron] failed to notify SDK of claim for ${session.id}: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
+    const clientName = this.agentCapabilities.clientName;
+    session.dispatcher.notify("tesseron/claimed", {
+      agent: {
+        id: clientName ?? "pending",
+        name: clientName ?? "Awaiting agent"
+      },
+      claimedAt: session.claimedAt
+    });
     this.emit("sessions-changed");
     return session;
   }

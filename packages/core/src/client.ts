@@ -306,10 +306,11 @@ export class TesseronClient implements BuilderRegistry {
       for (const listener of this.welcomeListeners) {
         try {
           listener(this.welcome);
-        } catch {
+        } catch (err) {
           // Listener errors must not abort the others or leave us in a
-          // half-notified state. Application bugs in user listeners are not
-          // the SDK's problem to surface.
+          // half-notified state, but a thrown listener is almost always an
+          // app bug worth surfacing. Warn-and-continue.
+          console.warn('[tesseron] welcome listener threw', err);
         }
       }
     });
