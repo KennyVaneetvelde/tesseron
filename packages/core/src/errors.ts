@@ -114,22 +114,12 @@ export class CancelledError extends TesseronError {
 }
 
 /**
- * Thrown when an action invocation or resource read exceeds its timeout.
- * For action invocations the timeout is configured via
- * {@link ActionBuilder.timeout} and `ctx.signal` aborts with this as its
- * `reason`. For resource reads the SDK enforces a default cap so a stuck
- * `read()` handler can't hang the agent indefinitely.
+ * Thrown when an invocation exceeds the timeout configured via
+ * {@link ActionBuilder.timeout}. `ctx.signal` aborts with this as its `reason`.
  */
 export class TimeoutError extends TesseronError {
-  /**
-   * @param timeoutMs - Wall-clock budget that elapsed.
-   * @param subject - Human-readable subject for the error message. Defaults
-   *   to `'Action'` for backwards compatibility with prior call sites; pass
-   *   e.g. `'Resource read "compositions"'` for resources so the resulting
-   *   error message points at the actual operation.
-   */
-  constructor(timeoutMs: number, subject = 'Action') {
-    super(TesseronErrorCode.Timeout, `${subject} timed out after ${timeoutMs}ms.`);
+  constructor(timeoutMs: number) {
+    super(TesseronErrorCode.Timeout, `Action timed out after ${timeoutMs}ms.`);
     this.name = 'TimeoutError';
   }
 }

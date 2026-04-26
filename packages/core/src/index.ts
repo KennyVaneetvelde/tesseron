@@ -12,7 +12,6 @@ export * from './errors.js';
 export * from './transport.js';
 export * from './transport-spec.js';
 export {
-  DEFAULT_RESOURCE_READ_TIMEOUT_MS,
   TesseronClient,
   type AppConfig,
   type ConnectOptions,

@@ -141,10 +141,6 @@ tesseron.resource('search')
 
 If the value is expensive to produce, remember that `.read()` runs every time the agent fetches. Cache inside the handler, or use `.subscribe()` as the source of truth and cache the latest emitted value in-memory.
 
-## Read timeout
-
-The SDK caps every `resources/read` handler at **30 seconds** (`DEFAULT_RESOURCE_READ_TIMEOUT_MS`). A handler that hangs - a stuck promise, an awaited state setter that never settles, a cross-process call that never returns - rejects with a typed `TesseronError` of code `Timeout` (`-32007`) instead of parking the agent indefinitely. Resources are expected to be cheap projections of in-memory state; if a real read genuinely needs longer, the right move is to back the resource by a cached value populated out-of-band (a websocket, an interval) and have `.read()` return that cache.
-
 ## Capability gate
 
 Subscriptions require `agentCapabilities.subscriptions`. Reads do not. If the agent can't subscribe, it will only call `resources/read` and your `.subscribe()` handler is never invoked.
