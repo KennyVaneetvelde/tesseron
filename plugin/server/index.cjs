@@ -19014,7 +19014,8 @@ var JsonRpcDispatcher = class {
     if (!isJsonRpcEnvelope(message)) return;
     if (typeof message.method === "string") {
       if ("id" in message && message.id !== void 0) {
-        void this.handleRequest(message);
+        this.handleRequest(message).catch(() => {
+        });
       } else {
         this.handleNotification(message);
       }
@@ -19629,7 +19630,13 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     const dispatcher = new JsonRpcDispatcher((message) => {
       try {
         transport.send(message);
-      } catch {
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        logToStderr(`[tesseron] session transport send failed (${reason}); closing channel`);
+        try {
+          transport.close();
+        } catch {
+        }
       }
     });
     let session;
