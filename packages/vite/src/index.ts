@@ -175,12 +175,31 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
           // claimed via the second one. Reject with HTTP 409 and let the
           // race-loser's `dialed.opened` reject; its dispatcher then
           // backs off via the gateway's poll loop instead of fighting.
-          if (entry.gatewayWs) {
+          //
+          // Only reject when the existing slot is CONNECTING (0) or OPEN
+          // (1). CLOSING (2) or CLOSED (3) means the previous owner is on
+          // its way out; the close/error handlers below will null
+          // `gatewayWs` once the event fires, but the new dial may have
+          // arrived first. Treating those as free avoids a stuck slot if
+          // the close event is dropped (rare with abrupt RST).
+          if (
+            entry.gatewayWs &&
+            (entry.gatewayWs.readyState === 0 || entry.gatewayWs.readyState === 1)
+          ) {
             process.stderr.write(
-              `[tesseron-vite] rejecting second gateway upgrade for instance ${instanceId} (already bound; first-gateway-wins). See tesseron#53.\n`,
+              `[tesseron] rejecting second gateway upgrade for instance ${instanceId} (already bound; first-gateway-wins). See tesseron#53.\n`,
             );
-            socket.write('HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
-            socket.destroy();
+            const body =
+              'Another Tesseron gateway is already bound to this instance. See tesseron#53.';
+            // socket.end() flushes the response before FIN; socket.destroy()
+            // would issue an RST and the race-loser would see ECONNRESET
+            // instead of the 409, making it indistinguishable from a Vite
+            // crash.
+            socket.end(
+              `HTTP/1.1 409 Conflict\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: ${Buffer.byteLength(
+                body,
+              )}\r\nConnection: close\r\n\r\n${body}`,
+            );
             return;
           }
 
