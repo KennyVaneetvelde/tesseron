@@ -61,6 +61,8 @@ interface TesseronConnectionState {
 - `'resumed'` - `tesseron/resume` succeeded; the prior session was reattached.
 - `'failed'` - resume was attempted but the gateway rejected it; the hook fell back to a fresh `tesseron/hello` and persisted the new credentials. Useful for telemetry, and for UIs that want to show "your previous session expired" instead of silently switching to a new claim code.
 
+`claimCode` clears automatically once the session has been claimed by an agent. The gateway sends a `tesseron/claimed` notification (see [protocol/handshake](/protocol/handshake/)) and the hook updates `claimCode` to `undefined` and merges the new `agent` identity into `welcome.agent` on the next render. Render the claim banner with `connection.claimCode != null` (rather than from a snapshot taken at mount time) and it will disappear on its own after the agent claims.
+
 Options:
 
 ```ts

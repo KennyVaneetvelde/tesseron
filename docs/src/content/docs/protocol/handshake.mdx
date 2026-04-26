@@ -122,9 +122,29 @@ The agent calls the built-in `tesseron__claim_session` MCP tool with `{ code: "A
 - Marks the session `claimed: true`.
 - Sets `agent` on the session to the agent's identity.
 - Emits `notifications/tools/list_changed` so the agent refreshes its tool list.
+- Sends a `tesseron/claimed` notification to the SDK (see below) so the app can clear the spent claim code from its UI.
 - From this point, `tools/call <app_id>__<action>` is allowed.
 
 If the code doesn't match (expired, wrong app, already used): error `-32009 Unauthorized`.
+
+## The `tesseron/claimed` notification
+
+Once a session is claimed, the previously-issued `claimCode` is consumed and no longer redeemable. The gateway notifies the SDK so the app can update any UI that displays the code (otherwise users keep trying to type a dead string into the agent).
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tesseron/claimed",
+  "params": {
+    "agent": { "id": "claude-code", "name": "Claude Code" },
+    "claimedAt": 1714145210123
+  }
+}
+```
+
+`@tesseron/web` and `@tesseron/core` handle this internally: the cached `WelcomeResult` is patched in place (`agent` updated, `claimCode` cleared) and any listener registered via `client.onWelcomeChange(...)` fires. `@tesseron/react`'s `useTesseronConnection` clears `connection.claimCode` and updates `connection.welcome.agent` on the next render. Apps wiring the lower-level client directly should subscribe with `client.onWelcomeChange(...)` to drive their own UI updates.
+
+The notification only fires on a fresh-hello path. After a successful `tesseron/resume` the welcome carries no `claimCode` to begin with, so no further notification is needed.
 
 ## Why out-of-band claim?
 

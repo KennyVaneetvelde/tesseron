@@ -25,6 +25,7 @@ import {
   type ActionManifestEntry,
   type ActionResultPayload,
   type AppMetadata,
+  type ClaimedParams,
   type HelloParams,
   PROTOCOL_VERSION,
   type ResourceManifestEntry,
@@ -148,6 +149,7 @@ export class TesseronClient implements BuilderRegistry {
   private readonly resources = new Map<string, ResourceDefinitionWithSchema>();
   private readonly invocations = new Map<string, AbortController>();
   private readonly subscriptions = new Map<string, ActiveSubscription>();
+  private readonly welcomeListeners = new Set<(welcome: WelcomeResult) => void>();
 
   private dispatcher?: JsonRpcDispatcher;
   private transport?: Transport;
@@ -288,6 +290,31 @@ export class TesseronClient implements BuilderRegistry {
       return undefined;
     });
 
+    // The gateway fires `tesseron/claimed` when an MCP agent calls
+    // `tesseron__claim_session` with our pending claim code. After this
+    // arrives the code is consumed - merge the agent identity into the
+    // welcome and clear `claimCode` so consumers (e.g. `useTesseronConnection`'s
+    // `claimCode` field) stop displaying a code that can no longer be redeemed.
+    dispatcher.onNotification('tesseron/claimed', (params) => {
+      const claimed = params as ClaimedParams;
+      if (!this.welcome) return;
+      this.welcome = {
+        ...this.welcome,
+        agent: claimed.agent,
+        claimCode: undefined,
+      };
+      for (const listener of this.welcomeListeners) {
+        try {
+          listener(this.welcome);
+        } catch (err) {
+          // Listener errors must not abort the others or leave us in a
+          // half-notified state, but a thrown listener is almost always an
+          // app bug worth surfacing. Warn-and-continue.
+          console.warn('[tesseron] welcome listener threw', err);
+        }
+      }
+    });
+
     const baseParams = {
       protocolVersion: PROTOCOL_VERSION,
       app: this.appConfig,
@@ -316,6 +343,24 @@ export class TesseronClient implements BuilderRegistry {
 
   getWelcome(): WelcomeResult | undefined {
     return this.welcome;
+  }
+
+  /**
+   * Subscribe to changes in {@link WelcomeResult}. The listener fires on
+   * server-driven welcome updates after the initial connect resolves -
+   * currently only the `tesseron/claimed` notification, which clears
+   * `claimCode` and updates `agent`. Returns an unsubscribe function.
+   *
+   * Use this to drive UI state that depends on the welcome (e.g. a claim-code
+   * banner that should disappear once the session has been claimed). The
+   * listener is NOT called for the initial value returned from `connect()` -
+   * read that from the resolved welcome directly.
+   */
+  onWelcomeChange(listener: (welcome: WelcomeResult) => void): () => void {
+    this.welcomeListeners.add(listener);
+    return () => {
+      this.welcomeListeners.delete(listener);
+    };
   }
 
   private actionManifest(): ActionManifestEntry[] {

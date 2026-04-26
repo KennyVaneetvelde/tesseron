@@ -196,4 +196,51 @@ describe('TesseronClient end-to-end', () => {
 
     expect(closed).toBe(true);
   });
+
+  it('clears welcome.claimCode and updates agent when tesseron/claimed arrives', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+
+    let clientMessageHandler: ((m: unknown) => void) | undefined;
+    const gateway = new JsonRpcDispatcher((m) => {
+      queueMicrotask(() => clientMessageHandler?.(m));
+    });
+    gateway.on('tesseron/hello', () => ({
+      sessionId: 'test',
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { streaming: false, subscriptions: false, sampling: false, elicitation: false },
+      agent: { id: 'pending', name: 'Awaiting agent' },
+      claimCode: 'CWGS-ND',
+    }));
+
+    const transport: Transport = {
+      send: (m) => queueMicrotask(() => gateway.receive(m)),
+      onMessage: (h) => {
+        clientMessageHandler = h;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    const welcome = await client.connect(transport);
+    expect(welcome.claimCode).toBe('CWGS-ND');
+    expect(client.getWelcome()?.claimCode).toBe('CWGS-ND');
+
+    const observed: Array<{ agentId: string; claimCode?: string }> = [];
+    client.onWelcomeChange((w) => {
+      observed.push({ agentId: w.agent.id, claimCode: w.claimCode });
+    });
+
+    // Gateway fires tesseron/claimed when an agent claims the session.
+    gateway.notify('tesseron/claimed', {
+      agent: { id: 'claude-code', name: 'Claude Code' },
+      claimedAt: 1000,
+    });
+    // Drain the queueMicrotask cascade.
+    await new Promise((r) => setImmediate(r));
+
+    expect(observed).toEqual([{ agentId: 'claude-code', claimCode: undefined }]);
+    expect(client.getWelcome()?.claimCode).toBeUndefined();
+    expect(client.getWelcome()?.agent).toEqual({ id: 'claude-code', name: 'Claude Code' });
+  });
 });
