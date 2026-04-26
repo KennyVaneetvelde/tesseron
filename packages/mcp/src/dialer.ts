@@ -84,11 +84,14 @@ export class WsDialer implements GatewayDialer<'ws'> {
 
     const transport: Transport = {
       send(message: unknown): void {
-        try {
-          ws.send(JSON.stringify(message));
-        } catch {
-          // socket likely closed; ignore — onClose will fire and unwind pending requests
-        }
+        // Let `ws.send` throw escape: the underlying socket may be in a state
+        // where the send silently no-ops (CLOSING) but emits no `close` event
+        // for a long time, or `JSON.stringify` may throw on a circular result.
+        // Swallowing here strands whichever pending request was waiting on
+        // this response. The session-dispatcher wrapper in `gateway.ts` catches
+        // the throw and closes the channel so `rejectAllPending` rejects the
+        // request with `TransportClosedError` instead of hanging.
+        ws.send(JSON.stringify(message));
       },
       onMessage(handler: (message: unknown) => void): void {
         messageHandlers.push(handler);
@@ -169,11 +172,10 @@ export class UdsDialer implements GatewayDialer<'uds'> {
 
     const transport: Transport = {
       send(message: unknown): void {
-        try {
-          socket.write(`${JSON.stringify(message)}\n`);
-        } catch {
-          // socket likely closed; ignore
-        }
+        // Same rationale as WsDialer.send: let the throw escape so the
+        // session-dispatcher wrapper in `gateway.ts` can close the channel
+        // and unblock the peer. Silent swallow strands pending requests.
+        socket.write(`${JSON.stringify(message)}\n`);
       },
       onMessage(handler: (message: unknown) => void): void {
         messageHandlers.push(handler);
