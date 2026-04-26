@@ -32,6 +32,7 @@ Every Tesseron app hosts its own endpoint - whatever shape the binding requires 
   "instanceId": "inst-mocythay-v0hh50",
   "appName": "node-prompts",
   "addedAt": 1777038462692,
+  "pid": 24837,
   "transport":
     | { "kind": "ws",  "url":  "ws://127.0.0.1:64872/" }
     | { "kind": "uds", "path": "/tmp/tesseron-Xy7/sock" }
@@ -39,6 +40,8 @@ Every Tesseron app hosts its own endpoint - whatever shape the binding requires 
 ```
 
 The gateway watches that directory, reads each new file, picks the dialer matching `transport.kind`, and connects. The app accepts the one inbound connection; the standard handshake follows.
+
+`pid` is optional and identifies the SDK-side process that owns the instance. Gateways probe it with `process.kill(pid, 0)` and tombstone (unlink) manifests whose owner is gone, so a Vite dev server killed without a clean `httpServer.close` doesn't leave a corpse the gateway re-dials every poll tick. Manifests written by older SDKs (no `pid`) are still trusted.
 
 There is no fixed gateway port. There is no `DEFAULT_GATEWAY_URL` apps dial out to. The gateway itself binds nothing.
 

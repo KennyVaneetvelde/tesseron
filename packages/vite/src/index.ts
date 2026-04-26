@@ -29,8 +29,18 @@ interface PendingInstance {
 }
 
 const WS_PATH_PREFIX = '/@tesseron/ws';
-const INSTANCES_DIR = join(homedir(), '.tesseron', 'instances');
 const GATEWAY_SUBPROTOCOL = 'tesseron-gateway';
+
+/**
+ * Resolve the instance-discovery directory at call time rather than module
+ * load. Tests (and long-lived processes that change `$HOME` at runtime) need
+ * this — capturing at load meant a sandbox set via `process.env.HOME` after
+ * the plugin was imported wrote to the host's real `~/.tesseron/instances/`.
+ * Mirrors the lazy pattern in `@tesseron/server`.
+ */
+function getInstancesDir(): string {
+  return join(homedir(), '.tesseron', 'instances');
+}
 
 /** Decode a `ws` text-frame payload back to a string. `ws` always emits a
  * Buffer (or Buffer fragments) for text frames; we just need UTF-8 it. */
@@ -42,12 +52,26 @@ function rawDataToString(data: RawData): string {
 }
 
 async function ensureInstancesDir(): Promise<void> {
-  await mkdir(INSTANCES_DIR, { recursive: true });
+  await mkdir(getInstancesDir(), { recursive: true });
 }
 
-async function writeManifest(inst: PendingInstance): Promise<void> {
+/** Minimal subset of {@link PendingInstance} the manifest writer needs.
+ *  Exported alongside {@link writeInstanceManifest} so a test can call the
+ *  helper directly without standing up a real WebSocket. */
+export interface InstanceManifestInput {
+  instanceId: string;
+  appName?: string;
+  wsUrl: string;
+}
+
+/**
+ * Exported so the manifest contract can be unit-tested without booting a Vite
+ * dev server. `process.pid` and `Date.now()` still come from the runtime, so
+ * a test asserts on the pid stamp by inspecting the produced file.
+ */
+export async function writeInstanceManifest(inst: InstanceManifestInput): Promise<void> {
   await ensureInstancesDir();
-  const file = join(INSTANCES_DIR, `${inst.instanceId}.json`);
+  const file = join(getInstancesDir(), `${inst.instanceId}.json`);
   await writeFile(
     file,
     JSON.stringify(
@@ -56,6 +80,11 @@ async function writeManifest(inst: PendingInstance): Promise<void> {
         instanceId: inst.instanceId,
         appName: inst.appName,
         addedAt: Date.now(),
+        // Stamp the Vite dev-server pid so a gateway that boots later can
+        // probe `process.kill(pid, 0)` and skip manifests whose owning process
+        // is already dead (e.g. a Vite session killed without a clean
+        // `httpServer.close`, leaving an orphan `<id>.json`). See tesseron#53.
+        pid: process.pid,
         transport: { kind: 'ws', url: inst.wsUrl },
       },
       null,
@@ -65,7 +94,7 @@ async function writeManifest(inst: PendingInstance): Promise<void> {
 }
 
 async function deleteManifest(instanceId: string): Promise<void> {
-  const file = join(INSTANCES_DIR, `${instanceId}.json`);
+  const file = join(getInstancesDir(), `${instanceId}.json`);
   if (existsSync(file)) {
     await unlink(file).catch(() => {});
   }
@@ -123,7 +152,7 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
             };
             instances.set(instanceId, entry);
 
-            writeManifest(entry).catch((err: Error) =>
+            writeInstanceManifest(entry).catch((err: Error) =>
               process.stderr.write(
                 `[tesseron] failed to write instance manifest: ${err.message}\n`,
               ),

@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
 import { watch } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -189,6 +189,14 @@ export class TesseronGateway extends EventEmitter {
   private readonly dialers: Map<TransportSpec['kind'], GatewayDialer>;
   private discoveryWatchers: Array<ReturnType<typeof watch>> = [];
   private discoveryInterval?: ReturnType<typeof setInterval>;
+  /**
+   * Manifest paths already attempted to tombstone (via `unlink`). Keeps the
+   * 2 s discovery poll from re-logging "tombstoning stale instance manifest"
+   * for a file the OS won't let us delete (EACCES, EBUSY on Windows). Still
+   * re-tries the unlink on every tick — the file might genuinely become
+   * deletable later — but suppresses the repeated stderr line.
+   */
+  private readonly tombstonedManifests = new Set<string>();
 
   constructor(private readonly options: GatewayOptions = {}) {
     super();
@@ -202,7 +210,21 @@ export class TesseronGateway extends EventEmitter {
   /** Closes all sessions, outbound connections, and discovery watchers. */
   async stop(): Promise<void> {
     this.stopped = true;
+    // Capture in-flight breadcrumb writes for unclaimed sessions before we
+    // clear the maps. A sibling gateway that boots after this one shouldn't
+    // keep seeing our codes listed as "live" once we're gone, so sweep
+    // their breadcrumbs explicitly. Awaiting the writes first guarantees a
+    // fast-stop after a fresh hello doesn't unlink-before-write and orphan
+    // the late file. The transport.onClose path on each closed session
+    // would also call removeClaimRecord; the awaitThen helper makes the
+    // double-call idempotent.
+    const pendingClaimRemovals: Array<Promise<void>> = [];
     for (const session of this.sessions.values()) {
+      if (!session.claimed) {
+        pendingClaimRemovals.push(
+          awaitThenRemoveClaimRecord(session.claimRecordWritten, session.claimCode),
+        );
+      }
       session.transport.close('Gateway shutting down');
     }
     this.sessions.clear();
@@ -224,6 +246,10 @@ export class TesseronGateway extends EventEmitter {
       dialed.close('Gateway shutting down');
     }
     this.connected.clear();
+    // Wait for the breadcrumb unlinks to land before resolving stop() —
+    // tests and embedders that delete the home dir straight after stop()
+    // would otherwise race the file system.
+    await Promise.allSettled(pendingClaimRemovals);
   }
 
   /** Installs the handler invoked for `sampling/request`. Pass `undefined` to clear. */
@@ -319,6 +345,38 @@ export class TesseronGateway extends EventEmitter {
             const content = await readFile(join(instancesDir, file), 'utf-8');
             const data = JSON.parse(content) as Partial<InstanceManifest>;
             if (data.version !== 2 || !data.transport) continue;
+            // Skip manifests whose owning process is gone — every gateway
+            // would otherwise keep retrying a dead WS / UDS endpoint forever.
+            // Tombstone the file so subsequent ticks don't re-evaluate it
+            // and so future polls aren't paced by a growing queue of corpses.
+            // pid is optional (older SDKs / v1 manifests) — absent ⇒ trust.
+            // See tesseron#53.
+            if (data.pid !== undefined && !isPidAlive(data.pid)) {
+              const path = join(instancesDir, file);
+              const alreadyLogged = this.tombstonedManifests.has(path);
+              try {
+                await unlink(path);
+                if (!alreadyLogged) {
+                  logToStderr(
+                    `[tesseron] tombstoned stale instance manifest ${instanceId} (pid ${data.pid} no longer running)`,
+                  );
+                }
+                this.tombstonedManifests.delete(path);
+              } catch (unlinkErr) {
+                // Log the failure once per file so a stuck file (EACCES,
+                // EBUSY from antivirus on Windows) is visible but doesn't
+                // spam stderr every 2 s. Subsequent ticks still retry the
+                // unlink in case the lock clears.
+                if (!alreadyLogged) {
+                  const reason = unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr);
+                  logToStderr(
+                    `[tesseron] could not tombstone stale manifest ${path} (pid ${data.pid} dead): ${reason} — remove the file manually if it persists`,
+                  );
+                  this.tombstonedManifests.add(path);
+                }
+              }
+              continue;
+            }
             const id = data.instanceId ?? instanceId;
             this.connectToApp(id, data.transport).catch((err: Error) => {
               logToStderr(`[tesseron] could not connect to instance ${id}: ${err.message}`);
@@ -429,6 +487,40 @@ export class TesseronGateway extends EventEmitter {
   }
 
   /**
+   * Look up the cross-gateway breadcrumb for `code` in `~/.tesseron/claims/`.
+   * Used by the MCP `tesseron__claim_session` handler when its own
+   * `claimSession` returns null: instead of the previous flat "no pending
+   * session" error, the tool can report "this code was minted by gateway pid
+   * N at HH:MM:SS — switch to that Claude session and try again". On the
+   * `stale` outcome only — never on `foreign` or `unknown` — the breadcrumb
+   * file is unlinked as a side-effect so future probes don't keep reporting
+   * the same dead pid. See tesseron#53.
+   */
+  async describeForeignClaim(code: string): Promise<ForeignClaim> {
+    const record = await readClaimRecord(code);
+    if (!record) return { kind: 'unknown' };
+    if (!isPidAlive(record.gatewayPid)) {
+      // Owning gateway is gone — clean up the breadcrumb so the next probe
+      // doesn't keep reporting the same dead pid. Best-effort.
+      void removeClaimRecord(code);
+      return {
+        kind: 'stale',
+        gatewayPid: record.gatewayPid,
+        mintedAt: record.mintedAt,
+        appId: record.appId,
+        appName: record.appName,
+      };
+    }
+    return {
+      kind: 'foreign',
+      gatewayPid: record.gatewayPid,
+      mintedAt: record.mintedAt,
+      appId: record.appId,
+      appName: record.appName,
+    };
+  }
+
+  /**
    * Attempts to claim a pending session by its claim code. Returns the claimed
    * session, or `null` if the code is unknown or already consumed. Emits
    * `sessions-changed` on success and a `tesseron/claimed` notification to the
@@ -442,6 +534,13 @@ export class TesseronGateway extends EventEmitter {
     session.claimed = true;
     session.claimedAt = Date.now();
     this.pendingClaims.delete(claimCode.toUpperCase());
+    // Drop the cross-gateway breadcrumb so a sibling gateway doesn't keep
+    // pointing the user at this code once it's been spent. Await the
+    // write-promise stashed at hello time first — a fast-claim that beat the
+    // disk write would otherwise unlink-before-write and leave the late
+    // write orphaned forever (post-claim, no path removes it). The remove
+    // itself is still fire-and-forget for the synchronous return value.
+    void awaitThenRemoveClaimRecord(session.claimRecordWritten, claimCode);
     // Tell the SDK side the session is now claimed. The browser app's
     // `useTesseronConnection` hook clears `connection.claimCode` on receipt
     // so the UI stops displaying a code that can no longer be redeemed.
@@ -449,12 +548,11 @@ export class TesseronGateway extends EventEmitter {
     // transport-level failures by closing the channel, so no try/catch here.
     //
     // Use the same `pending` / `Awaiting agent` fallback the welcome uses
-    // (gateway.ts:731-734) when `clientName` isn't populated. The MCP
-    // `initialize` always runs before `tools/call`, so in practice
-    // `clientName` is set by the time we get here, but the symmetric
-    // fallback avoids silently regressing a previously-meaningful welcome
-    // agent if some embedder reaches `claimSession` without an `initialize`
-    // having happened.
+    // when `clientName` isn't populated. The MCP `initialize` always runs
+    // before `tools/call`, so in practice `clientName` is set by the time
+    // we get here, but the symmetric fallback avoids silently regressing a
+    // previously-meaningful welcome agent if some embedder reaches
+    // `claimSession` without an `initialize` having happened.
     const clientName = this.agentCapabilities.clientName;
     session.dispatcher.notify('tesseron/claimed', {
       agent: {
@@ -665,6 +763,16 @@ export class TesseronGateway extends EventEmitter {
         });
       }
 
+      // Drop the cross-gateway breadcrumb if this session never made it to
+      // a successful claim — leaving the file behind would mislead a sibling
+      // gateway into reporting "live elsewhere" for a code that's gone.
+      // Sessions that DID get claimed already removed their record at claim
+      // time; calling unlink twice is harmless. Await the hello-time write
+      // promise first so a tiny disk write in flight doesn't outlive the
+      // unlink (same race the claim-path guards against).
+      if (!session.claimed) {
+        void awaitThenRemoveClaimRecord(session.claimRecordWritten, session.claimCode);
+      }
       this.sessions.delete(session.id);
       this.pendingClaims.delete(session.claimCode);
       // Cancel any active invocations for this session
@@ -718,6 +826,23 @@ export class TesseronGateway extends EventEmitter {
       };
       this.sessions.set(sessionId, session);
       this.pendingClaims.set(claimCode, sessionId);
+      // Drop a cross-gateway breadcrumb so a sibling gateway that receives
+      // tesseron__claim_session with this code (rather than us) can tell the
+      // user which Claude session minted it instead of failing flat. See
+      // tesseron#53. Fire-and-forget against the welcome — the file is a UX
+      // hint, never a correctness gate, so a write failure must not delay
+      // the welcome. The returned promise is stashed on the session so the
+      // claim/close paths can await it before unlinking, otherwise a
+      // fast-claim could beat the disk write and orphan the late file.
+      session.claimRecordWritten = writeClaimRecord({
+        version: 1,
+        code: claimCode,
+        sessionId,
+        appId: helloParams.app.id,
+        appName: helloParams.app.name,
+        gatewayPid: process.pid,
+        mintedAt: Date.now(),
+      });
       logToStderr(
         `[tesseron] new session "${helloParams.app.name}" (${sessionId}) — claim code: ${claimCode}`,
       );
@@ -994,3 +1119,142 @@ function parseProtocolVersion(version: string): [number, number] {
   const minor = Number.parseInt(parts[1] ?? '0', 10);
   return [Number.isFinite(major) ? major : 0, Number.isFinite(minor) ? minor : 0];
 }
+
+/**
+ * True when the OS reports `pid` as a running process, false when it's
+ * definitely gone (`ESRCH`). Any other error (`EPERM`: alive but owned by
+ * another user; missing pid; non-numeric pid; platform quirks) is treated as
+ * "live" — we'd rather waste a dial than tombstone a manifest that still has
+ * a working owner. `process.kill(pid, 0)` is documented as cross-platform on
+ * Windows + POSIX; signal 0 only probes existence.
+ */
+export function isPidAlive(pid: unknown): boolean {
+  if (typeof pid !== 'number' || !Number.isFinite(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') return false;
+    return true;
+  }
+}
+
+/**
+ * Persistent breadcrumb the gateway drops in `~/.tesseron/claims/<CODE>.json`
+ * when it mints a claim code. Lets a sibling gateway (different Claude
+ * session, parallel dev shell, …) that receives a `tesseron__claim_session`
+ * call for a code it doesn't own surface a "this code belongs to gateway pid
+ * N — switch to that session" hint instead of the previous flat "no pending
+ * session". Removed atomically when the owning gateway claims the session,
+ * the session closes unclaimed, or the gateway shuts down. See tesseron#53.
+ */
+interface ClaimRecord {
+  version: 1;
+  code: string;
+  sessionId: string;
+  appId: string;
+  appName: string;
+  /** Pid of the gateway process that minted this code. */
+  gatewayPid: number;
+  /** Unix-millis when the gateway sent the welcome carrying this code. */
+  mintedAt: number;
+}
+
+// Resolved lazily so that tests which point HOME / USERPROFILE at a sandbox
+// after this module has loaded still see the redirected directory.
+function claimsDir(): string {
+  return join(homedir(), '.tesseron', 'claims');
+}
+
+function claimFilePath(code: string): string {
+  return join(claimsDir(), `${code.toUpperCase()}.json`);
+}
+
+async function writeClaimRecord(record: ClaimRecord): Promise<void> {
+  const path = claimFilePath(record.code);
+  try {
+    await mkdir(claimsDir(), { recursive: true });
+    await writeFile(path, JSON.stringify(record, null, 2));
+  } catch (err) {
+    // Surfacing the error in stderr is enough — a missing breadcrumb only
+    // degrades the cross-gateway error message; it never blocks claiming a
+    // code on the gateway that minted it. Include the resolved path so a
+    // user hitting EACCES / ENOSPC / EROFS can act on the actual location
+    // rather than guessing where breadcrumbs live.
+    const reason = err instanceof Error ? err.message : String(err);
+    logToStderr(`[tesseron] failed to write claim record at ${path}: ${reason}`);
+  }
+}
+
+async function removeClaimRecord(code: string): Promise<void> {
+  try {
+    await unlink(claimFilePath(code));
+  } catch (err) {
+    // ENOENT is expected when the breadcrumb was never written (write race,
+    // mkdir failed earlier) or already removed by the same code path on a
+    // double-call. Anything else is worth telling the operator about — a
+    // permission-denied unlink leaves a stale file behind that future
+    // describeForeignClaim probes will keep matching, so the user has no
+    // way to recover without manually `rm`ing the path. Include it.
+    const errno = (err as NodeJS.ErrnoException).code;
+    if (errno === 'ENOENT') return;
+    const reason = err instanceof Error ? err.message : String(err);
+    logToStderr(`[tesseron] failed to remove claim record at ${claimFilePath(code)}: ${reason}`);
+  }
+}
+
+/**
+ * Sequence the breadcrumb removal *after* the in-flight write completes, so a
+ * fast-claim that runs before the hello-time write has landed on disk
+ * doesn't unlink-before-write (the unlink would ENOENT, then the late write
+ * would land and live forever — no later cleanup path covers a claimed
+ * session's breadcrumb). Best-effort: if the write rejected, the file
+ * isn't there and the unlink ENOENTs, which we silently swallow.
+ */
+async function awaitThenRemoveClaimRecord(
+  writePromise: Promise<void> | undefined,
+  code: string,
+): Promise<void> {
+  if (writePromise) {
+    try {
+      await writePromise;
+    } catch {
+      // write already failed; the file isn't there, nothing to remove.
+    }
+  }
+  await removeClaimRecord(code);
+}
+
+async function readClaimRecord(code: string): Promise<ClaimRecord | null> {
+  try {
+    const raw = await readFile(claimFilePath(code), 'utf-8');
+    const parsed = JSON.parse(raw) as Partial<ClaimRecord>;
+    if (
+      parsed.version !== 1 ||
+      typeof parsed.code !== 'string' ||
+      typeof parsed.sessionId !== 'string' ||
+      typeof parsed.appId !== 'string' ||
+      typeof parsed.appName !== 'string' ||
+      typeof parsed.gatewayPid !== 'number' ||
+      typeof parsed.mintedAt !== 'number'
+    ) {
+      return null;
+    }
+    return parsed as ClaimRecord;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Outcome of probing `~/.tesseron/claims/<CODE>.json` from a gateway that
+ * doesn't own the code locally. See {@link TesseronGateway.describeForeignClaim}.
+ */
+export type ForeignClaim =
+  /** A live sibling gateway minted this code; tell the user which one to switch to. */
+  | { kind: 'foreign'; gatewayPid: number; mintedAt: number; appId: string; appName: string }
+  /** Record exists but the owning gateway is gone — likely a leftover from a crashed gateway. */
+  | { kind: 'stale'; gatewayPid: number; mintedAt: number; appId: string; appName: string }
+  /** No claim record for this code on disk at all. */
+  | { kind: 'unknown' };

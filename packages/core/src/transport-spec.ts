@@ -36,5 +36,14 @@ export interface InstanceManifest {
   appName: string;
   /** Unix-millis timestamp of when the manifest was written. */
   addedAt: number;
+  /**
+   * Process id of the SDK side that owns this instance (i.e. the Vite dev
+   * server, Node app, etc.). Optional for backward compatibility — older
+   * SDKs omit it; gateways treat absence as "trust" so upgrading the
+   * gateway before the SDK doesn't tombstone working manifests. When
+   * present, gateways probe `process.kill(pid, 0)` and skip / tombstone
+   * manifests whose owning process is gone. See tesseron#53.
+   */
+  pid?: number;
   transport: TransportSpec;
 }

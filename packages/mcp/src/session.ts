@@ -33,6 +33,14 @@ export interface Session {
    */
   resumeToken: string;
   subscriptionCallbacks?: Map<string, (value: unknown) => void>;
+  /**
+   * Resolves once the cross-gateway claim breadcrumb at
+   * `~/.tesseron/claims/<CODE>.json` has finished writing. The hello handler
+   * fires the write and stashes its promise here; the claim/close paths
+   * await it before unlinking, so a fast-claim that beats the disk write
+   * doesn't leak a stale breadcrumb past the session's life. See tesseron#53.
+   */
+  claimRecordWritten?: Promise<void>;
 }
 
 const CLAIM_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

@@ -150,6 +150,11 @@ export class NodeWebSocketServerTransport implements Transport {
           instanceId: this.instanceId,
           appName: this.options.appName ?? 'node',
           addedAt: Date.now(),
+          // Stamp the Node app's pid so a gateway can probe liveness with
+          // `process.kill(pid, 0)` and tombstone manifests whose owning
+          // process died without unlinking (e.g. crashed, SIGKILLed). See
+          // tesseron#53.
+          pid: process.pid,
           transport: { kind: 'ws', url: wsUrl },
         },
         null,

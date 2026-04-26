@@ -19300,10 +19300,24 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
   dialers;
   discoveryWatchers = [];
   discoveryInterval;
+  /**
+   * Manifest paths already attempted to tombstone (via `unlink`). Keeps the
+   * 2 s discovery poll from re-logging "tombstoning stale instance manifest"
+   * for a file the OS won't let us delete (EACCES, EBUSY on Windows). Still
+   * re-tries the unlink on every tick — the file might genuinely become
+   * deletable later — but suppresses the repeated stderr line.
+   */
+  tombstonedManifests = /* @__PURE__ */ new Set();
   /** Closes all sessions, outbound connections, and discovery watchers. */
   async stop() {
     this.stopped = true;
+    const pendingClaimRemovals = [];
     for (const session of this.sessions.values()) {
+      if (!session.claimed) {
+        pendingClaimRemovals.push(
+          awaitThenRemoveClaimRecord(session.claimRecordWritten, session.claimCode)
+        );
+      }
       session.transport.close("Gateway shutting down");
     }
     this.sessions.clear();
@@ -19325,6 +19339,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
       dialed.close("Gateway shutting down");
     }
     this.connected.clear();
+    await Promise.allSettled(pendingClaimRemovals);
   }
   /** Installs the handler invoked for `sampling/request`. Pass `undefined` to clear. */
   setSamplingHandler(handler) {
@@ -19407,6 +19422,28 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
             const content = await (0, import_promises.readFile)((0, import_node_path.join)(instancesDir, file2), "utf-8");
             const data = JSON.parse(content);
             if (data.version !== 2 || !data.transport) continue;
+            if (data.pid !== void 0 && !isPidAlive(data.pid)) {
+              const path = (0, import_node_path.join)(instancesDir, file2);
+              const alreadyLogged = this.tombstonedManifests.has(path);
+              try {
+                await (0, import_promises.unlink)(path);
+                if (!alreadyLogged) {
+                  logToStderr(
+                    `[tesseron] tombstoned stale instance manifest ${instanceId} (pid ${data.pid} no longer running)`
+                  );
+                }
+                this.tombstonedManifests.delete(path);
+              } catch (unlinkErr) {
+                if (!alreadyLogged) {
+                  const reason = unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr);
+                  logToStderr(
+                    `[tesseron] could not tombstone stale manifest ${path} (pid ${data.pid} dead): ${reason} \u2014 remove the file manually if it persists`
+                  );
+                  this.tombstonedManifests.add(path);
+                }
+              }
+              continue;
+            }
             const id = data.instanceId ?? instanceId;
             this.connectToApp(id, data.transport).catch((err) => {
               logToStderr(`[tesseron] could not connect to instance ${id}: ${err.message}`);
@@ -19502,6 +19539,37 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     return Array.from(this.sessions.values()).filter((s) => !s.claimed);
   }
   /**
+   * Look up the cross-gateway breadcrumb for `code` in `~/.tesseron/claims/`.
+   * Used by the MCP `tesseron__claim_session` handler when its own
+   * `claimSession` returns null: instead of the previous flat "no pending
+   * session" error, the tool can report "this code was minted by gateway pid
+   * N at HH:MM:SS — switch to that Claude session and try again". On the
+   * `stale` outcome only — never on `foreign` or `unknown` — the breadcrumb
+   * file is unlinked as a side-effect so future probes don't keep reporting
+   * the same dead pid. See tesseron#53.
+   */
+  async describeForeignClaim(code) {
+    const record2 = await readClaimRecord(code);
+    if (!record2) return { kind: "unknown" };
+    if (!isPidAlive(record2.gatewayPid)) {
+      void removeClaimRecord(code);
+      return {
+        kind: "stale",
+        gatewayPid: record2.gatewayPid,
+        mintedAt: record2.mintedAt,
+        appId: record2.appId,
+        appName: record2.appName
+      };
+    }
+    return {
+      kind: "foreign",
+      gatewayPid: record2.gatewayPid,
+      mintedAt: record2.mintedAt,
+      appId: record2.appId,
+      appName: record2.appName
+    };
+  }
+  /**
    * Attempts to claim a pending session by its claim code. Returns the claimed
    * session, or `null` if the code is unknown or already consumed. Emits
    * `sessions-changed` on success and a `tesseron/claimed` notification to the
@@ -19515,6 +19583,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     session.claimed = true;
     session.claimedAt = Date.now();
     this.pendingClaims.delete(claimCode.toUpperCase());
+    void awaitThenRemoveClaimRecord(session.claimRecordWritten, claimCode);
     const clientName = this.agentCapabilities.clientName;
     session.dispatcher.notify("tesseron/claimed", {
       agent: {
@@ -19681,6 +19750,9 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           evictTimer
         });
       }
+      if (!session.claimed) {
+        void awaitThenRemoveClaimRecord(session.claimRecordWritten, session.claimCode);
+      }
       this.sessions.delete(session.id);
       this.pendingClaims.delete(session.claimCode);
       for (const [invocationId, inv] of this.activeInvocations.entries()) {
@@ -19726,6 +19798,15 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
       };
       this.sessions.set(sessionId, session);
       this.pendingClaims.set(claimCode, sessionId);
+      session.claimRecordWritten = writeClaimRecord({
+        version: 1,
+        code: claimCode,
+        sessionId,
+        appId: helloParams.app.id,
+        appName: helloParams.app.name,
+        gatewayPid: process.pid,
+        mintedAt: Date.now()
+      });
       logToStderr(
         `[tesseron] new session "${helloParams.app.name}" (${sessionId}) \u2014 claim code: ${claimCode}`
       );
@@ -19919,6 +20000,64 @@ function parseProtocolVersion(version2) {
   const major = Number.parseInt(parts[0] ?? "0", 10);
   const minor = Number.parseInt(parts[1] ?? "0", 10);
   return [Number.isFinite(major) ? major : 0, Number.isFinite(minor) ? minor : 0];
+}
+function isPidAlive(pid) {
+  if (typeof pid !== "number" || !Number.isFinite(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = err.code;
+    if (code === "ESRCH") return false;
+    return true;
+  }
+}
+function claimsDir() {
+  return (0, import_node_path.join)((0, import_node_os.homedir)(), ".tesseron", "claims");
+}
+function claimFilePath(code) {
+  return (0, import_node_path.join)(claimsDir(), `${code.toUpperCase()}.json`);
+}
+async function writeClaimRecord(record2) {
+  const path = claimFilePath(record2.code);
+  try {
+    await (0, import_promises.mkdir)(claimsDir(), { recursive: true });
+    await (0, import_promises.writeFile)(path, JSON.stringify(record2, null, 2));
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logToStderr(`[tesseron] failed to write claim record at ${path}: ${reason}`);
+  }
+}
+async function removeClaimRecord(code) {
+  try {
+    await (0, import_promises.unlink)(claimFilePath(code));
+  } catch (err) {
+    const errno = err.code;
+    if (errno === "ENOENT") return;
+    const reason = err instanceof Error ? err.message : String(err);
+    logToStderr(`[tesseron] failed to remove claim record at ${claimFilePath(code)}: ${reason}`);
+  }
+}
+async function awaitThenRemoveClaimRecord(writePromise, code) {
+  if (writePromise) {
+    try {
+      await writePromise;
+    } catch {
+    }
+  }
+  await removeClaimRecord(code);
+}
+async function readClaimRecord(code) {
+  try {
+    const raw = await (0, import_promises.readFile)(claimFilePath(code), "utf-8");
+    const parsed = JSON.parse(raw);
+    if (parsed.version !== 1 || typeof parsed.code !== "string" || typeof parsed.sessionId !== "string" || typeof parsed.appId !== "string" || typeof parsed.appName !== "string" || typeof parsed.gatewayPid !== "number" || typeof parsed.mintedAt !== "number") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 // ../../node_modules/.pnpm/zod@4.3.6/node_modules/zod/v3/helpers/util.js
@@ -25996,13 +26135,31 @@ var McpAgentBridge = class {
       return errorResult(message, error2 instanceof TesseronError ? error2 : void 0);
     }
   }
-  handleClaim(args) {
+  async handleClaim(args) {
     const code = typeof args["code"] === "string" ? args["code"] : "";
     if (!code) {
       return errorResult('Missing "code" argument. Provide the 6-character claim code.');
     }
     const session = this.gateway.claimSession(code);
     if (!session) {
+      let foreign;
+      try {
+        foreign = await this.gateway.describeForeignClaim(code);
+      } catch {
+        foreign = { kind: "unknown" };
+      }
+      if (foreign.kind === "foreign") {
+        const minted = new Date(foreign.mintedAt).toISOString();
+        return errorResult(
+          `Claim code "${code.toUpperCase()}" belongs to a different Tesseron gateway (pid ${foreign.gatewayPid}, app "${foreign.appName}", minted ${minted}). Switch to the Claude session that opened this connection and run tesseron__claim_session there. Each running Claude session has its own gateway; only the one that minted the code can redeem it. See tesseron#53.`
+        );
+      }
+      if (foreign.kind === "stale") {
+        const minted = new Date(foreign.mintedAt).toISOString();
+        return errorResult(
+          `Claim code "${code.toUpperCase()}" was minted at ${minted} by gateway pid ${foreign.gatewayPid}, which is no longer running. Have the web app reconnect to mint a fresh code, then claim that one.`
+        );
+      }
       return errorResult(
         `No pending session found for code "${code}". Has the web app connected, and is the code current?`
       );

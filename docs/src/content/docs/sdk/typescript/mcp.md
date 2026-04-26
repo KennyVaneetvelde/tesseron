@@ -47,11 +47,14 @@ Apps announce themselves by writing a JSON v2 manifest to `~/.tesseron/instances
   "instanceId": "inst-abc123",
   "appName": "vue-todo",
   "addedAt": 1777038462692,
+  "pid": 24837,
   "transport":
     | { "kind": "ws",  "url":  "ws://127.0.0.1:64872/" }
     | { "kind": "uds", "path": "/tmp/tesseron-Xy7/sock" }
 }
 ```
+
+`pid` is optional. Gateways probe `process.kill(pid, 0)` on each manifest before dialing and tombstone manifests whose owner is gone, so a dev server killed without a clean shutdown doesn't leave a corpse the gateway re-dials forever. Older SDKs that omit the field stay trusted.
 
 The gateway watches the directory (inotify / `fs.watch`, with a 2-second poll as a platform fallback), notices the new file, picks the dialer matching `transport.kind`, and connects. The app accepts that one connection; the standard `tesseron/hello` → `welcome` handshake follows.
 
@@ -96,6 +99,8 @@ Routing: `tools/call shop__searchProducts` finds the session whose `app.id === "
 ## Claim code generation
 
 Codes are six alphanumeric characters minus confusables (no `0`, `1`, `I`, `L`, `O`), formatted `AAAA-BB`. Drawn from `Math.random()`. Stored on the session, claimed via `gateway.claimSession(code)`, cleaned on claim or session close.
+
+Each minted code also drops a breadcrumb at `~/.tesseron/claims/<CODE>.json` so a sibling gateway (a parallel Claude Code session, a leftover dev gateway) that receives `tesseron__claim_session` for a code it doesn't own locally can surface a "claim code belongs to gateway pid N" error instead of a flat "no pending session". The breadcrumb is removed on successful claim, on unclaimed close, and on `gateway.stop()`. Embedders building their own claim UI can call `gateway.describeForeignClaim(code)` to drive the same behaviour. See the [handshake page](/protocol/handshake/#multiple-gateways-on-one-machine) for the full picture.
 
 ## Where the plugin bundles it
 

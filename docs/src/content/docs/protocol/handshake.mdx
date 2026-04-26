@@ -150,6 +150,28 @@ The notification only fires on a fresh-hello path. After a successful `tesseron/
 
 Because in-band claim is just security theatre over localhost. Anything running on the user's machine can read `~/.tesseron/instances/` and dial one of those endpoints. The claim code is a **user-typed confirmation** - proof that a human authorised this specific browser tab to be controlled by this specific agent session. It's short enough to read aloud, long enough to resist guessing (~1.5 billion combinations of 6 upper-case alphanumeric minus confusables).
 
+## Multiple gateways on one machine
+
+A developer machine may have several Tesseron MCP gateways alive at once - typically one per running Claude Code session, sometimes more if a dev checkout's `plugin/server/index.cjs` is also loaded. Each gateway watches `~/.tesseron/instances/` and dials the bindings it discovers. The first gateway to upgrade a given browser instance owns the bridge for that session (the Vite plugin rejects subsequent upgrades with `HTTP 409`); the welcome+claim code returns through that one gateway.
+
+Sibling gateways therefore see the user-typed claim code but have no matching pending session locally. Without a hint they would fail with a flat "no pending session", and the user has no way to tell which Claude window minted the code. To make the failure explicit, every gateway drops a breadcrumb at `~/.tesseron/claims/<CODE>.json` when it mints a claim code:
+
+```json
+{
+  "version": 1,
+  "code": "AB3X-7K",
+  "sessionId": "s_a1b2c3de1234567",
+  "appId": "shop",
+  "appName": "Acme Shop",
+  "gatewayPid": 12345,
+  "mintedAt": 1714145210123
+}
+```
+
+A non-owning gateway that receives `tesseron__claim_session` for a code it doesn't own locally reads the breadcrumb and surfaces an error of the form *"Claim code AB3X-7K belongs to a different Tesseron gateway (pid 12345, app 'Acme Shop', minted 2026-04-26T15:16:09Z). Switch to the Claude session that opened this connection..."*. The breadcrumb is removed when the owning gateway claims the session, when an unclaimed session closes, and on gateway shutdown; if the breadcrumb's `gatewayPid` is no longer running, the file is tombstoned and a "stale" error is returned instead.
+
+This is a UX hint, not a transfer protocol - claim ownership stays with the gateway that minted the code. To actually claim, the user has to be in the right Claude session.
+
 ## Protocol version mismatch
 
 The MCP gateway parses `protocolVersion` as `major.minor`:

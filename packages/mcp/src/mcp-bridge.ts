@@ -19,7 +19,7 @@ import {
   type TesseronStructuredError,
 } from '@tesseron/core';
 import { assertValidElicitSchema } from '@tesseron/core/internal';
-import type { ResourceSubscription, TesseronGateway } from './gateway.js';
+import type { ForeignClaim, ResourceSubscription, TesseronGateway } from './gateway.js';
 import type { Session } from './session.js';
 
 const META_TOOL_CLAIM_SESSION = 'tesseron__claim_session';
@@ -583,16 +583,43 @@ export class McpAgentBridge {
     }
   }
 
-  private handleClaim(args: Record<string, unknown>): {
+  private async handleClaim(args: Record<string, unknown>): Promise<{
     content: Array<{ type: 'text'; text: string }>;
     isError?: boolean;
-  } {
+  }> {
     const code = typeof args['code'] === 'string' ? args['code'] : '';
     if (!code) {
       return errorResult('Missing "code" argument. Provide the 6-character claim code.');
     }
     const session = this.gateway.claimSession(code);
     if (!session) {
+      // Each running gateway has its own pendingClaims map (post-#54 single-
+      // owner binding pins each browser instance to exactly one gateway).
+      // When the user pastes a code into a Claude session whose gateway
+      // didn't mint it, claimSession returns null even though the code is
+      // valid elsewhere on the box. Probe the breadcrumb to tell them
+      // which gateway did. See tesseron#53.
+      let foreign: ForeignClaim;
+      try {
+        foreign = await this.gateway.describeForeignClaim(code);
+      } catch {
+        // A future regression in describeForeignClaim shouldn't *worsen*
+        // the user-facing error compared to the pre-breadcrumb baseline.
+        // Fall through to the legacy "no pending session" path.
+        foreign = { kind: 'unknown' };
+      }
+      if (foreign.kind === 'foreign') {
+        const minted = new Date(foreign.mintedAt).toISOString();
+        return errorResult(
+          `Claim code "${code.toUpperCase()}" belongs to a different Tesseron gateway (pid ${foreign.gatewayPid}, app "${foreign.appName}", minted ${minted}). Switch to the Claude session that opened this connection and run tesseron__claim_session there. Each running Claude session has its own gateway; only the one that minted the code can redeem it. See tesseron#53.`,
+        );
+      }
+      if (foreign.kind === 'stale') {
+        const minted = new Date(foreign.mintedAt).toISOString();
+        return errorResult(
+          `Claim code "${code.toUpperCase()}" was minted at ${minted} by gateway pid ${foreign.gatewayPid}, which is no longer running. Have the web app reconnect to mint a fresh code, then claim that one.`,
+        );
+      }
       return errorResult(
         `No pending session found for code "${code}". Has the web app connected, and is the code current?`,
       );
