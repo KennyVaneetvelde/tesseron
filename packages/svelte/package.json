@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/svelte",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Svelte adapter for Tesseron. tesseronAction, tesseronResource, tesseronConnection.",
   "license": "BUSL-1.1",
   "author": {

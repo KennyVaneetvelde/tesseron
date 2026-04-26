@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/web",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Browser SDK for Tesseron. Declares actions and resources, opens a WebSocket to the local gateway.",
   "license": "BUSL-1.1",
   "author": {
