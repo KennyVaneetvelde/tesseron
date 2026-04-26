@@ -1,9 +1,7 @@
-import { Buffer } from 'node:buffer';
-import { timingSafeEqual } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
 import { watch } from 'node:fs';
-import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
+import { readFile, readdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -24,8 +22,9 @@ import {
   type TransportSpec,
   type WelcomeResult,
 } from '@tesseron/core';
-import { JsonRpcDispatcher } from '@tesseron/core/internal';
+import { JsonRpcDispatcher, constantTimeEqual } from '@tesseron/core/internal';
 import { type DialedTransport, type GatewayDialer, UdsDialer, WsDialer } from './dialer.js';
+import { writePrivateFile } from './fs-hygiene.js';
 import {
   type Session,
   generateClaimCode,
@@ -1013,13 +1012,12 @@ export class TesseronGateway extends EventEmitter {
         );
       }
 
-      // Constant-time token compare. timingSafeEqual throws on mismatched-
-      // length buffers, so gate it behind an explicit length check first to
-      // return a clean ResumeFailed instead of a raw TypeError. Both tokens
-      // are 32-char base64url in the happy path.
-      const presented = Buffer.from(resumeParams.resumeToken);
-      const stored = Buffer.from(zombie.resumeToken);
-      if (presented.length !== stored.length || !timingSafeEqual(presented, stored)) {
+      // Constant-time token compare via the shared helper. Plain `===` would
+      // short-circuit on the first differing char and leak the matched-prefix
+      // length to anyone measuring response latency — material against a
+      // base64url 32-char bearer token. {@link constantTimeEqual} runs in
+      // O(length) regardless of where the strings diverge.
+      if (!constantTimeEqual(resumeParams.resumeToken, zombie.resumeToken)) {
         throw new TesseronError(
           TesseronErrorCode.ResumeFailed,
           `Invalid resumeToken for session "${resumeParams.sessionId}".`,
@@ -1231,8 +1229,13 @@ function claimFilePath(code: string): string {
 async function writeClaimRecord(record: ClaimRecord): Promise<void> {
   const path = claimFilePath(record.code);
   try {
-    await mkdir(claimsDir(), { recursive: true });
-    await writeFile(path, JSON.stringify(record, null, 2));
+    // writePrivateFile creates `~/.tesseron/claims/` with mode 0o700 if
+    // missing and atomically writes the breadcrumb at mode 0o600. The
+    // breadcrumb carries no secrets today (the claim code is already on
+    // the wire to the agent), but tightening the mode aligns with every
+    // other file under `~/.tesseron/` and removes the world-readable
+    // surface a sibling local process could enumerate.
+    await writePrivateFile(path, JSON.stringify(record, null, 2));
   } catch (err) {
     // Surfacing the error in stderr is enough — a missing breadcrumb only
     // degrades the cross-gateway error message; it never blocks claiming a

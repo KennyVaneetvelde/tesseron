@@ -2233,7 +2233,7 @@ var require_websocket = __commonJS({
     var http = require("http");
     var net = require("net");
     var tls = require("tls");
-    var { randomBytes: randomBytes2, createHash } = require("crypto");
+    var { randomBytes, createHash } = require("crypto");
     var { Duplex, Readable } = require("stream");
     var { URL: URL2 } = require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -2763,7 +2763,7 @@ var require_websocket = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes2(16).toString("base64");
+      const key = randomBytes(16).toString("base64");
       const request = isSecure ? https.request : http.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -3172,7 +3172,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._final(callback);
           });
           return;
@@ -3193,7 +3193,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -18826,14 +18826,12 @@ var StdioServerTransport = class {
 };
 
 // src/gateway.ts
-var import_node_buffer2 = require("buffer");
-var import_node_crypto2 = require("crypto");
 var import_node_events = require("events");
-var import_node_fs = require("fs");
 var import_node_fs2 = require("fs");
-var import_promises = require("fs/promises");
+var import_node_fs3 = require("fs");
+var import_promises2 = require("fs/promises");
 var import_node_os = require("os");
-var import_node_path = require("path");
+var import_node_path2 = require("path");
 
 // ../core/src/protocol.ts
 var PROTOCOL_VERSION = "1.1.0";
@@ -19089,6 +19087,19 @@ function toErrorPayload(error2) {
   return { code: TesseronErrorCode.InternalError, message: String(error2) };
 }
 
+// ../core/src/timing-safe.ts
+function constantTimeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") {
+    throw new TypeError("constantTimeEqual requires two string arguments");
+  }
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 // src/dialer.ts
 var import_node_buffer = require("buffer");
 var import_node_net = require("net");
@@ -19231,24 +19242,117 @@ function rawDataToString(data) {
   return null;
 }
 
-// src/session.ts
-var import_node_crypto = require("crypto");
-var CLAIM_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-function generateClaimCode() {
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += CLAIM_CHARS[Math.floor(Math.random() * CLAIM_CHARS.length)];
+// src/fs-hygiene.ts
+var import_node_fs = require("fs");
+var import_promises = require("fs/promises");
+var import_node_path = require("path");
+var PRIVATE_DIR_MODE = 448;
+var PRIVATE_FILE_MODE = 384;
+async function ensurePrivateDir(dir) {
+  await (0, import_promises.mkdir)(dir, { recursive: true, mode: PRIVATE_DIR_MODE });
+  try {
+    await (0, import_promises.chmod)(dir, PRIVATE_DIR_MODE);
+  } catch (err) {
+    const errno = err.code;
+    if (process.platform === "win32" && errno === "EPERM") return;
+    const reason = err instanceof Error ? err.message : String(err);
+    process.stderr.write(
+      `[tesseron] failed to tighten ${dir} to 0o700: ${reason} \u2014 directory may be readable by other local processes; see docs/protocol/security
+`
+    );
   }
+}
+async function writePrivateFile(targetPath, contents) {
+  const dir = (0, import_node_path.dirname)(targetPath);
+  await ensurePrivateDir(dir);
+  const tmp = `${targetPath}.tmp.${process.pid}.${randomSuffix()}`;
+  const fh = await (0, import_promises.open)(
+    tmp,
+    import_node_fs.constants.O_WRONLY | import_node_fs.constants.O_CREAT | import_node_fs.constants.O_EXCL,
+    PRIVATE_FILE_MODE
+  );
+  try {
+    await fh.writeFile(contents);
+    try {
+      await fh.chmod(PRIVATE_FILE_MODE);
+    } catch (err) {
+      const errno = err.code;
+      if (process.platform === "win32" && errno === "EPERM") {
+      } else {
+        const reason = err instanceof Error ? err.message : String(err);
+        process.stderr.write(
+          `[tesseron] failed to tighten ${tmp} to 0o600: ${reason} \u2014 file may be readable by other local processes
+`
+        );
+      }
+    }
+  } finally {
+    await fh.close();
+  }
+  try {
+    await (0, import_promises.rename)(tmp, targetPath);
+  } catch (err) {
+    try {
+      await (0, import_promises.unlink)(tmp);
+    } catch (cleanupErr) {
+      const cleanupCode = cleanupErr.code;
+      if (cleanupCode !== "ENOENT") {
+        const reason = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+        process.stderr.write(`[tesseron] leaked temp file ${tmp}: ${reason}
+`);
+      }
+    }
+    throw err;
+  }
+}
+function randomSuffix() {
+  const c = globalThis.crypto;
+  if (!c?.getRandomValues) {
+    throw new Error(
+      "platform CSPRNG (crypto.getRandomValues) is unavailable; cannot generate temp-file suffix"
+    );
+  }
+  const buf = new Uint8Array(8);
+  c.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// src/session.ts
+var import_node_buffer2 = require("buffer");
+var CLAIM_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+var BASE36_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+function randomFromAlphabet(alphabet, len) {
+  const aLen = alphabet.length;
+  if (aLen === 0 || aLen > 256) {
+    throw new RangeError("alphabet length must be 1..256");
+  }
+  const maxAcceptable = Math.floor(256 / aLen) * aLen;
+  let out = "";
+  while (out.length < len) {
+    const buf = new Uint8Array((len - out.length) * 2 + 4);
+    globalThis.crypto.getRandomValues(buf);
+    for (const b of buf) {
+      if (b >= maxAcceptable) continue;
+      out += alphabet.charAt(b % aLen);
+      if (out.length === len) break;
+    }
+  }
+  return out;
+}
+function generateClaimCode() {
+  const code = randomFromAlphabet(CLAIM_CHARS, 6);
   return `${code.slice(0, 4)}-${code.slice(4)}`;
 }
 function generateSessionId() {
-  return `s_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+  return `s_${randomFromAlphabet(BASE36_CHARS, 8)}${Date.now().toString(36)}`;
 }
 function generateInvocationId() {
-  return `inv_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+  return `inv_${randomFromAlphabet(BASE36_CHARS, 8)}${Date.now().toString(36)}`;
 }
 function generateResumeToken() {
-  return (0, import_node_crypto.randomBytes)(24).toString("base64url");
+  const buf = new Uint8Array(24);
+  globalThis.crypto.getRandomValues(buf);
+  return import_node_buffer2.Buffer.from(buf).toString("base64url");
 }
 var RESERVED_APP_IDS = /* @__PURE__ */ new Set(["tesseron", "mcp", "system"]);
 var APP_ID_RE = /^[a-z][a-z0-9_]*$/;
@@ -19421,14 +19525,14 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
    * watchers and the polling interval.
    */
   watchInstances() {
-    const tesseronDir = (0, import_node_path.join)((0, import_node_os.homedir)(), ".tesseron");
-    const instancesDir = (0, import_node_path.join)(tesseronDir, "instances");
-    const legacyTabsDir = (0, import_node_path.join)(tesseronDir, "tabs");
+    const tesseronDir = (0, import_node_path2.join)((0, import_node_os.homedir)(), ".tesseron");
+    const instancesDir = (0, import_node_path2.join)(tesseronDir, "instances");
+    const legacyTabsDir = (0, import_node_path2.join)(tesseronDir, "tabs");
     const checkDir = async () => {
-      if ((0, import_node_fs.existsSync)(instancesDir)) {
+      if ((0, import_node_fs2.existsSync)(instancesDir)) {
         let files = [];
         try {
-          files = await (0, import_promises.readdir)(instancesDir);
+          files = await (0, import_promises2.readdir)(instancesDir);
         } catch {
         }
         for (const file2 of files) {
@@ -19436,14 +19540,14 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           const instanceId = file2.slice(0, -5);
           if (this.connected.has(instanceId)) continue;
           try {
-            const content = await (0, import_promises.readFile)((0, import_node_path.join)(instancesDir, file2), "utf-8");
+            const content = await (0, import_promises2.readFile)((0, import_node_path2.join)(instancesDir, file2), "utf-8");
             const data = JSON.parse(content);
             if (data.version !== 2 || !data.transport) continue;
             if (data.pid !== void 0 && !isPidAlive(data.pid)) {
-              const path = (0, import_node_path.join)(instancesDir, file2);
+              const path = (0, import_node_path2.join)(instancesDir, file2);
               const alreadyLogged = this.tombstonedManifests.has(path);
               try {
-                await (0, import_promises.unlink)(path);
+                await (0, import_promises2.unlink)(path);
                 if (!alreadyLogged) {
                   this.emitDiscoveryLog({
                     level: "info",
@@ -19480,10 +19584,10 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           }
         }
       }
-      if ((0, import_node_fs.existsSync)(legacyTabsDir)) {
+      if ((0, import_node_fs2.existsSync)(legacyTabsDir)) {
         let files = [];
         try {
-          files = await (0, import_promises.readdir)(legacyTabsDir);
+          files = await (0, import_promises2.readdir)(legacyTabsDir);
         } catch {
         }
         for (const file2 of files) {
@@ -19491,7 +19595,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           const tabId = file2.slice(0, -5);
           if (this.connected.has(tabId)) continue;
           try {
-            const content = await (0, import_promises.readFile)((0, import_node_path.join)(legacyTabsDir, file2), "utf-8");
+            const content = await (0, import_promises2.readFile)((0, import_node_path2.join)(legacyTabsDir, file2), "utf-8");
             const data = JSON.parse(content);
             if (typeof data.wsUrl !== "string") continue;
             const id = data.tabId ?? tabId;
@@ -19511,10 +19615,10 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     checkDir().catch(() => {
     });
     const watchDir = (dir) => {
-      if (!(0, import_node_fs.existsSync)(dir)) return;
+      if (!(0, import_node_fs2.existsSync)(dir)) return;
       try {
         this.discoveryWatchers.push(
-          (0, import_node_fs2.watch)(dir, () => {
+          (0, import_node_fs3.watch)(dir, () => {
             checkDir().catch(() => {
             });
           })
@@ -19524,10 +19628,10 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     };
     watchDir(instancesDir);
     watchDir(legacyTabsDir);
-    if (!(0, import_node_fs.existsSync)(instancesDir) && !(0, import_node_fs.existsSync)(legacyTabsDir)) {
+    if (!(0, import_node_fs2.existsSync)(instancesDir) && !(0, import_node_fs2.existsSync)(legacyTabsDir)) {
       try {
         this.discoveryWatchers.push(
-          (0, import_node_fs2.watch)(tesseronDir, { recursive: false }, (_event, filename) => {
+          (0, import_node_fs3.watch)(tesseronDir, { recursive: false }, (_event, filename) => {
             if (filename === "instances" || filename === "tabs" || !filename) {
               checkDir().catch(() => {
               });
@@ -19915,9 +20019,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           `Session "${resumeParams.sessionId}" was never claimed; open a fresh session with tesseron/hello instead.`
         );
       }
-      const presented = import_node_buffer2.Buffer.from(resumeParams.resumeToken);
-      const stored = import_node_buffer2.Buffer.from(zombie.resumeToken);
-      if (presented.length !== stored.length || !(0, import_node_crypto2.timingSafeEqual)(presented, stored)) {
+      if (!constantTimeEqual(resumeParams.resumeToken, zombie.resumeToken)) {
         throw new TesseronError(
           TesseronErrorCode.ResumeFailed,
           `Invalid resumeToken for session "${resumeParams.sessionId}".`
@@ -20046,16 +20148,15 @@ function isPidAlive(pid) {
   }
 }
 function claimsDir() {
-  return (0, import_node_path.join)((0, import_node_os.homedir)(), ".tesseron", "claims");
+  return (0, import_node_path2.join)((0, import_node_os.homedir)(), ".tesseron", "claims");
 }
 function claimFilePath(code) {
-  return (0, import_node_path.join)(claimsDir(), `${code.toUpperCase()}.json`);
+  return (0, import_node_path2.join)(claimsDir(), `${code.toUpperCase()}.json`);
 }
 async function writeClaimRecord(record2) {
   const path = claimFilePath(record2.code);
   try {
-    await (0, import_promises.mkdir)(claimsDir(), { recursive: true });
-    await (0, import_promises.writeFile)(path, JSON.stringify(record2, null, 2));
+    await writePrivateFile(path, JSON.stringify(record2, null, 2));
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     logToStderr(`[tesseron] failed to write claim record at ${path}: ${reason}`);
@@ -20063,7 +20164,7 @@ async function writeClaimRecord(record2) {
 }
 async function removeClaimRecord(code) {
   try {
-    await (0, import_promises.unlink)(claimFilePath(code));
+    await (0, import_promises2.unlink)(claimFilePath(code));
   } catch (err) {
     const errno = err.code;
     if (errno === "ENOENT") return;
@@ -20082,7 +20183,7 @@ async function awaitThenRemoveClaimRecord(writePromise, code) {
 }
 async function readClaimRecord(code) {
   try {
-    const raw = await (0, import_promises.readFile)(claimFilePath(code), "utf-8");
+    const raw = await (0, import_promises2.readFile)(claimFilePath(code), "utf-8");
     const parsed = JSON.parse(raw);
     if (parsed.version !== 1 || typeof parsed.code !== "string" || typeof parsed.sessionId !== "string" || typeof parsed.appId !== "string" || typeof parsed.appName !== "string" || typeof parsed.gatewayPid !== "number" || typeof parsed.mintedAt !== "number") {
       return null;

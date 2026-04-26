@@ -100,7 +100,7 @@ Routing: `tools/call shop__searchProducts` finds the session whose `app.id === "
 
 ## Claim code generation
 
-Codes are six alphanumeric characters minus confusables (no `0`, `1`, `I`, `L`, `O`), formatted `AAAA-BB`. Drawn from `Math.random()`. Stored on the session, claimed via `gateway.claimSession(code)`, cleaned on claim or session close.
+Codes are six alphanumeric characters minus confusables (no `0`, `1`, `I`, `L`, `O`), formatted `AAAA-BB`. Drawn from the platform CSPRNG (`crypto.getRandomValues`) with rejection sampling so the distribution across the 31-character alphabet is uniform. Stored on the session, claimed via `gateway.claimSession(code)`, cleaned on claim or session close.
 
 Each minted code also drops a breadcrumb at `~/.tesseron/claims/<CODE>.json` so a sibling gateway (a parallel Claude Code session, a leftover dev gateway) that receives `tesseron__claim_session` for a code it doesn't own locally can surface a "claim code belongs to gateway pid N" error instead of a flat "no pending session". The breadcrumb is removed on successful claim, on unclaimed close, and on `gateway.stop()`. Embedders building their own claim UI can call `gateway.describeForeignClaim(code)` to drive the same behaviour. See the [handshake page](/protocol/handshake/#multiple-gateways-on-one-machine) for the full picture.
 

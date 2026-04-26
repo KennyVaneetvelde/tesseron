@@ -25,3 +25,4 @@ export {
   type BuilderRegistry,
 } from './builder-impl.js';
 export { SDK_CAPABILITIES } from './client.js';
+export { constantTimeEqual } from './timing-safe.js';

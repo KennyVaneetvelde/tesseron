@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { unlink } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
+import { writePrivateFile } from './fs-hygiene.js';
 
 export interface TesseronViteOptions {
   /** Human-readable app name written to the instance manifest. Defaults to the Vite project directory name. */
@@ -42,6 +43,17 @@ function getInstancesDir(): string {
   return join(homedir(), '.tesseron', 'instances');
 }
 
+function generateInstanceId(): string {
+  // CSPRNG-sourced like the rest of `~/.tesseron/*` writes. Instance IDs
+  // aren't bearer tokens (the gateway still requires the standard
+  // handshake), but the consistency with claim/session/resume token
+  // generation matters for security review.
+  const buf = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(buf);
+  const rand = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `inst-${Date.now().toString(36)}-${rand}`;
+}
+
 /** Decode a `ws` text-frame payload back to a string. `ws` always emits a
  * Buffer (or Buffer fragments) for text frames; we just need UTF-8 it. */
 function rawDataToString(data: RawData): string {
@@ -49,10 +61,6 @@ function rawDataToString(data: RawData): string {
   if (Buffer.isBuffer(data)) return data.toString('utf8');
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
   return Buffer.from(data as ArrayBuffer).toString('utf8');
-}
-
-async function ensureInstancesDir(): Promise<void> {
-  await mkdir(getInstancesDir(), { recursive: true });
 }
 
 /** Minimal subset of {@link PendingInstance} the manifest writer needs.
@@ -68,11 +76,14 @@ export interface InstanceManifestInput {
  * Exported so the manifest contract can be unit-tested without booting a Vite
  * dev server. `process.pid` and `Date.now()` still come from the runtime, so
  * a test asserts on the pid stamp by inspecting the produced file.
+ *
+ * Uses {@link writePrivateFile} so the manifest lands with mode 0o600 inside
+ * a 0o700 parent dir — a sibling local process under the same user can no
+ * longer enumerate/read instance manifests just by walking `~/.tesseron/`.
  */
 export async function writeInstanceManifest(inst: InstanceManifestInput): Promise<void> {
-  await ensureInstancesDir();
   const file = join(getInstancesDir(), `${inst.instanceId}.json`);
-  await writeFile(
+  await writePrivateFile(
     file,
     JSON.stringify(
       {
@@ -137,7 +148,7 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
           if (protocols.includes(GATEWAY_SUBPROTOCOL)) return;
 
           wss.handleUpgrade(req, socket, head, (ws) => {
-            const instanceId = `inst-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            const instanceId = generateInstanceId();
             const wsUrl = `${serverUrl.replace(/^http/, 'ws')}${WS_PATH_PREFIX}/${instanceId}`;
             const appName =
               options.appName ??

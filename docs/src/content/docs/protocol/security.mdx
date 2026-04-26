@@ -46,7 +46,7 @@ Even from a permitted origin, the session is inert until claimed. The flow:
 
 The claim code is **never sent on the WebSocket from the gateway to the agent** - the user carries it across. That's the whole point: it's a human-performed authorisation gesture, not an electronic one.
 
-Strength: ~1.5 billion possible codes (6 positions × ~32 unambiguous alphanumerics). A brute-force attacker would need ~750M tries for a 50% hit rate. Codes are single-use; a failed match does not retry.
+Strength: ~1.5 billion possible codes (6 positions × ~32 unambiguous alphanumerics), drawn uniformly from the platform CSPRNG (`crypto.getRandomValues`) with rejection sampling — not `Math.random()`, which is not cryptographically secure. A brute-force attacker would need ~750M tries for a 50% hit rate. Codes are single-use; a failed match does not retry.
 
 ## Multi-app coexistence
 
@@ -85,6 +85,7 @@ This means you can, without coordinating, keep your dashboard and your customer 
 ## Operational tips
 
 - **Bind to `127.0.0.1`, never `0.0.0.0`.** The default in `@tesseron/server` and `@tesseron/vite` is loopback-only; don't override it unless you know exactly why. UDS hosts go through `os.tmpdir()` with a private (mode 0700) directory.
+- **`~/.tesseron/` files are written private (mode 0600 inside a 0700 directory).** Instance manifests and claim breadcrumbs are owner-only on POSIX. Sibling processes running as the same user can still open them — same-UID enforcement is the OS's job — but cross-user enumeration is closed. On Windows POSIX modes are advisory; the OS user model is the gate, same caveat as the UDS binding spec.
 - **Treat the claim code as short-lived.** Don't render it persistently in the UI after the session is claimed.
 - **Clean up instance manifests on app exit.** The built-in SDKs do this for you; if you port to a new runtime, handle the shutdown path so stale files don't pile up.
 - **Log the `agent.id` that claimed the session** - useful for auditing which agent actually ran which action.
