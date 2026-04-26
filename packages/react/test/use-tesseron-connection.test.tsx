@@ -42,8 +42,10 @@ interface ConnectCall {
 function makeFakeClient(plan: Array<WelcomeResult | TesseronError | Error>): {
   client: WebTesseronClient;
   calls: ConnectCall[];
+  emitWelcomeChange: (welcome: WelcomeResult) => void;
 } {
   const calls: ConnectCall[] = [];
+  const welcomeListeners = new Set<(w: WelcomeResult) => void>();
   let i = 0;
   const client = {
     connect: vi.fn(async (url?: string, options?: ConnectOptions) => {
@@ -53,8 +55,17 @@ function makeFakeClient(plan: Array<WelcomeResult | TesseronError | Error>): {
       if (next instanceof Error) throw next;
       return next;
     }),
+    onWelcomeChange: (listener: (w: WelcomeResult) => void) => {
+      welcomeListeners.add(listener);
+      return () => {
+        welcomeListeners.delete(listener);
+      };
+    },
   } as unknown as WebTesseronClient;
-  return { client, calls };
+  const emitWelcomeChange = (welcome: WelcomeResult): void => {
+    for (const l of welcomeListeners) l(welcome);
+  };
+  return { client, calls, emitWelcomeChange };
 }
 
 function ConnectionProbe(props: {
@@ -358,6 +369,41 @@ describe('useTesseronConnection - resume: ResumeStorage (custom backend)', () =>
     expect(state.status).toBe('open');
     expect(state.welcome).toEqual(fresh);
     expect(backend.save).toHaveBeenCalled();
+  });
+
+  it('clears claimCode and updates agent when the gateway emits tesseron/claimed', async () => {
+    const fresh = makeWelcome({ resumeToken: 'tok-A', claimCode: 'AAA-BBB' });
+    const { client, emitWelcomeChange } = makeFakeClient([fresh]);
+
+    let latest: TesseronConnectionState = { status: 'idle' };
+    await act(async () => {
+      render(
+        <ConnectionProbe
+          client={client}
+          onState={(s) => {
+            latest = s;
+          }}
+        />,
+      );
+    });
+    await waitFor(() => {
+      expect(latest.status).toBe('open');
+    });
+    expect(latest.claimCode).toBe('AAA-BBB');
+
+    // The gateway-side claim handler triggers tesseron/claimed; the SDK
+    // updates `welcome` and our hook should clear claimCode in state.
+    await act(async () => {
+      emitWelcomeChange({
+        ...fresh,
+        agent: { id: 'claude-code', name: 'Claude Code' },
+        claimCode: undefined,
+      });
+    });
+
+    expect(latest.status).toBe('open');
+    expect(latest.claimCode).toBeUndefined();
+    expect(latest.welcome?.agent).toEqual({ id: 'claude-code', name: 'Claude Code' });
   });
 
   it('still falls back to a fresh hello when clear() throws during ResumeFailed recovery', async () => {

@@ -19504,7 +19504,8 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
   /**
    * Attempts to claim a pending session by its claim code. Returns the claimed
    * session, or `null` if the code is unknown or already consumed. Emits
-   * `sessions-changed` on success.
+   * `sessions-changed` on success and a `tesseron/claimed` notification to the
+   * SDK so consumers can clear the now-spent `claimCode` from their UI.
    */
   claimSession(claimCode) {
     const sessionId = this.pendingClaims.get(claimCode.toUpperCase());
@@ -19514,6 +19515,19 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     session.claimed = true;
     session.claimedAt = Date.now();
     this.pendingClaims.delete(claimCode.toUpperCase());
+    try {
+      session.dispatcher.notify("tesseron/claimed", {
+        agent: {
+          id: this.agentCapabilities.clientName ?? "unknown",
+          name: this.agentCapabilities.clientName ?? "unknown"
+        },
+        claimedAt: session.claimedAt
+      });
+    } catch (err) {
+      logToStderr(
+        `[tesseron] failed to notify SDK of claim for ${session.id}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
     this.emit("sessions-changed");
     return session;
   }

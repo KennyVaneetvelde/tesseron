@@ -291,11 +291,26 @@ export interface TesseronMethods {
   'resources/unsubscribe': { params: ResourceUnsubscribeParams; result: undefined };
 }
 
+/**
+ * Parameters of the `tesseron/claimed` notification sent by the gateway to the
+ * SDK when an agent calls `tesseron__claim_session` on a session that was
+ * previously in the awaiting-claim state. After this notification fires, the
+ * session's `claimCode` is consumed and no longer claimable; consumers
+ * displaying the code should clear it.
+ */
+export interface ClaimedParams {
+  /** Identity of the agent that just claimed this session. */
+  agent: AgentIdentity;
+  /** Wall-clock timestamp (ms) at which the claim was processed. */
+  claimedAt: number;
+}
+
 export interface TesseronNotifications {
   'actions/progress': ActionProgressParams;
   'actions/cancel': ActionCancelParams;
   'actions/list_changed': { actions: ActionManifestEntry[] };
   'resources/list_changed': { resources: ResourceManifestEntry[] };
   'resources/updated': ResourceUpdatedParams;
+  'tesseron/claimed': ClaimedParams;
   log: LogParams;
 }

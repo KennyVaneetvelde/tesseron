@@ -340,8 +340,24 @@ export function useTesseronConnection(
       });
     });
 
+    // Subscribe to server-driven welcome updates. Currently only fires on
+    // `tesseron/claimed` (which clears `claimCode` and updates `agent`),
+    // but the API is generic so future welcome-mutating notifications get
+    // surfaced for free. The unsubscribe runs on unmount or dep change.
+    const unsubscribe = client.onWelcomeChange((welcome) => {
+      if (cancelled) return;
+      setState((prev) => {
+        // Only patch when we're already 'open'; otherwise the welcome update
+        // arrived during connect() and the run() block above will deliver
+        // the consistent state.
+        if (prev.status !== 'open') return prev;
+        return { ...prev, welcome, claimCode: welcome.claimCode };
+      });
+    });
+
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [enabled, url, client]);
 
