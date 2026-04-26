@@ -167,6 +167,23 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
             return;
           }
 
+          // Single-owner binding. The first gateway to upgrade owns the
+          // session for this instance; later upgrades on the same
+          // instanceId would overwrite `entry.gatewayWs` and silently split
+          // the bridge - the welcome+claim code already left through the
+          // first gateway, so the user-visible code can no longer be
+          // claimed via the second one. Reject with HTTP 409 and let the
+          // race-loser's `dialed.opened` reject; its dispatcher then
+          // backs off via the gateway's poll loop instead of fighting.
+          if (entry.gatewayWs) {
+            process.stderr.write(
+              `[tesseron-vite] rejecting second gateway upgrade for instance ${instanceId} (already bound; first-gateway-wins). See tesseron#53.\n`,
+            );
+            socket.write('HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+
           wss.handleUpgrade(req, socket, head, (ws) => {
             entry.gatewayWs = ws;
 
