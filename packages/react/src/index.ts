@@ -301,9 +301,9 @@ export function useTesseronConnection(
 
     const storage = resolveResumeStorage(resumeRef.current);
 
-    const connectOnce = async (
-      options?: { resume?: ResumeCredentials },
-    ): Promise<WelcomeResult> => {
+    const connectOnce = async (options?: {
+      resume?: ResumeCredentials;
+    }): Promise<WelcomeResult> => {
       const t = new BrowserWebSocketTransport(url ?? DEFAULT_GATEWAY_URL);
       transport = t;
       await t.ready();
