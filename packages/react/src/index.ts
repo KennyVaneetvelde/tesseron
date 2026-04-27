@@ -2,6 +2,8 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import {
   type ActionAnnotations,
   type ActionContext,
+  BrowserWebSocketTransport,
+  DEFAULT_GATEWAY_URL,
   type ResumeCredentials,
   TesseronError,
   TesseronErrorCode,
@@ -176,6 +178,22 @@ export interface UseTesseronConnectionOptions {
  */
 export type TesseronResumeStatus = 'none' | 'resumed' | 'failed';
 
+/**
+ * Sentinel thrown when {@link useTesseronConnection}'s effect detects that
+ * cleanup has already fired. The outer `run().catch` checks for this type
+ * and skips `setState({ status: 'error' })` — without the sentinel a future
+ * refactor that drops the redundant `cancelled` re-check could surface
+ * "useTesseronConnection: cancelled" as a UI error string.
+ *
+ * Internal — not exported from the package.
+ */
+class CancelledError extends Error {
+  constructor() {
+    super('useTesseronConnection: effect cancelled before connect resolved');
+    this.name = 'CancelledError';
+  }
+}
+
 /** Reactive connection state returned from {@link useTesseronConnection}. */
 export interface TesseronConnectionState {
   status: 'idle' | 'connecting' | 'open' | 'error' | 'closed';
@@ -269,9 +287,40 @@ export function useTesseronConnection(
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    // Own the transport here rather than letting `client.connect(url)`
+    // construct one internally. React 18 StrictMode mounts the effect
+    // twice (mount → cleanup → re-mount); without an owned transport, the
+    // first mount's WebSocket leaks past cleanup and races the second
+    // mount's connect over the singleton client's `this.transport`. With
+    // the hook holding the ref, cleanup closes the in-flight WS
+    // unconditionally — the dispatcher's pending hello/resume rejects
+    // cleanly via TransportClosedError and the second mount proceeds with
+    // its own fresh transport. See tesseron#68.
+    let transport: BrowserWebSocketTransport | null = null;
     setState({ status: 'connecting' });
 
     const storage = resolveResumeStorage(resumeRef.current);
+
+    const connectOnce = async (options?: {
+      resume?: ResumeCredentials;
+    }): Promise<WelcomeResult> => {
+      const t = new BrowserWebSocketTransport(url ?? DEFAULT_GATEWAY_URL);
+      transport = t;
+      await t.ready();
+      if (cancelled) {
+        // Cleanup ran during the await. Two paths converge here:
+        //   - Cleanup's `transport?.close()` fired before `t.ready()`
+        //     resolved → ready() rejected → we never reach this line.
+        //   - The open handshake won the race and ready() resolved
+        //     before cleanup closed `t` → close `t` ourselves and bail.
+        // The `transport` ref always points at the most recently
+        // constructed `t` (each call to connectOnce overwrites it), so
+        // cleanup closes whichever connect is in flight.
+        t.close();
+        throw new CancelledError();
+      }
+      return client.connect(t, options);
+    };
 
     const run = async (): Promise<void> => {
       let saved: ResumeCredentials | null = null;
@@ -288,7 +337,7 @@ export function useTesseronConnection(
       let welcome: WelcomeResult;
       let resumeStatus: TesseronResumeStatus = 'none';
       try {
-        welcome = await client.connect(url, saved ? { resume: saved } : undefined);
+        welcome = await connectOnce(saved ? { resume: saved } : undefined);
         if (saved) resumeStatus = 'resumed';
       } catch (err) {
         if (saved && err instanceof TesseronError && err.code === TesseronErrorCode.ResumeFailed) {
@@ -304,7 +353,7 @@ export function useTesseronConnection(
             }
           }
           if (cancelled) return;
-          welcome = await client.connect(url);
+          welcome = await connectOnce();
           resumeStatus = 'failed';
         } else {
           throw err;
@@ -333,7 +382,7 @@ export function useTesseronConnection(
     };
 
     run().catch((error: unknown) => {
-      if (cancelled) return;
+      if (cancelled || error instanceof CancelledError) return;
       setState({
         status: 'error',
         error: error instanceof Error ? error : new Error(String(error)),
@@ -358,6 +407,12 @@ export function useTesseronConnection(
     return () => {
       cancelled = true;
       unsubscribe();
+      // Close any in-flight transport. If it was still in the open
+      // handshake, the patched `ready()` rejects on close so `run()`
+      // unwinds cleanly. If it was past handshake, the core client's
+      // `transport.onClose` handler clears `this.dispatcher` /
+      // `this.welcome` and rejects pending dispatcher requests.
+      transport?.close();
     };
   }, [enabled, url, client]);
 

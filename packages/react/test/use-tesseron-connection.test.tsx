@@ -1,12 +1,15 @@
 import {
+  BrowserWebSocketTransport,
   type ConnectOptions,
   type ResumeCredentials,
   TesseronError,
   TesseronErrorCode,
+  type Transport,
   type WebTesseronClient,
   type WelcomeResult,
 } from '@tesseron/web';
 import { act, render, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type ResumeStorage,
@@ -16,6 +19,47 @@ import {
 } from '../src/index.js';
 
 const STORAGE_KEY = 'tesseron:resume';
+
+// jsdom doesn't ship a working WebSocket. The hook owns the transport and
+// awaits `transport.ready()` before calling `client.connect(transport)` so
+// the open handshake must succeed for the test flow to reach the fake
+// client. Stub a minimal WebSocket that fires 'open' on the next microtask
+// and exposes the standard listener / close API.
+class FakeWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readyState: number = FakeWebSocket.CONNECTING;
+  url: string;
+  private listeners = new Map<string, Set<(ev: unknown) => void>>();
+  constructor(url: string) {
+    this.url = url;
+    queueMicrotask(() => {
+      this.readyState = FakeWebSocket.OPEN;
+      for (const l of this.listeners.get('open') ?? []) l({ type: 'open' });
+    });
+  }
+  addEventListener(type: string, fn: (ev: unknown) => void): void {
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(fn);
+  }
+  removeEventListener(type: string, fn: (ev: unknown) => void): void {
+    this.listeners.get(type)?.delete(fn);
+  }
+  send(): void {}
+  close(_code?: number, reason?: string): void {
+    this.readyState = FakeWebSocket.CLOSED;
+    queueMicrotask(() => {
+      for (const l of this.listeners.get('close') ?? []) l({ type: 'close', reason });
+    });
+  }
+}
+const RealWebSocket = globalThis.WebSocket;
 
 function makeWelcome(overrides: Partial<WelcomeResult> = {}): WelcomeResult {
   return {
@@ -48,7 +92,17 @@ function makeFakeClient(plan: Array<WelcomeResult | TesseronError | Error>): {
   const welcomeListeners = new Set<(w: WelcomeResult) => void>();
   let i = 0;
   const client = {
-    connect: vi.fn(async (url?: string, options?: ConnectOptions) => {
+    // Hook now passes a Transport to client.connect (so it can own the
+    // socket and close it cleanly on unmount). The fake only cares about
+    // the URL the transport was constructed with — captured here so the
+    // existing url-passthrough tests still work.
+    connect: vi.fn(async (target?: Transport | string, options?: ConnectOptions) => {
+      const url =
+        typeof target === 'string'
+          ? target
+          : target && 'url' in target && typeof (target as { url?: unknown }).url === 'string'
+            ? (target as { url: string }).url
+            : undefined;
       calls.push({ url, options });
       const next = plan[i++];
       if (!next) throw new Error('no more planned responses');
@@ -102,10 +156,14 @@ async function renderUntilOpenOrError(
 
 beforeEach(() => {
   window.localStorage.clear();
+  // @ts-expect-error - jsdom's WebSocket is a stub; replace with a fake
+  // that opens synchronously for the duration of each test.
+  globalThis.WebSocket = FakeWebSocket;
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  globalThis.WebSocket = RealWebSocket;
 });
 
 describe('useTesseronConnection - default behaviour (no resume)', () => {
@@ -425,5 +483,216 @@ describe('useTesseronConnection - resume: ResumeStorage (custom backend)', () =>
     expect(state.welcome?.sessionId).toBe('s-new');
     expect(calls).toHaveLength(2);
     expect(backend.clear).toHaveBeenCalled();
+  });
+});
+
+describe('BrowserWebSocketTransport.ready() (tesseron#68)', () => {
+  it('rejects when the socket closes before the open handshake completes', async () => {
+    const sockets: Array<{
+      readyState: number;
+      listeners: Map<string, Set<(ev: unknown) => void>>;
+      close(): void;
+    }> = [];
+    class StalledWebSocket {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+      readyState: number = StalledWebSocket.CONNECTING;
+      url: string;
+      listeners = new Map<string, Set<(ev: unknown) => void>>();
+      constructor(url: string) {
+        this.url = url;
+        sockets.push(this);
+      }
+      addEventListener(type: string, fn: (ev: unknown) => void): void {
+        let set = this.listeners.get(type);
+        if (!set) {
+          set = new Set();
+          this.listeners.set(type, set);
+        }
+        set.add(fn);
+      }
+      removeEventListener(type: string, fn: (ev: unknown) => void): void {
+        this.listeners.get(type)?.delete(fn);
+      }
+      send(): void {}
+      close(): void {
+        this.readyState = StalledWebSocket.CLOSED;
+        queueMicrotask(() => {
+          for (const l of this.listeners.get('close') ?? []) l({ type: 'close' });
+        });
+      }
+    }
+    // @ts-expect-error - swap stub
+    globalThis.WebSocket = StalledWebSocket;
+
+    const transport = new BrowserWebSocketTransport('ws://test.invalid/x');
+    expect(sockets).toHaveLength(1);
+
+    // Trigger the close-before-open path.
+    sockets[0]!.close();
+
+    await expect(transport.ready()).rejects.toThrow(/closed before open/);
+  });
+
+  it('does not crash with unhandledRejection when no caller awaits ready()', async () => {
+    // Regression for the .catch(() => {}) noop swallow at transport.ts.
+    // Constructing a transport and immediately closing it without ever
+    // calling ready() must not produce an unhandled rejection — vitest
+    // strict mode would fail the test if it did.
+    class StalledWebSocket {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+      readyState: number = StalledWebSocket.CONNECTING;
+      url: string;
+      listeners = new Map<string, Set<(ev: unknown) => void>>();
+      constructor(url: string) {
+        this.url = url;
+      }
+      addEventListener(type: string, fn: (ev: unknown) => void): void {
+        let set = this.listeners.get(type);
+        if (!set) {
+          set = new Set();
+          this.listeners.set(type, set);
+        }
+        set.add(fn);
+      }
+      removeEventListener(type: string, fn: (ev: unknown) => void): void {
+        this.listeners.get(type)?.delete(fn);
+      }
+      send(): void {}
+      close(): void {
+        this.readyState = StalledWebSocket.CLOSED;
+        queueMicrotask(() => {
+          for (const l of this.listeners.get('close') ?? []) l({ type: 'close' });
+        });
+      }
+    }
+    // @ts-expect-error - swap stub
+    globalThis.WebSocket = StalledWebSocket;
+
+    const t = new BrowserWebSocketTransport('ws://test.invalid/y');
+    t.close();
+    // Drain microtasks so the close handler's reject() has a chance to fire.
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    // If the .catch(() => {}) is removed, this test process would crash
+    // before reaching here under strict unhandledRejection settings.
+    expect(true).toBe(true);
+  });
+});
+
+describe('useTesseronConnection - StrictMode / unmount race (tesseron#68)', () => {
+  it('closes the in-flight WebSocket on unmount before the open handshake completes', async () => {
+    // Drop-in WebSocket that NEVER fires 'open' so we can assert the hook
+    // closes the socket explicitly during unmount, the way StrictMode's
+    // double-mount cleanup needs to. Defined inline so it doesn't inherit
+    // the auto-open behaviour of the test-suite's FakeWebSocket.
+    const sockets: Array<{
+      url: string;
+      readyState: number;
+      listeners: Map<string, Set<(ev: unknown) => void>>;
+    }> = [];
+    class StalledWebSocket {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+      readyState: number = StalledWebSocket.CONNECTING;
+      url: string;
+      listeners = new Map<string, Set<(ev: unknown) => void>>();
+      constructor(url: string) {
+        this.url = url;
+        sockets.push(this);
+      }
+      addEventListener(type: string, fn: (ev: unknown) => void): void {
+        let set = this.listeners.get(type);
+        if (!set) {
+          set = new Set();
+          this.listeners.set(type, set);
+        }
+        set.add(fn);
+      }
+      removeEventListener(type: string, fn: (ev: unknown) => void): void {
+        this.listeners.get(type)?.delete(fn);
+      }
+      send(): void {}
+      close(_code?: number, reason?: string): void {
+        this.readyState = StalledWebSocket.CLOSED;
+        queueMicrotask(() => {
+          for (const l of this.listeners.get('close') ?? []) l({ type: 'close', reason });
+        });
+      }
+    }
+    // @ts-expect-error - swap in stalled stub for this test only.
+    globalThis.WebSocket = StalledWebSocket;
+
+    const { client, calls } = makeFakeClient([makeWelcome()]);
+    const { unmount } = render(<ConnectionProbe client={client} onState={() => {}} />);
+
+    // Let the hook construct the transport.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0]!.readyState).toBe(StalledWebSocket.CONNECTING);
+
+    // Unmount before the open handshake completes — the previous
+    // implementation left this WS dangling, so a re-mount in StrictMode
+    // would race over the singleton client.transport. The fix has the
+    // hook own the transport and close it on cleanup.
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(sockets[0]!.readyState).toBe(StalledWebSocket.CLOSED);
+    // client.connect must NOT have been called, because ready() rejected
+    // when the close fired.
+    expect(calls).toHaveLength(0);
+  });
+
+  it('handles React 18 StrictMode double-mount: first connect is cancelled, second one drives state', async () => {
+    // Real reproduction of the tesseron#68 race: StrictMode mounts the
+    // effect twice (mount → cleanup → re-mount) within the same commit.
+    // The fix has the hook own its transport and close it on cleanup so
+    // the first mount's `client.connect` never fires — its `connectOnce`
+    // throws CancelledError when it sees `cancelled = true` after the
+    // (still-resolved-because-FakeWebSocket-auto-opens) `await ready()`.
+    //
+    // Verifies:
+    //   1. status reaches 'open' (no hang from the dropped first connect)
+    //   2. `client.connect` is called exactly once — the first mount's
+    //      connectOnce bails before reaching the fake.
+    //   3. The welcome that lands in state is the one consumed by the
+    //      surviving (second) mount.
+    const welcomes = [makeWelcome({ sessionId: 'survivor' })];
+    const { client, calls } = makeFakeClient(welcomes);
+
+    let latest: TesseronConnectionState = { status: 'idle' };
+    await act(async () => {
+      render(
+        <StrictMode>
+          <ConnectionProbe
+            client={client}
+            onState={(s) => {
+              latest = s;
+            }}
+          />
+        </StrictMode>,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest.status).toBe('open');
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(latest.welcome?.sessionId).toBe('survivor');
+    // No spurious error state from the cancelled first mount.
+    expect(latest.error).toBeUndefined();
   });
 });

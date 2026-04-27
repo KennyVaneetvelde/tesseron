@@ -1,0 +1,17 @@
+---
+'@tesseron/vite': patch
+'@tesseron/web': patch
+'@tesseron/react': patch
+---
+
+Fix `tesseron/resume` hang on the `@tesseron/vite` host-mint path (closes #68). On a fresh page load with stored resume credentials, the SDK sent `tesseron/resume` to the plugin but no handler existed for that method on the host-mint path — the frame just sat in `entry.queue` waiting for a gateway dial that never arrives for an unclaimed instance, and `useTesseronConnection` hung at `status: 'connecting'` forever.
+
+**`@tesseron/vite`.** The host-mint message handler now answers `tesseron/resume` directly with `ResumeFailed` (-32011). Each fresh WS opens a brand-new `PendingInstance` with a brand-new `sessionId` / `resumeToken`, so any incoming resume's tokens are by definition stale. The rejection lets the SDK clear its stored creds and fall back to a fresh `tesseron/hello` on the same socket. The branch is gated on `!entry.helloAnswered` so a (theoretical) mid-session resume post-hello still forwards to the gateway, which has its own `InvalidRequest` handling for that case.
+
+**`@tesseron/web`.** `BrowserWebSocketTransport.ready()` now rejects on `close` in addition to `error`. Without this, closing a CONNECTING socket (which can happen when React 18 StrictMode unmounts mid-handshake) left the `opened` promise unresolved and the hook hung. A no-op `.catch(() => {})` is attached to suppress unhandled-rejection warnings on the orphan reference — vitest with `unhandledRejection: 'strict'` would otherwise crash the test process. The class also now exposes a public `readonly url` field for diagnostics.
+
+**`@tesseron/react`.** `useTesseronConnection` now constructs and owns its `BrowserWebSocketTransport` instead of letting `client.connect(url)` create one internally, and unconditionally closes it on cleanup. This eliminates the StrictMode double-mount race over the singleton client's `this.transport`: each mount has its own transport ref; cleanup closes whichever connect is in flight; the first mount's `connectOnce` throws a `CancelledError` (private sentinel) when it sees `cancelled = true` after `await ready()`, and `run().catch` short-circuits without flipping state to `'error'`.
+
+**Tests.** `packages/vite/test/resume-rejection.test.ts` boots the plugin against a real HTTP server and verifies (a) `tesseron/resume` returns `ResumeFailed` and (b) a follow-up `tesseron/hello` on the same socket still synthesizes a welcome. `packages/react/test/use-tesseron-connection.test.tsx` adds direct coverage for `BrowserWebSocketTransport.ready()` rejecting on close, the `.catch(() => {})` not crashing under strict unhandled-rejection settings, an unmount-during-handshake regression test, and a real `<StrictMode>` double-mount test that asserts `client.connect` is called exactly once and the surviving mount drives final state.
+
+**End-to-end validation.** Verified against the `examples/react-todo` Vite dev server in a real browser: page refresh with stored resume creds reaches `Status: open` with a fresh claim code in <1s (was hanging forever). Multiple consecutive refreshes each yield a fresh claim. Claimed the new session via `tesseron__claim_session`, invoked `todos__addTodo` via MCP, and read `todoStats` — bidirectional flow works. Refresh-while-claimed cleanly invalidates the previous session and shows a fresh claim code; the agent's stale tools drop from the MCP tool list.
