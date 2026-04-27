@@ -232,12 +232,8 @@ describe('host-minted claim flow (tesseron#60)', () => {
       hostMintedResumeToken: 'r_test_claim'.padEnd(32, 'x'),
     });
     await host.start();
-    // Wait for discovery to register the manifest.
     await new Promise((r) => setTimeout(r, 2500));
 
-    // The bridge calls this from `tesseron__claim_session`; here we
-    // exercise the gateway directly so the test stays focused on the
-    // claim-mediated dial path.
     const claimPromise = gateway.claimSession('CLAM-99');
     const welcome = (await host.awaitWelcome()) as {
       sessionId: string;
@@ -253,11 +249,47 @@ describe('host-minted claim flow (tesseron#60)', () => {
     // The gateway's v3 welcome must NOT echo a claim code — that would
     // race the host's synthesized welcome and confuse the SDK.
     expect(welcome.claimCode).toBeUndefined();
-    // The gateway's resumeToken in the v3 welcome is its own; the host's
-    // resume token is what the SDK saw earlier from the synthesized
-    // welcome. They're independent — the resume flow re-issues on every
-    // handshake.
-    expect(typeof welcome.resumeToken).toBe('string');
+    // **Critical contract.** The gateway's session ledger MUST use the
+    // host-minted `sessionId` and `resumeToken`, not freshly-generated
+    // values. Without this guarantee the SDK's stored credentials
+    // (which it received from the host's synthesized welcome) would
+    // diverge from what the gateway has, and `tesseron/resume` would
+    // fail to find any zombie under the host's id. This is the bug
+    // the PR review caught.
+    expect(session?.id).toBe('s_test_claim');
+    expect(session?.resumeToken).toBe('r_test_claim'.padEnd(32, 'x'));
+    // Same values appear in the welcome the gateway returned through
+    // the bound channel; the plugin discards this welcome by id but
+    // we assert here that it was correct.
+    expect(welcome.sessionId).toBe('s_test_claim');
+    expect(welcome.resumeToken).toBe('r_test_claim'.padEnd(32, 'x'));
+  });
+
+  it('refuses concurrent claimSession for the same instance (no resolver clobber)', async () => {
+    const host = newHost({
+      appId: 'concurrentapp',
+      appName: 'concurrent-claim',
+      hostMintedCode: 'CONC-77',
+      hostMintedSessionId: 's_test_conc',
+      hostMintedResumeToken: 'r_test_conc'.padEnd(32, 'x'),
+    });
+    await host.start();
+    await new Promise((r) => setTimeout(r, 2500));
+
+    // Fire two concurrent claim attempts for the same code. Without
+    // the concurrency guard the second `set()` on the resolver map
+    // would overwrite the first, leaving the first promise hanging
+    // forever. With the guard, the second call returns null
+    // immediately while the first proceeds normally.
+    const first = gateway.claimSession('CONC-77');
+    const second = gateway.claimSession('CONC-77');
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    // One of them succeeds (whichever set up the resolver first); the
+    // other is refused. Order is timing-dependent.
+    const succeeded = [firstResult, secondResult].filter((r) => r !== null);
+    const refused = [firstResult, secondResult].filter((r) => r === null);
+    expect(succeeded).toHaveLength(1);
+    expect(refused).toHaveLength(1);
   });
 
   it('returns null for a code that does not match any host-minted manifest', async () => {

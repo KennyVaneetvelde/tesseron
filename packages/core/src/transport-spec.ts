@@ -96,6 +96,19 @@ export interface HostMintedClaim {
   code: string;
   /** Opaque session id minted by the host; mirrors `WelcomeResult.sessionId`. */
   sessionId: string;
+  /**
+   * Resume token paired with `sessionId`. Bearer credential the SDK
+   * presents on `tesseron/resume` after a transport drop. The gateway
+   * reads this on dial so its session ledger uses the same value the
+   * SDK already stored from the host's synthesized welcome — without
+   * the shared value, resume always fails in v3 mode (the gateway
+   * would generate its own and the SDK's stored token wouldn't match
+   * any zombie). Same on-disk threat model as `code`: file mode 0o600
+   * gates cross-user reads (PR #62), same-user enumeration is the OS's
+   * responsibility, and the user-typed claim into the MCP agent is the
+   * real authentication.
+   */
+  resumeToken: string;
   /** Unix-millis timestamp when the host minted the code. */
   mintedAt: number;
   /**

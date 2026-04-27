@@ -23,6 +23,9 @@ export interface TesseronViteOptions {
  * a binary frame. */
 type BridgePayload = string | RawData;
 
+/** Mirrors `HostMintedClaim` from `@tesseron/core/transport-spec`. The local */
+/* alias keeps the Vite plugin from depending on the core type's import */
+/* surface for what's a single-property descriptor used here. */
 interface HostMintedClaim {
   code: string;
   sessionId: string;
@@ -409,11 +412,25 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
                 // matches the existing `tesseron/welcome` shape for an
                 // unclaimed session — the gateway's `tesseron/claimed`
                 // notification (forwarded later) flips it to the real
-                // identity.
+                // identity AND overwrites `capabilities` with the
+                // gateway's authoritative bits via the new
+                // `agentCapabilities` field on the notification.
+                //
+                // **Conservative pre-claim capabilities.** The host has
+                // no way of knowing which sampling / elicitation
+                // features the eventual MCP client supports, so it
+                // reports `false` for both. Action handlers that gate
+                // on `ctx.agentCapabilities.sampling` will see this as
+                // "not available" until the claimed notification flips
+                // it. Echoing `helloParams.capabilities` here would
+                // surface the SDK's *own* capability bits — wrong, and
+                // the source of a sampling-handler bug where the
+                // capability check passes locally but the gateway
+                // can't actually deliver.
                 const synthesizedWelcome: WelcomeResult = {
                   sessionId: entry.hostMintedClaim.sessionId,
                   protocolVersion: PROTOCOL_VERSION,
-                  capabilities: helloParams?.capabilities ?? {
+                  capabilities: {
                     streaming: true,
                     subscriptions: true,
                     sampling: false,
@@ -432,9 +449,14 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
                   entry.browserWs.send(JSON.stringify(welcomeResponse));
                 }
 
-                // Replay the hello to the gateway with a unique id we
-                // can drop on the way back.
-                entry.helloReplayId = `__tesseron-host-replay-${Date.now().toString(36)}`;
+                // Replay the hello to the gateway with a UUID-anchored id
+                // we can drop on the way back. The id has to be
+                // collision-resistant across instances: two instances
+                // bound within the same millisecond would otherwise
+                // share an id and the cross-instance discard logic
+                // would drop each other's frames. `crypto.randomUUID()`
+                // is 122 bits of entropy and unique per call.
+                entry.helloReplayId = `__tesseron-host-replay-${globalThis.crypto.randomUUID()}`;
                 const replayFrame = JSON.stringify({
                   jsonrpc: '2.0',
                   id: entry.helloReplayId,

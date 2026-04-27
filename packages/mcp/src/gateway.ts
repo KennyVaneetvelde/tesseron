@@ -347,7 +347,20 @@ export class TesseronGateway extends EventEmitter {
   async connectToApp(
     instanceId: string,
     spec: TransportSpec,
-    options: { bindCode?: string } = {},
+    options: {
+      bindCode?: string;
+      /**
+       * Host-minted session id from the manifest's `hostMintedClaim`. When
+       * present, the v3 hello handler uses it as the session's identity
+       * instead of generating a fresh one. The SDK has already stored this
+       * value (it came back in the host's synthesized welcome), so reusing
+       * it here is what makes `tesseron/resume` line up between SDK and
+       * gateway after a transport drop.
+       */
+      hostMintedSessionId?: string;
+      /** Host-minted resume token, paired with `hostMintedSessionId`. */
+      hostMintedResumeToken?: string;
+    } = {},
   ): Promise<void> {
     if (this.connected.has(instanceId)) return;
     const dialer = this.dialers.get(spec.kind);
@@ -360,7 +373,14 @@ export class TesseronGateway extends EventEmitter {
     const dialed = dialer.dial(spec as never, { bindCode: options.bindCode });
     this.connected.set(instanceId, dialed);
     const bindContext =
-      options.bindCode !== undefined ? { instanceId, code: options.bindCode } : undefined;
+      options.bindCode !== undefined
+        ? {
+            instanceId,
+            code: options.bindCode,
+            hostMintedSessionId: options.hostMintedSessionId,
+            hostMintedResumeToken: options.hostMintedResumeToken,
+          }
+        : undefined;
     this.handleConnection(dialed.transport, undefined, bindContext);
     dialed.onClose(() => {
       this.connected.delete(instanceId);
@@ -644,6 +664,16 @@ export class TesseronGateway extends EventEmitter {
           name: clientName ?? 'Awaiting agent',
         },
         claimedAt: session.claimedAt,
+        // Send authoritative gateway capabilities on the legacy path
+        // too, so a v1.2 SDK paired with this gateway always sees the
+        // updated values regardless of which mint flow ran. v1.1 SDKs
+        // ignore the unknown field.
+        agentCapabilities: {
+          streaming: true,
+          subscriptions: true,
+          sampling: this.agentCapabilities.sampling,
+          elicitation: this.agentCapabilities.elicitation,
+        },
       });
       this.emit('sessions-changed');
       return session;
@@ -658,20 +688,42 @@ export class TesseronGateway extends EventEmitter {
     for (const [instanceId, manifest] of this.hostMintedInstances) {
       const minted = manifest.hostMintedClaim;
       if (!minted || minted.code.toUpperCase() !== upper) continue;
-      if (minted.boundAgent !== null) {
-        // Manifest reports the code is already spent. Treat as foreign-
-        // claim-style miss; the bridge surfaces a useful message.
+
+      // Concurrency guard: a `tesseron__claim_session` retry while the
+      // first call is still in flight would clobber the deferred and
+      // leave the first promise hanging forever. Refuse the retry
+      // explicitly. The bridge will produce a "no pending session"
+      // message; the operator can re-paste once the first attempt
+      // resolves.
+      if (this.hostMintedClaimResolvers.has(instanceId)) {
+        this.emitDiscoveryLog({
+          level: 'warning',
+          message: `host-mint claim already in flight for instance ${instanceId}; refusing concurrent retry`,
+          instanceId,
+          meta: { code: upper },
+        });
         return null;
       }
+
       // Set up the deferred BEFORE dialing so the in-process synchronous
       // hello handler can resolve it without a tick race.
       const claimed = new Promise<Session>((resolve, reject) => {
         this.hostMintedClaimResolvers.set(instanceId, { resolve, reject });
       });
       try {
-        await this.connectToApp(instanceId, manifest.transport, { bindCode: minted.code });
+        await this.connectToApp(instanceId, manifest.transport, {
+          bindCode: minted.code,
+          hostMintedSessionId: minted.sessionId,
+          hostMintedResumeToken: minted.resumeToken,
+        });
       } catch (err) {
         this.hostMintedClaimResolvers.delete(instanceId);
+        // Ensure a partially-failed dial doesn't strand `connected` with
+        // a half-open entry — the next claim attempt would otherwise
+        // short-circuit at `connectToApp`'s `if (this.connected.has)`
+        // and never re-register the bind context, leaving the new
+        // deferred to time out at 5 s.
+        this.connected.delete(instanceId);
         this.emitDiscoveryLog({
           level: 'warning',
           message: `host-mint dial for instance ${instanceId} failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -702,6 +754,10 @@ export class TesseronGateway extends EventEmitter {
         return session;
       } catch (err) {
         clearTimeout(timer);
+        // Same connected-state cleanup as the dial-failure path:
+        // without it, a timed-out claim leaves an orphan in `connected`
+        // that blocks every retry from re-entering the bind flow.
+        this.connected.delete(instanceId);
         this.emitDiscoveryLog({
           level: 'warning',
           message: `host-mint claim for instance ${instanceId} failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -837,7 +893,12 @@ export class TesseronGateway extends EventEmitter {
   handleConnection(
     transport: Transport,
     origin?: string,
-    bindContext?: { instanceId: string; code: string },
+    bindContext?: {
+      instanceId: string;
+      code: string;
+      hostMintedSessionId?: string;
+      hostMintedResumeToken?: string;
+    },
   ): void {
     const dispatcher = new JsonRpcDispatcher((message) => {
       try {
@@ -962,19 +1023,23 @@ export class TesseronGateway extends EventEmitter {
         helloParams.app.origin = origin;
       }
 
-      const sessionId = generateSessionId();
-      const resumeToken = generateResumeToken();
-
       // Host-minted-claim path: the gateway dialed in response to a
       // `tesseron__claim_session` call that matched a manifest with
       // `helloHandledByHost: true`. The bind code already authenticated the
       // dial via the `tesseron-bind.<code>` subprotocol; the session is born
-      // claimed and there's no pending-claims registration. The host (Vite
-      // plugin / `@tesseron/server`) already showed the user-typed code in
-      // its synthesized welcome, so the gateway's welcome MUST NOT echo
-      // another claim code — that would race the host's UI and confuse
-      // consumers. See tesseron#60.
+      // claimed and there's no pending-claims registration.
+      //
+      // **Identity comes from the host.** The SDK has already stored the
+      // `sessionId` and `resumeToken` from the host's synthesized welcome.
+      // If the gateway minted fresh values here they would diverge from
+      // what the SDK has, and a later `tesseron/resume` (presented with
+      // the SDK's values) would fail to find any zombie under the
+      // gateway-minted id. We reuse the host-minted values so the
+      // gateway's session ledger and the SDK's stored credentials line up.
+      // See tesseron#60.
       if (bindContext) {
+        const sessionId = bindContext.hostMintedSessionId ?? generateSessionId();
+        const resumeToken = bindContext.hostMintedResumeToken ?? generateResumeToken();
         const claimedAt = Date.now();
         const clientName = this.agentCapabilities.clientName;
         const agent: AgentIdentity = {
@@ -1011,30 +1076,44 @@ export class TesseronGateway extends EventEmitter {
         // the dispatcher's response goes out, so the SDK sees welcome then
         // claimed in order. The bridge separately listens to
         // `sessions-changed` to refresh the MCP tool list.
+        //
+        // Carries the gateway's authoritative `agentCapabilities` so the
+        // SDK can overwrite the conservative pre-claim defaults the host
+        // synthesized. Without this, action handlers in v3 mode see
+        // `ctx.agentCapabilities.sampling/elicitation` reflecting the
+        // SDK's own capabilities rather than the agent's, and the
+        // capability gates fail at runtime instead of at handler entry.
         const claimedSession = session;
+        const claimedCapabilities = {
+          streaming: true,
+          subscriptions: true,
+          sampling: this.agentCapabilities.sampling,
+          elicitation: this.agentCapabilities.elicitation,
+        };
         setImmediate(() => {
           try {
             claimedSession.dispatcher.notify('tesseron/claimed', {
               agent,
               claimedAt,
+              agentCapabilities: claimedCapabilities,
             });
-          } catch {
-            // The transport may have closed between scheduling and now;
-            // a missed notification only means the SDK keeps an already-
-            // spent code in its UI for one more session. Not worth
-            // surfacing.
+          } catch (err) {
+            // Narrow the swallow: TransportClosedError is the expected
+            // race between scheduling and now. Anything else points at
+            // a real regression in the dispatcher and deserves a log
+            // line so the operator isn't debugging a silently-stuck
+            // claim-code-in-UI symptom hours later.
+            if (!(err instanceof TransportClosedError)) {
+              const reason = err instanceof Error ? err.message : String(err);
+              logToStderr(`[tesseron] tesseron/claimed notify failed unexpectedly: ${reason}`);
+            }
           }
           this.emit('sessions-changed');
         });
         return {
           sessionId,
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: {
-            streaming: true,
-            subscriptions: true,
-            sampling: this.agentCapabilities.sampling,
-            elicitation: this.agentCapabilities.elicitation,
-          },
+          capabilities: claimedCapabilities,
           agent,
           // No claimCode in the response — the host's synthesized welcome
           // already showed it. Repeating here would race the SDK's UI.
@@ -1042,6 +1121,8 @@ export class TesseronGateway extends EventEmitter {
         };
       }
 
+      const sessionId = generateSessionId();
+      const resumeToken = generateResumeToken();
       const claimCode = generateClaimCode();
       session = {
         id: sessionId,

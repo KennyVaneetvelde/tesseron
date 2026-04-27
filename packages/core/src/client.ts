@@ -302,6 +302,14 @@ export class TesseronClient implements BuilderRegistry {
         ...this.welcome,
         agent: claimed.agent,
         claimCode: undefined,
+        // Merge in authoritative agent capabilities when the gateway
+        // sent them (v1.2+). On the v3 host-mint path the welcome the
+        // SDK first received was synthesized by the host with
+        // conservative defaults; the gateway's real bits arrive here.
+        // v1.1 gateways omit the field — keep the previous value.
+        ...(claimed.agentCapabilities !== undefined
+          ? { capabilities: claimed.agentCapabilities }
+          : {}),
       };
       for (const listener of this.welcomeListeners) {
         try {

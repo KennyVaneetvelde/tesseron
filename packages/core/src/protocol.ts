@@ -303,6 +303,23 @@ export interface ClaimedParams {
   agent: AgentIdentity;
   /** Unix epoch milliseconds at which the gateway processed the claim. */
   claimedAt: number;
+  /**
+   * Negotiated capability bits the gateway will honour for this session
+   * (sampling / elicitation depend on whether the attached MCP client
+   * advertised them; streaming / subscriptions are always `true`). When
+   * present, the SDK overwrites `WelcomeResult.capabilities` so action
+   * handlers gating on `ctx.agentCapabilities.sampling` see authoritative
+   * values rather than the SDK's own pre-claim defaults.
+   *
+   * Optional for back-compat with v1.1 gateways that didn't carry the
+   * field; v1.1 SDKs that don't see it keep using the welcome-time
+   * capabilities, which were authoritative in v1.1 because the gateway
+   * minted the welcome itself. Required-in-spirit for v1.2 hosts that
+   * synthesize the welcome — without it, `ctx.agentCapabilities`
+   * reports the SDK's *own* capabilities, not the gateway's. See
+   * tesseron#60.
+   */
+  agentCapabilities?: TesseronCapabilities;
 }
 
 export interface TesseronNotifications {

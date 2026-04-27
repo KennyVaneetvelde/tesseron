@@ -19542,7 +19542,12 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     }
     const dialed = dialer.dial(spec, { bindCode: options.bindCode });
     this.connected.set(instanceId, dialed);
-    const bindContext = options.bindCode !== void 0 ? { instanceId, code: options.bindCode } : void 0;
+    const bindContext = options.bindCode !== void 0 ? {
+      instanceId,
+      code: options.bindCode,
+      hostMintedSessionId: options.hostMintedSessionId,
+      hostMintedResumeToken: options.hostMintedResumeToken
+    } : void 0;
     this.handleConnection(dialed.transport, void 0, bindContext);
     dialed.onClose(() => {
       this.connected.delete(instanceId);
@@ -19777,7 +19782,17 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           id: clientName ?? "pending",
           name: clientName ?? "Awaiting agent"
         },
-        claimedAt: session.claimedAt
+        claimedAt: session.claimedAt,
+        // Send authoritative gateway capabilities on the legacy path
+        // too, so a v1.2 SDK paired with this gateway always sees the
+        // updated values regardless of which mint flow ran. v1.1 SDKs
+        // ignore the unknown field.
+        agentCapabilities: {
+          streaming: true,
+          subscriptions: true,
+          sampling: this.agentCapabilities.sampling,
+          elicitation: this.agentCapabilities.elicitation
+        }
       });
       this.emit("sessions-changed");
       return session;
@@ -19785,16 +19800,27 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
     for (const [instanceId, manifest] of this.hostMintedInstances) {
       const minted = manifest.hostMintedClaim;
       if (!minted || minted.code.toUpperCase() !== upper) continue;
-      if (minted.boundAgent !== null) {
+      if (this.hostMintedClaimResolvers.has(instanceId)) {
+        this.emitDiscoveryLog({
+          level: "warning",
+          message: `host-mint claim already in flight for instance ${instanceId}; refusing concurrent retry`,
+          instanceId,
+          meta: { code: upper }
+        });
         return null;
       }
       const claimed = new Promise((resolve, reject) => {
         this.hostMintedClaimResolvers.set(instanceId, { resolve, reject });
       });
       try {
-        await this.connectToApp(instanceId, manifest.transport, { bindCode: minted.code });
+        await this.connectToApp(instanceId, manifest.transport, {
+          bindCode: minted.code,
+          hostMintedSessionId: minted.sessionId,
+          hostMintedResumeToken: minted.resumeToken
+        });
       } catch (err) {
         this.hostMintedClaimResolvers.delete(instanceId);
+        this.connected.delete(instanceId);
         this.emitDiscoveryLog({
           level: "warning",
           message: `host-mint dial for instance ${instanceId} failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -19817,6 +19843,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
         return session;
       } catch (err) {
         clearTimeout(timer);
+        this.connected.delete(instanceId);
         this.emitDiscoveryLog({
           level: "warning",
           message: `host-mint claim for instance ${instanceId} failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -20014,9 +20041,9 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
       if (origin && helloParams.app.origin !== origin) {
         helloParams.app.origin = origin;
       }
-      const sessionId = generateSessionId();
-      const resumeToken = generateResumeToken();
       if (bindContext) {
+        const sessionId2 = bindContext.hostMintedSessionId ?? generateSessionId();
+        const resumeToken2 = bindContext.hostMintedResumeToken ?? generateResumeToken();
         const claimedAt = Date.now();
         const clientName = this.agentCapabilities.clientName;
         const agent = {
@@ -20024,7 +20051,7 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           name: clientName ?? "Awaiting agent"
         };
         session = {
-          id: sessionId,
+          id: sessionId2,
           app: helloParams.app,
           transport,
           dispatcher,
@@ -20034,11 +20061,11 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           claimCode: bindContext.code,
           claimed: true,
           claimedAt,
-          resumeToken
+          resumeToken: resumeToken2
         };
-        this.sessions.set(sessionId, session);
+        this.sessions.set(sessionId2, session);
         logToStderr(
-          `[tesseron] host-mint session "${helloParams.app.name}" (${sessionId}) \u2014 bound to claim code ${bindContext.code}`
+          `[tesseron] host-mint session "${helloParams.app.name}" (${sessionId2}) \u2014 bound to claim code ${bindContext.code}`
         );
         const pending = this.hostMintedClaimResolvers.get(bindContext.instanceId);
         if (pending) {
@@ -20046,31 +20073,39 @@ var TesseronGateway = class extends import_node_events.EventEmitter {
           pending.resolve(session);
         }
         const claimedSession = session;
+        const claimedCapabilities = {
+          streaming: true,
+          subscriptions: true,
+          sampling: this.agentCapabilities.sampling,
+          elicitation: this.agentCapabilities.elicitation
+        };
         setImmediate(() => {
           try {
             claimedSession.dispatcher.notify("tesseron/claimed", {
               agent,
-              claimedAt
+              claimedAt,
+              agentCapabilities: claimedCapabilities
             });
-          } catch {
+          } catch (err) {
+            if (!(err instanceof TransportClosedError)) {
+              const reason = err instanceof Error ? err.message : String(err);
+              logToStderr(`[tesseron] tesseron/claimed notify failed unexpectedly: ${reason}`);
+            }
           }
           this.emit("sessions-changed");
         });
         return {
-          sessionId,
+          sessionId: sessionId2,
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: {
-            streaming: true,
-            subscriptions: true,
-            sampling: this.agentCapabilities.sampling,
-            elicitation: this.agentCapabilities.elicitation
-          },
+          capabilities: claimedCapabilities,
           agent,
           // No claimCode in the response — the host's synthesized welcome
           // already showed it. Repeating here would race the SDK's UI.
-          resumeToken
+          resumeToken: resumeToken2
         };
       }
+      const sessionId = generateSessionId();
+      const resumeToken = generateResumeToken();
       const claimCode = generateClaimCode();
       session = {
         id: sessionId,
