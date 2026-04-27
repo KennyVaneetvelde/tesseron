@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/server",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Node SDK for Tesseron. Same API as @tesseron/web but for backend services.",
   "license": "BUSL-1.1",
   "author": {

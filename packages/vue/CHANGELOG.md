@@ -1,5 +1,13 @@
 # @tesseron/vue
 
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`abe0cac`](https://github.com/BrainBlend-AI/tesseron/commit/abe0cacad930f748d9bd69a0025be38c6d4d852b)]:
+  - @tesseron/core@2.4.0
+  - @tesseron/web@2.4.0
+
 ## 2.1.6
 
 ### Patch Changes

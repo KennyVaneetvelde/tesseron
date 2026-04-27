@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/vite",
-  "version": "2.1.3",
+  "version": "2.2.0",
   "description": "Vite plugin for Tesseron. Exposes /@tesseron/ws and bridges browser tabs to the gateway.",
   "license": "BUSL-1.1",
   "author": {
