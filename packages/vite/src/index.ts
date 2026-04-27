@@ -4,8 +4,8 @@ import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { AgentIdentity, HelloParams, WelcomeResult } from '@tesseron/core';
-import { PROTOCOL_VERSION } from '@tesseron/core';
+import type { AgentIdentity, WelcomeResult } from '@tesseron/core';
+import { PROTOCOL_VERSION, TesseronErrorCode } from '@tesseron/core';
 import { constantTimeEqual, parseBindSubprotocol, validateAppId } from '@tesseron/core/internal';
 import type { Plugin, ViteDevServer } from 'vite';
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
@@ -332,24 +332,47 @@ export function tesseron(options: TesseronViteOptions = {}): Plugin {
               // drops (it only handles string frames). Decode text frames back
               // to a string so the frame type round-trips correctly.
               const payload: RawData | string = isBinary ? data : rawDataToString(data);
-              // Intercept the SDK's `tesseron/hello` and synthesize a
-              // welcome immediately. Without this, the SDK is blocked
-              // waiting for a peer that will never speak — the gateway
-              // doesn't dial until `tesseron__claim_session` completes,
-              // and the user can't paste a code they haven't seen yet.
-              // The welcome carries the host-minted claim code; the
-              // browser app shows it; the user pastes it; the gateway
-              // dials with the bind subprotocol; the cached hello below
-              // is replayed to the gateway, the gateway processes it,
-              // and the gateway's reply is discarded (synthesized
-              // welcome already went to the SDK).
+              // Pre-hello local handler. Two responsibilities:
+              // (1) Synthesize the welcome for `tesseron/hello` immediately
+              //     so the user sees the host-minted claim code without
+              //     waiting for a gateway dial — see the synthesizer
+              //     branch below. The cached hello is later replayed to
+              //     the gateway when it dials with the bind subprotocol;
+              //     the gateway's reply is then discarded (the SDK
+              //     already saw the synthesized welcome).
+              // (2) Reject `tesseron/resume` locally with ResumeFailed
+              //     because the host mints fresh sessionId/resumeToken
+              //     at every WS open — any incoming resume's tokens
+              //     belong to a previous instance the host can't
+              //     validate. See tesseron#68.
+              // Once hello is answered, frames flow to the gateway.
               if (!entry.helloAnswered && !isBinary) {
                 const parsed = parseJsonFrame(payload);
-                if (
-                  parsed !== null &&
-                  typeof parsed === 'object' &&
-                  (parsed as { method?: unknown }).method === 'tesseron/hello'
-                ) {
+                const method =
+                  parsed !== null && typeof parsed === 'object'
+                    ? (parsed as { method?: unknown }).method
+                    : undefined;
+
+                if (method === 'tesseron/resume') {
+                  const m = parsed as { id?: unknown };
+                  ws.send(
+                    JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: m.id ?? null,
+                      error: {
+                        code: TesseronErrorCode.ResumeFailed,
+                        message:
+                          'Host-minted session does not honour resume; the previous session ended when the page reloaded. The SDK will fall back to a fresh tesseron/hello.',
+                      },
+                    }),
+                  );
+                  // Intentionally leave entry.helloAnswered = false so
+                  // the SDK's fallback hello on the same socket still
+                  // hits the synthesizer below.
+                  return;
+                }
+
+                if (method === 'tesseron/hello') {
                   const m = parsed as { id?: unknown; params?: { app?: { id?: unknown } } };
                   // Validate the app.id before synthesizing — defends
                   // against the SDK trying to claim a reserved id (e.g.
