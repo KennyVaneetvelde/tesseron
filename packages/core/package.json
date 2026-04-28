@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/core",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Protocol types and action builder for Tesseron. Transport-agnostic, validator-agnostic.",
   "license": "BUSL-1.1",
   "author": {

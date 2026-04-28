@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/react",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "React hooks adapter for Tesseron. useTesseronAction, useTesseronResource.",
   "license": "BUSL-1.1",
   "author": {

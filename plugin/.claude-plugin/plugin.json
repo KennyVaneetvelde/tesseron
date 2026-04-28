@@ -1,6 +1,6 @@
 {
   "name": "tesseron",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "MCP gateway that lets any web app expose typed actions to Claude over WebSocket — no browser automation. Reverse-connection architecture: the gateway is a pure WebSocket client that discovers apps via `~/.tesseron/tabs/` — no fixed ports, no env vars. Plus a `framework` skill for the Tesseron mental model, a `tesseron-docs` skill that calls the bundled `@tesseron/docs-mcp` server for authoritative chapter-and-verse spec lookups, a `tesseron-dev` skill that picks the right consumer package (`@tesseron/react` for React, `@tesseron/svelte` for Svelte 5, `@tesseron/vue` for Vue 3, `/server` for Node, `/web` for any other browser context) and inserts the canonical API at the project's entry point, and isolated-context explorer/reviewer subagents for building and auditing Tesseron codebases.",
   "author": {
     "name": "Kenny Vaneetvelde",

@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/docs-mcp",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Tesseron documentation as an MCP server. Search and read the Tesseron protocol + SDK docs from any MCP-compatible AI client.",
   "license": "BUSL-1.1",
   "author": {

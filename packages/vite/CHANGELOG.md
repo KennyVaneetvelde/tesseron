@@ -1,5 +1,12 @@
 # @tesseron/vite
 
+## 2.3.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @tesseron/core@2.6.0
+
 ## 2.3.1
 
 ### Patch Changes
