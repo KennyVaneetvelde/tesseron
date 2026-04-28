@@ -1,5 +1,3 @@
-@../AGENTS.md
-
 # Plugin & Skill Strategy Guide
 
 Strategies for the plugins enabled on this machine, at both user-level (`~/.claude/settings.json`) and project-level (`.claude/settings.json`). Written to keep future sessions from re-deriving what each plugin does and how to compose them. All claims are grounded in each plugin's own files; verify anything that looks stale before acting on it.
