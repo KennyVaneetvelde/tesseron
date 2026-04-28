@@ -9,7 +9,17 @@
   "homepage": "https://github.com/BrainBlend-AI/tesseron",
   "repository": "https://github.com/BrainBlend-AI/tesseron",
   "license": "MIT",
-  "keywords": ["mcp", "tesseron", "web-sdk", "actions", "react", "svelte", "vue", "websocket", "typescript"],
+  "keywords": [
+    "mcp",
+    "tesseron",
+    "web-sdk",
+    "actions",
+    "react",
+    "svelte",
+    "vue",
+    "websocket",
+    "typescript"
+  ],
   "interface": {
     "displayName": "Tesseron",
     "shortDescription": "Typed live-app actions for AI agents over WebSocket.",
