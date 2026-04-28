@@ -21,14 +21,11 @@
  */
 
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import {
-  CallToolResultSchema,
-  ListToolsResultSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
@@ -48,9 +45,12 @@ const transport = new StdioClientTransport({
   args: [bundle],
 });
 
-const client = new Client({ name: 'e2e-issue-69', version: '0.0.0' }, {
-  capabilities: { sampling: {}, elicitation: {} },
-});
+const client = new Client(
+  { name: 'e2e-issue-69', version: '0.0.0' },
+  {
+    capabilities: { sampling: {}, elicitation: {} },
+  },
+);
 
 await client.connect(transport);
 console.log('[e2e] MCP client connected');
@@ -124,7 +124,9 @@ try {
   const toolMatch = firstClaim.text.match(/(\w+)__\w+/);
   if (!toolMatch) fail('could not extract app_id from claim result');
   const appId = toolMatch[1];
-  console.log(`[e2e] real app.id from bind: "${appId}" (manifest appName was "${pendingBefore.app_id}")`);
+  console.log(
+    `[e2e] real app.id from bind: "${appId}" (manifest appName was "${pendingBefore.app_id}")`,
+  );
 
   const addOk = await callTool(`${appId}__addTodo`, { text: 'pre-refresh todo' });
   if (addOk.isError) fail(`addTodo on fresh session failed: ${addOk.text}`);
@@ -137,7 +139,9 @@ try {
   // post-refresh pending claim should report `app_id` matching the SDK's real
   // app.id (the same prefix the agent's cached `<app_id>__<action>` tools use).
   const firstBindAt = Date.now();
-  console.log('\n[e2e] >>> REFRESH THE BROWSER TAB NOW (test waits 30s for a NEW claim code) <<<\n');
+  console.log(
+    '\n[e2e] >>> REFRESH THE BROWSER TAB NOW (test waits 30s for a NEW claim code) <<<\n',
+  );
   const pendingAfter = await waitForPendingCode(
     (c) =>
       c.app_id === appId &&
@@ -149,9 +153,13 @@ try {
   );
   console.log(`[e2e] discovered new pending claim: ${JSON.stringify(pendingAfter)}`);
   if (pendingAfter.app_id !== appId) {
-    fail(`post-refresh entry app_id "${pendingAfter.app_id}" does not match expected "${appId}" — manifestAppName→appId cache failed to populate`);
+    fail(
+      `post-refresh entry app_id "${pendingAfter.app_id}" does not match expected "${appId}" — manifestAppName→appId cache failed to populate`,
+    );
   }
-  pass(`list_pending_claims reports correct agent-visible app_id "${appId}" after refresh (cache populated by first bind)`);
+  pass(
+    `list_pending_claims reports correct agent-visible app_id "${appId}" after refresh (cache populated by first bind)`,
+  );
 
   // Step 4: cached tool call must hit the new error path.
   const stale = await callTool(`${appId}__addTodo`, { text: 'should fail' });

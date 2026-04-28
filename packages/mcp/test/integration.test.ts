@@ -777,7 +777,10 @@ describe('Pending claim recovery (tesseron#69)', () => {
     args: unknown,
   ): Promise<{ text: string; isError: boolean }> {
     const result = await c.request(
-      { method: 'tools/call', params: { name, arguments: (args ?? {}) as Record<string, unknown> } },
+      {
+        method: 'tools/call',
+        params: { name, arguments: (args ?? {}) as Record<string, unknown> },
+      },
       CallToolResultSchema,
     );
     const text = result.content.map((p) => (p.type === 'text' ? p.text : `[${p.type}]`)).join('');
@@ -945,7 +948,12 @@ describe('Pending claim recovery (tesseron#69)', () => {
       const result = await callBridgeTool(harness.client, 'tesseron__list_pending_claims', {});
       expect(result.isError).toBe(false);
       const payload = JSON.parse(result.text) as {
-        pending_claims: Array<{ code: string; app_id: string; app_name: string; instance_id?: string }>;
+        pending_claims: Array<{
+          code: string;
+          app_id: string;
+          app_name: string;
+          instance_id?: string;
+        }>;
       };
       const entry = payload.pending_claims.find((c) => c.code === 'DDDD-55');
       expect(entry, 'entry should be present').toBeTruthy();
@@ -987,7 +995,12 @@ describe('Pending claim recovery (tesseron#69)', () => {
       const result = await callBridgeTool(harness.client, 'tesseron__list_pending_claims', {});
       expect(result.isError).toBe(false);
       const payload = JSON.parse(result.text) as {
-        pending_claims: Array<{ code: string; app_id: string; source: string; instance_id?: string }>;
+        pending_claims: Array<{
+          code: string;
+          app_id: string;
+          source: string;
+          instance_id?: string;
+        }>;
       };
       const entry = payload.pending_claims.find((c) => c.code === 'EEEE-66');
       expect(entry).toBeTruthy();
