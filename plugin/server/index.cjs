@@ -26630,7 +26630,7 @@ var McpAgentBridge = class {
         ...c.instanceId !== void 0 ? { instance_id: c.instanceId } : {},
         ...c.expiresAt !== void 0 ? { expires_at: c.expiresAt, expires_at_iso: new Date(c.expiresAt).toISOString() } : {}
       })),
-      next_step: `Pick the entry whose app_id matches the app you were operating on, then call tesseron__claim_session({ code }) with its code. If multiple entries match, prefer the one with the largest minted_at.`
+      next_step: "Pick the entry whose app_id matches the app you were operating on, then call tesseron__claim_session({ code }) with its code. If multiple entries match, prefer the one with the largest minted_at."
     };
     return {
       content: [
