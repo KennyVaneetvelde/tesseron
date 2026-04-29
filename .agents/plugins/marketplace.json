@@ -1,0 +1,18 @@
+{
+  "name": "tesseron",
+  "interface": {
+    "displayName": "Tesseron"
+  },
+  "plugins": [
+    {
+      "name": "tesseron",
+      "source": "./plugin",
+      "version": "2.6.0",
+      "description": "Tesseron for Codex: MCP gateway for typed web-app actions over WebSocket. v2.0 reverse-connection architecture — the gateway is a pure WebSocket client that discovers apps via `~/.tesseron/tabs/`; no fixed ports, no env vars. Includes a `framework` skill for the Tesseron mental model, a `tesseron-docs` skill that calls the published `@tesseron/docs-mcp` server for authoritative chapter-and-verse spec lookups (`search_docs`, `read_doc`, `list_docs`), a `tesseron-dev` skill that integrates Tesseron into any JS/TS project by picking the right consumer package (`@tesseron/react`, `/svelte`, `/vue`, `/server`, or `/web`) and inserting the canonical API, and `tesseron-explorer` / `tesseron-reviewer` skills for mapping and auditing Tesseron codebases.",
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      }
+    }
+  ]
+}
