@@ -1,5 +1,12 @@
 # @tesseron/web
 
+## 2.6.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @tesseron/core@2.6.1
+
 ## 2.6.0
 
 ### Patch Changes

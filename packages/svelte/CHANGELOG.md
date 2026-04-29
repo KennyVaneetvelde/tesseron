@@ -1,5 +1,13 @@
 # @tesseron/svelte
 
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @tesseron/core@2.6.1
+  - @tesseron/web@2.6.1
+
 ## 2.1.10
 
 ### Patch Changes
