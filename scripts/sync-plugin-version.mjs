@@ -7,13 +7,16 @@
  * part of `pnpm version-packages` so changesets-driven bumps automatically
  * carry through to the manifest.
  *
- * Three fields move together:
+ * Six fields move together:
  *   - plugin/.claude-plugin/plugin.json#version  (the plugin's own manifest)
- *   - .claude-plugin/marketplace.json#metadata.version  (the marketplace's version)
- *   - .claude-plugin/marketplace.json#plugins[0].version  (the marketplace's listing for this plugin)
+ *   - .claude-plugin/marketplace.json#metadata.version  (Claude marketplace version)
+ *   - .claude-plugin/marketplace.json#plugins[0].version  (Claude marketplace listing)
+ *   - .agents/plugins/marketplace.json#plugins[0].version  (Codex marketplace listing)
+ *   - plugin/.mcp.json#mcpServers.tesseron.args  (npx -y @tesseron/mcp@<version>)
+ *   - plugin/.mcp.json#mcpServers.tesseron-docs.args  (npx -y @tesseron/docs-mcp@<version>)
  *
- * Bumping only one leaves the other surfaces stale and users on a cached older
- * bundle even after npm has shipped the new gateway. That's issue #38.
+ * Bumping only one leaves the other surfaces stale and users running an older
+ * gateway under a fresh manifest. That's issue #38.
  *
  * Exit codes:
  *   0  no drift (or rewrote drift, in default mode)
@@ -28,6 +31,16 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MCP_PKG = resolve(repoRoot, 'packages/mcp/package.json');
 const PLUGIN_MANIFEST = resolve(repoRoot, 'plugin/.claude-plugin/plugin.json');
 const MARKETPLACE_MANIFEST = resolve(repoRoot, '.claude-plugin/marketplace.json');
+const CODEX_MARKETPLACE_MANIFEST = resolve(repoRoot, '.agents/plugins/marketplace.json');
+const PLUGIN_MCP_JSON = resolve(repoRoot, 'plugin/.mcp.json');
+
+// `<bin-package>@<version>` arg slots in plugin/.mcp.json. The script pins both
+// MCP servers to the same version as @tesseron/mcp so users always run a
+// gateway that matches the plugin manifest they installed.
+const MCP_NPX_TARGETS = [
+  { server: 'tesseron', pkg: '@tesseron/mcp' },
+  { server: 'tesseron-docs', pkg: '@tesseron/docs-mcp' },
+];
 
 const checkMode = process.argv.includes('--check');
 
@@ -112,6 +125,79 @@ const drift = [];
     drift.push({
       file: MARKETPLACE_MANIFEST,
       from: fields.join(', '),
+      to: target,
+      next: serialize(next),
+      currentRaw: raw,
+    });
+  }
+}
+
+// 4. .agents/plugins/marketplace.json — Codex marketplace listing. Schema is
+//    flatter than the Claude one: only plugins[0].version moves with releases.
+{
+  const { data, raw } = await readJson(CODEX_MARKETPLACE_MANIFEST);
+  if (!Array.isArray(data.plugins) || data.plugins.length === 0) {
+    console.error(
+      `[sync-plugin-version] ${CODEX_MARKETPLACE_MANIFEST}: \`plugins\` must be a non-empty array`,
+    );
+    process.exit(2);
+  }
+  if (data.plugins[0].version !== target) {
+    const next = {
+      ...data,
+      plugins: data.plugins.map((p, i) => (i === 0 ? { ...p, version: target } : p)),
+    };
+    drift.push({
+      file: CODEX_MARKETPLACE_MANIFEST,
+      from: `plugins[0].version (${data.plugins[0].version ?? '<missing>'} → ${target})`,
+      to: target,
+      next: serialize(next),
+      currentRaw: raw,
+    });
+  }
+}
+
+// 5 + 6. plugin/.mcp.json — pin each `npx -y <pkg>@<version>` arg.
+{
+  const { data, raw } = await readJson(PLUGIN_MCP_JSON);
+  if (typeof data.mcpServers !== 'object' || data.mcpServers === null) {
+    console.error(`[sync-plugin-version] ${PLUGIN_MCP_JSON}: \`mcpServers\` must be an object`);
+    process.exit(2);
+  }
+  let mutated = false;
+  const next = { ...data, mcpServers: { ...data.mcpServers } };
+  const driftedTargets = [];
+  for (const { server, pkg } of MCP_NPX_TARGETS) {
+    const entry = data.mcpServers[server];
+    if (typeof entry !== 'object' || entry === null || !Array.isArray(entry.args)) {
+      console.error(
+        `[sync-plugin-version] ${PLUGIN_MCP_JSON}: mcpServers.${server} must declare an args array`,
+      );
+      process.exit(2);
+    }
+    const idx = entry.args.findIndex(
+      (arg) => typeof arg === 'string' && arg.startsWith(`${pkg}@`),
+    );
+    if (idx === -1) {
+      console.error(
+        `[sync-plugin-version] ${PLUGIN_MCP_JSON}: mcpServers.${server}.args must contain a pinned ${pkg}@<version> entry`,
+      );
+      process.exit(2);
+    }
+    const current = entry.args[idx];
+    const wanted = `${pkg}@${target}`;
+    if (current !== wanted) {
+      mutated = true;
+      driftedTargets.push(`mcpServers.${server} (${current} → ${wanted})`);
+      const nextArgs = [...entry.args];
+      nextArgs[idx] = wanted;
+      next.mcpServers[server] = { ...entry, args: nextArgs };
+    }
+  }
+  if (mutated) {
+    drift.push({
+      file: PLUGIN_MCP_JSON,
+      from: driftedTargets.join(', '),
       to: target,
       next: serialize(next),
       currentRaw: raw,
