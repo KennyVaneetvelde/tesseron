@@ -2,13 +2,13 @@
   "mcpServers": {
     "tesseron": {
       "type": "stdio",
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"]
+      "command": "npx",
+      "args": ["-y", "@tesseron/mcp@2.6.0"]
     },
     "tesseron-docs": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@tesseron/docs-mcp"]
+      "args": ["-y", "@tesseron/docs-mcp@2.6.0"]
     }
   }
 }

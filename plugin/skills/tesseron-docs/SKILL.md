@@ -23,7 +23,7 @@ The plugin bundles `@tesseron/docs-mcp` at install time, so these tools are norm
 
 - For orientation or mental-model questions ("what is Tesseron?", "how does the SDK fit together?", "which consumer package should I use?") — load the `framework` skill. That skill is a cheat sheet; this one is a manual.
 - For project-integration tasks ("add Tesseron to this app", "switch to `@tesseron/react`", "upgrade versions") — load the `tesseron-dev` skill.
-- For codebase mapping or review — invoke the `tesseron-explorer` or `tesseron-reviewer` subagent. They read the project, not the docs.
+- For codebase mapping or review — load the `tesseron-explorer` or `tesseron-reviewer` skill. They read the project, not the docs.
 
 ## Fallbacks when the MCP server is not configured
 

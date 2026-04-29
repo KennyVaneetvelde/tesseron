@@ -46,7 +46,6 @@
     "test": "vitest run",
     "start": "tsx src/cli.ts",
     "build": "tsup",
-    "build:plugin": "tsup --config tsup-plugin.config.ts",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
