@@ -60,9 +60,9 @@ jobs:
           title: "chore: release packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NODE_AUTH_TOKEN is only needed for the *first* publish of each
-          # package. Once trusted publishing is configured on npmjs.com for
-          # each @tesseron/* package, the OIDC token from `id-token: write`
-          # takes over and this secret can be removed.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Trusted publishing is configured on npmjs.com for every @tesseron/*
+          # package; the OIDC token from `id-token: write` is the auth path.
+          # NODE_AUTH_TOKEN must NOT be set — when both are present npm prefers
+          # the legacy token and (if it has been revoked or rotated away) fails
+          # the publish with E404 even though provenance signing succeeded.
           NPM_CONFIG_PROVENANCE: "true"
