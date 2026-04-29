@@ -175,9 +175,7 @@ const drift = [];
       );
       process.exit(2);
     }
-    const idx = entry.args.findIndex(
-      (arg) => typeof arg === 'string' && arg.startsWith(`${pkg}@`),
-    );
+    const idx = entry.args.findIndex((arg) => typeof arg === 'string' && arg.startsWith(`${pkg}@`));
     if (idx === -1) {
       console.error(
         `[sync-plugin-version] ${PLUGIN_MCP_JSON}: mcpServers.${server}.args must contain a pinned ${pkg}@<version> entry`,
