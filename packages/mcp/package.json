@@ -45,8 +45,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "tsx src/cli.ts",
-    "build": "tsup",
-    "prepublishOnly": "pnpm build"
+    "build": "tsup"
   },
   "dependencies": {
     "@tesseron/core": "workspace:*",
