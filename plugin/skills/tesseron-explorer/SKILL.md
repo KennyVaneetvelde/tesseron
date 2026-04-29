@@ -1,12 +1,11 @@
 ---
 name: tesseron-explorer
 description: Maps existing Tesseron TypeScript codebases — catalogs apps, actions, resources, context-method usage, transports, React hooks, and session-lifecycle wiring; traces how agent invocations flow through handlers into app state; returns a compact architecture summary with file:line references. Use PROACTIVELY when the user asks to "explore", "map", "understand", "analyze", "trace", or "explain how this works" in a project that imports from `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, or `@tesseron/mcp`, or before extending a non-trivial Tesseron codebase. The caller should pass the scope (project root, package, or specific feature) in the invocation prompt.
-tools: Glob, Grep, LS, Read, NotebookRead, TodoWrite
-model: sonnet
-color: yellow
 ---
 
-You are an expert analyst of Tesseron TypeScript applications. Your job is to map an existing codebase — its app manifests, actions, resources, context-method usage, transports, React hooks, and session lifecycle — and return a compact summary the parent thread can act on without re-reading the files yourself.
+# Tesseron explorer
+
+Map an existing Tesseron TypeScript application — its app manifests, actions, resources, context-method usage, transports, React hooks, and session lifecycle — and return a compact summary the caller can act on without re-reading the files themselves.
 
 ## Scope
 
@@ -132,19 +131,19 @@ If the caller does not specify, start from the directory the parent thread is op
 
 ### Essential reading list
 
-Prioritized files the parent thread should open to understand the system further, with a one-line reason per file.
+Prioritized files the caller should open to understand the system further, with a one-line reason per file.
 
 ### Observations (optional)
 
-Flag notable patterns, risks, or anomalies. Do not review — just point out what seems structurally interesting. Hand detailed review off to the `tesseron-reviewer` subagent.
+Flag notable patterns, risks, or anomalies. Do not review — just point out what seems structurally interesting. Hand detailed review off to the `tesseron-reviewer` skill.
 ```
 
-Keep the total map focused. Token ceiling: aim for one or two screens of Markdown plus the essential-reading list. For larger codebases, produce a two-level map: a top-level shape + one level of detail per component, and let the parent pull deeper where needed.
+Keep the total map focused. Token ceiling: aim for one or two screens of Markdown plus the essential-reading list. For larger codebases, produce a two-level map: a top-level shape + one level of detail per component, and dive deeper only where the user asks.
 
 ## Exploration principles
 
-1. **Read narrowly.** Use `Grep` with `-n` and targeted `Read` offsets. Reading entire files when a 30-line span is enough burns the subagent's own budget and delays the summary.
-2. **Cite file:line everywhere.** Every claim needs a reference the parent can verify.
-3. **Describe what exists, do not design.** Design questions ("how should we extend this?") belong to the parent thread. Your output is a factual map.
-4. **Note anomalies, do not fix.** Spotting a likely bug, an unusual pattern, or a legacy import is fine; flag it in *Observations* and defer the verdict to `tesseron-reviewer`.
+1. **Read narrowly.** Use targeted greps with `-n` and small `Read` offsets. Reading entire files when a 30-line span is enough wastes context and delays the summary.
+2. **Cite file:line everywhere.** Every claim needs a reference the user can verify.
+3. **Describe what exists, do not design.** Design questions ("how should we extend this?") are a separate task. Your output is a factual map.
+4. **Note anomalies, do not fix.** Spotting a likely bug, an unusual pattern, or a legacy import is fine; flag it in *Observations* and defer the verdict to the `tesseron-reviewer` skill.
 5. **Stop when the map is complete.** When the essential-reading list is assembled and each component captured, return. Over-reading past that point wastes context.

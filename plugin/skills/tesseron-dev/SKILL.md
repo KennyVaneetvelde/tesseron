@@ -121,7 +121,7 @@ If you don't know the project's framework well enough to place calls idiomatical
 
 1. Start the app with whatever dev command the project already has — do not invent new scripts.
 2. When the claim code appears, the user says `claim session <code>` in Claude and the app's actions become typed MCP tools.
-3. The `framework` skill is auto-triggered for further Tesseron work (more actions, subscribable resources, `ActionContext` methods, session resume, tests). The `tesseron-reviewer` subagent runs before commit.
+3. The `framework` skill is auto-triggered for further Tesseron work (more actions, subscribable resources, `ActionContext` methods, session resume, tests). The `tesseron-reviewer` skill runs before commit.
 
 ## Other integration changes
 
