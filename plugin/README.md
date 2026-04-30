@@ -29,7 +29,7 @@ Restart Claude Code. The plugin's MCP server (`tesseron`) starts automatically. 
 **Windows note**: if `npx` fails to resolve through `node`'s child-process spawn, swap the command in `plugin/.mcp.json` for the `cmd /c npx ...` form:
 
 ```jsonc
-{ "command": "cmd", "args": ["/c", "npx", "-y", "@tesseron/mcp@2.6.0"] }
+{ "command": "cmd", "args": ["/c", "npx", "-y", "@tesseron/mcp@2.6.1"] }
 ```
 
 This is a known shim quirk in some Node-on-Windows setups, not Tesseron-specific.
@@ -54,12 +54,12 @@ OpenCode does not consume Claude/Codex plugin manifests, but it does natively re
   "mcp": {
     "tesseron": {
       "type": "local",
-      "command": ["npx", "-y", "@tesseron/mcp@2.6.0"],
+      "command": ["npx", "-y", "@tesseron/mcp@2.6.1"],
       "enabled": true
     },
     "tesseron-docs": {
       "type": "local",
-      "command": ["npx", "-y", "@tesseron/docs-mcp@2.6.0"],
+      "command": ["npx", "-y", "@tesseron/docs-mcp@2.6.1"],
       "enabled": true
     }
   }

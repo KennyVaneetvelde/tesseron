@@ -42,7 +42,8 @@ repo; do not introduce one.
 
 The plugin no longer ships a pre-bundled gateway. `plugin/.mcp.json` invokes
 `@tesseron/mcp` and `@tesseron/docs-mcp` via `npx -y <pkg>@<version>`, with the
-version pinned to the plugin's own. Six fields move together on every release:
+version pinned to the plugin's own. Eight surfaces and one mirror tree move
+together on every release:
 
 - `plugin/.claude-plugin/plugin.json#version`
 - `.claude-plugin/marketplace.json#metadata.version` (Claude marketplace)
@@ -50,10 +51,20 @@ version pinned to the plugin's own. Six fields move together on every release:
 - `.agents/plugins/marketplace.json#plugins[0].version` (Codex marketplace)
 - `plugin/.mcp.json#mcpServers.tesseron.args`
 - `plugin/.mcp.json#mcpServers.tesseron-docs.args`
+- `packages/pi/package.json#version` (Pi extension package)
+- `packages/pi/extensions/tesseron.ts#TESSERON_MCP_VERSION` (Pi's pinned npx target)
+- `packages/pi/skills/**` (byte-identical mirror of `plugin/skills/**`)
 
 `scripts/sync-plugin-version.mjs` is the contract. Run `pnpm sync-plugin-version`
 to fix drift, or `pnpm sync-plugin-version --check` (CI does this) to fail fast.
 The release flow chains it via `pnpm version-packages` (changesets entry point).
+
+The skill mirror exists because Pi has no idiomatic primitive for sharing skill
+folders across packages — `bundledDependencies` doesn't bundle pnpm
+`workspace:*` packages, and Pi's `pi.skills` paths can't escape the package
+root. **Edit only the `plugin/skills/` copy.** The script blows away
+`packages/pi/skills/` and re-mirrors from the plugin source on every default
+run; CI's `--check` mode catches any drift loudly.
 
 There is no `plugin/server/` directory and no `pnpm build:plugin` script. Do not
 recreate them.

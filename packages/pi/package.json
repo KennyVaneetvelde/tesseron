@@ -1,0 +1,54 @@
+{
+  "name": "@tesseron/pi",
+  "version": "2.6.1",
+  "description": "Pi coding-agent plugin for Tesseron — typed action/resource tools + skills bundle, backed by @tesseron/mcp and @tesseron/docs-mcp via stdio.",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://brainblendai.com/"
+  },
+  "homepage": "https://github.com/BrainBlend-AI/tesseron#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BrainBlend-AI/tesseron.git",
+    "directory": "packages/pi"
+  },
+  "bugs": {
+    "url": "https://github.com/BrainBlend-AI/tesseron/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-coding-agent",
+    "tesseron",
+    "mcp",
+    "ai-agents",
+    "actions",
+    "websocket"
+  ],
+  "type": "module",
+  "files": ["extensions", "skills", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-agent-core": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.70.6",
+    "@mariozechner/pi-agent-core": "^0.70.6",
+    "@mariozechner/pi-ai": "^0.70.6",
+    "@mariozechner/pi-tui": "^0.70.6",
+    "@types/node": "^22.0.0",
+    "typebox": "^1.1.24",
+    "typescript": "^5.7.0"
+  }
+}
