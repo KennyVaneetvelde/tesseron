@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/pi",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "Pi coding-agent plugin for Tesseron — typed action/resource tools + skills bundle, backed by @tesseron/mcp and @tesseron/docs-mcp via stdio.",
   "license": "BUSL-1.1",
   "author": {

@@ -5,7 +5,7 @@ import { Type } from 'typebox';
 
 // Pinned in lockstep with `@tesseron/mcp` by `scripts/sync-plugin-version.mjs`.
 // Do not edit by hand — `pnpm sync-plugin-version` rewrites this constant.
-const TESSERON_MCP_VERSION = '2.6.1';
+const TESSERON_MCP_VERSION = '2.7.0';
 
 type JsonRpcId = number;
 
