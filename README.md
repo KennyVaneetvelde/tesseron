@@ -14,13 +14,13 @@
   <img alt="Protocol 1.0.0" src="https://img.shields.io/badge/Protocol-1.0.0-f59e0b?style=flat-square&labelColor=0b1220">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white&labelColor=0b1220">
   <img alt="Node 20+" src="https://img.shields.io/badge/Node-%E2%89%A5%2020-339933?style=flat-square&logo=node.js&logoColor=white&labelColor=0b1220">
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-65%20passing-22c55e?style=flat-square&labelColor=0b1220">
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-98%20passing-22c55e?style=flat-square&labelColor=0b1220">
 </p>
 
 <p>
   <a href="https://brainblend-ai.github.io/tesseron/"><b>Docs</b></a> &nbsp;·&nbsp;
   <a href="./examples"><b>Examples</b></a> &nbsp;·&nbsp;
-  <a href="#quick-install-claude-code"><b>Install</b></a> &nbsp;·&nbsp;
+  <a href="#install"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="#packages"><b>Packages</b></a> &nbsp;·&nbsp;
   <a href="https://discord.gg/J3W9b5AZJR"><b>Discord</b></a> &nbsp;·&nbsp;
   <a href="https://github.com/BrainBlend-AI/tesseron/discussions"><b>Discussions</b></a>
@@ -37,7 +37,7 @@
 Live applications (browser tabs, Electron/Tauri desktop apps, Node daemons, CLIs) declare actions with a Zod-style builder; agents (Claude Code, Claude Desktop, Cursor, Copilot, Codex, Cline, ...) call them as MCP tools. Your real handler runs against your real state. **No browser automation, no scraping, no Playwright.**
 
 <p align="center">
-  <img src="./assets/diagrams/pieces-fit-together.png" alt="USER prompts the agent; YOUR APP (browser or Node, using @tesseron/web or /server) connects over WebSocket to the MCP GATEWAY (@tesseron/mcp on :7475); the MCP GATEWAY bridges to the MCP CLIENT (Claude Code, Desktop, Cursor) over MCP stdio." width="900">
+  <img src="./assets/diagrams/pieces-fit-together.png" alt="USER prompts the agent; YOUR APP (browser or Node, using @tesseron/web or /server) opens a loopback WebSocket and announces itself; the MCP GATEWAY (@tesseron/mcp) discovers it via ~/.tesseron/instances/ and dials in; the gateway bridges to the MCP CLIENT (Claude Code, Codex, OpenCode, Pi, Cursor, Claude Desktop, ...) over stdio." width="900">
 </p>
 
 ## Why Tesseron
@@ -47,16 +47,60 @@ Live applications (browser tabs, Electron/Tauri desktop apps, Node daemons, CLIs
 - **MCP-native.** Every action, resource, and capability maps to a standard MCP primitive. Users pick their agent.
 - **Click-to-connect.** Six-character claim code handshake. No API keys, no OAuth dance, no per-client configuration.
 - **First-class capabilities.** `ctx.confirm` for yes/no, `ctx.elicit` for schema-validated prompts, `ctx.sample` for agent LLM calls, `ctx.progress` for streaming updates, subscribable resources for live reads.
-- **Bundled delivery.** The MCP gateway ships inside a [Claude Code plugin](./plugin) — one install command and you're done.
+- **Cross-client delivery.** First-class install paths for Claude Code, Codex, OpenCode, and Pi — each one a single command or short config snippet that wires the [MCP gateway](./packages/mcp) in. No bundled binary; the gateway is `npx -y @tesseron/mcp@<version>` on demand.
 
-## Quick install (Claude Code)
+## Install
+
+Tesseron has first-class install paths for four agent clients. Pick the one you use:
+
+### Claude Code
 
 ```text
 /plugin marketplace add BrainBlend-AI/tesseron
 /plugin install tesseron@tesseron
 ```
 
-That installs the [`tesseron`](./plugin) Claude Code plugin, which spawns the MCP gateway automatically and registers it as an MCP server. Then drop [`@tesseron/web`](./packages/web), [`@tesseron/server`](./packages/server), or [`@tesseron/react`](./packages/react) into your app, declare actions, and let Claude drive your real UI.
+Installs the [`tesseron`](./plugin) Claude Code plugin. The MCP gateway and docs server are launched on demand via `npx`.
+
+### Codex CLI
+
+```bash
+codex plugin marketplace add BrainBlend-AI/tesseron
+```
+
+Codex consumes the same plugin manifest as Claude Code, so the gateway, docs server, and skills come along automatically.
+
+### Pi
+
+```bash
+pi install -l npm:@tesseron/pi@2.6.1
+```
+
+Installs the [`@tesseron/pi`](./packages/pi) package as a project-local Pi extension (`-l` writes to `.pi/settings.json`). Pi auto-installs missing project-local packages on every run, so this also doubles as the team-share command. Drop the `-l` for a global install.
+
+### OpenCode
+
+OpenCode reads MCP servers from `opencode.json` rather than a plugin manifest. Save this as `.opencode/opencode.json` in your project root (or `~/.config/opencode/opencode.json` for global use):
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "tesseron": { "type": "local", "command": ["npx", "-y", "@tesseron/mcp@2.6.1"], "enabled": true },
+    "tesseron-docs": { "type": "local", "command": ["npx", "-y", "@tesseron/docs-mcp@2.6.1"], "enabled": true }
+  }
+}
+```
+
+To also pick up the skill bundle, point OpenCode's `skills.paths` at a clone of [`plugin/skills/`](./plugin/skills) — see [`plugin/README.md`](./plugin/README.md#opencode) for the snippet.
+
+### Other MCP clients
+
+Claude Desktop, Cursor, VS Code Copilot, Cline, and any other MCP-compatible client work too — the gateway is plain stdio MCP. See the one-time setup in [`examples/README.md`](./examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
+
+### Then in your app
+
+Drop [`@tesseron/web`](./packages/web), [`@tesseron/server`](./packages/server), [`@tesseron/react`](./packages/react), [`@tesseron/svelte`](./packages/svelte), or [`@tesseron/vue`](./packages/vue) into your project, declare actions, and let the agent drive your real UI:
 
 ```ts
 import { tesseron } from '@tesseron/web';
@@ -76,8 +120,6 @@ tesseron
 await tesseron.connect();
 ```
 
-For other MCP clients (Claude Desktop, Cursor, Codex, VS Code Copilot, ...) see the one-time setup in [`examples/README.md`](./examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
-
 See [`examples/`](./examples) for working apps in vanilla TS, React, Svelte, Vue, Express, and plain Node.
 
 ## Packages
@@ -87,12 +129,17 @@ See [`examples/`](./examples) for working apps in vanilla TS, React, Svelte, Vue
 | [`@tesseron/core`](./packages/core) | Protocol types, action builder. Zero runtime deps beyond Standard Schema. |
 | [`@tesseron/web`](./packages/web) | Browser SDK. |
 | [`@tesseron/server`](./packages/server) | Node SDK. |
-| [`@tesseron/mcp`](./packages/mcp) | MCP gateway server (CLI; bundled into the plugin). |
 | [`@tesseron/react`](./packages/react) | React hooks adapter. |
+| [`@tesseron/svelte`](./packages/svelte) | Svelte 5 adapter. |
+| [`@tesseron/vue`](./packages/vue) | Vue 3 adapter. |
+| [`@tesseron/vite`](./packages/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
+| [`@tesseron/mcp`](./packages/mcp) | MCP gateway server (`tesseron-mcp` CLI; launched by each client's install path via `npx`). |
+| [`@tesseron/docs-mcp`](./packages/docs-mcp) | MCP server that serves the Tesseron docs (`search_docs`, `read_doc`, `list_docs`) for chapter-and-verse spec lookups inside agent sessions. |
+| [`@tesseron/pi`](./packages/pi) | Pi coding-agent extension: wraps `@tesseron/mcp` + `@tesseron/docs-mcp` as 8 typed Pi tools and ships the same skill bundle as the Claude/Codex plugin. |
 | [`@tesseron/devtools`](./packages/devtools) | In-browser debug UI served by the MCP gateway *(private stub, not yet published)*. |
 | [`create-tesseron`](./packages/create-tesseron) | `npm create tesseron@latest` scaffolder *(private stub, not yet published)*. |
 
-The Claude Code plugin lives at [`plugin/`](./plugin), exposed via the marketplace manifest at [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json).
+The Claude Code / Codex plugin lives at [`plugin/`](./plugin), exposed via the marketplace manifests at [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) (Claude) and [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json) (Codex).
 
 ## Client capability support
 
@@ -115,19 +162,20 @@ For the authoritative, continuously-updated list of which client supports which 
 
 ## Status
 
-**v1.0** shipped April 2026. The protocol is stable at [**1.0.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources.
+**v1.0** shipped April 2026; the SDK is at **v2.6** as of writing. The protocol is stable at [**1.0.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources, session resume.
 
-Published to npm (all at **v1.0.1**): `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/mcp`. The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language.
+Published to npm: `@tesseron/{core,web,server,react,mcp,docs-mcp,pi}` ship in lockstep at the same version (currently **2.6.1**). `@tesseron/{svelte,vue,vite}` version independently. The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language.
 
-On the roadmap: Svelte/Vue adapters, the devtools UI, a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
+On the roadmap: the devtools UI, a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
 ## Development
 
 ```bash
 pnpm install
 pnpm typecheck
-pnpm test                                    # 65 tests across core + mcp
-pnpm --filter @tesseron/mcp build:plugin     # rebuild plugin/server/index.cjs after gateway changes
+pnpm test                            # vitest across core + mcp
+pnpm lint                            # biome
+pnpm sync-plugin-version --check     # CI guard: plugin manifests + Pi pin + skill mirror in lockstep
 ```
 
 ## Contributing
