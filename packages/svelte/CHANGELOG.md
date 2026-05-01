@@ -1,5 +1,13 @@
 # @tesseron/svelte
 
+## 2.1.12
+
+### Patch Changes
+
+- Updated dependencies [[`cba7894`](https://github.com/BrainBlend-AI/tesseron/commit/cba7894a3a90fb6b2de7f2a1955ca842a514100b)]:
+  - @tesseron/core@2.7.0
+  - @tesseron/web@2.7.0
+
 ## 2.1.11
 
 ### Patch Changes
