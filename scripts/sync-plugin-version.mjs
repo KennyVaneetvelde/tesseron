@@ -7,18 +7,15 @@
  * part of `pnpm version-packages` so changesets-driven bumps automatically
  * carry through to the manifest.
  *
- * Ten surfaces and one mirror tree move together:
+ * Eight surfaces move together:
  *   - plugin/.claude-plugin/plugin.json#version  (the plugin's own manifest)
  *   - .claude-plugin/marketplace.json#metadata.version  (Claude marketplace version)
  *   - .claude-plugin/marketplace.json#plugins[0].version  (Claude marketplace listing)
  *   - .agents/plugins/marketplace.json#plugins[0].version  (Codex marketplace listing)
  *   - plugin/.mcp.json#mcpServers.tesseron.args  (npx -y @tesseron/mcp@<version>)
  *   - plugin/.mcp.json#mcpServers.tesseron-docs.args  (npx -y @tesseron/docs-mcp@<version>)
- *   - packages/pi/package.json#version  (Pi extension package version)
- *   - packages/pi/extensions/tesseron.ts#TESSERON_MCP_VERSION  (Pi extension's pinned npx target)
  *   - README.md  (every literal `@tesseron/{mcp,docs-mcp}@<semver>` in install snippets)
  *   - plugin/README.md  (same)
- *   - packages/pi/skills/**  (byte-identical mirror of plugin/skills/**)
  *
  * Bumping only one leaves the other surfaces stale and users running an older
  * gateway under a fresh manifest. That's issue #38.
@@ -28,10 +25,8 @@
  *   1  --check mode and drift detected (CI guard)
  *   2  unrecoverable: a manifest is missing, malformed, or structurally wrong
  */
-import { createHash } from 'node:crypto';
-import { cpSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,10 +35,6 @@ const PLUGIN_MANIFEST = resolve(repoRoot, 'plugin/.claude-plugin/plugin.json');
 const MARKETPLACE_MANIFEST = resolve(repoRoot, '.claude-plugin/marketplace.json');
 const CODEX_MARKETPLACE_MANIFEST = resolve(repoRoot, '.agents/plugins/marketplace.json');
 const PLUGIN_MCP_JSON = resolve(repoRoot, 'plugin/.mcp.json');
-const PI_PKG = resolve(repoRoot, 'packages/pi/package.json');
-const PI_EXTENSION = resolve(repoRoot, 'packages/pi/extensions/tesseron.ts');
-const PLUGIN_SKILLS_DIR = resolve(repoRoot, 'plugin/skills');
-const PI_SKILLS_DIR = resolve(repoRoot, 'packages/pi/skills');
 // READMEs whose install snippets pin literal `@tesseron/{mcp,docs-mcp}@<semver>`
 // strings. These are not JSON, so the script rewrites them as text via regex.
 const README_TARGETS = [resolve(repoRoot, 'README.md'), resolve(repoRoot, 'plugin/README.md')];
@@ -83,44 +74,6 @@ async function readJson(path) {
 /** Stringify with 2-space indent + trailing newline (matches the repo's Biome formatter). */
 function serialize(data) {
   return `${JSON.stringify(data, null, 2)}\n`;
-}
-
-/**
- * Walk a skill tree, returning a map of POSIX-relative path -> sha256(content).
- * Returns an empty map if the root doesn't exist (the directory is created on
- * first sync). The traversal is sorted at each level so the resulting map has
- * deterministic key ordering, which keeps `--check` output stable across runs.
- */
-function walkSkillTree(root) {
-  const files = new Map();
-  function walk(absDir) {
-    let entries;
-    try {
-      entries = readdirSync(absDir, { withFileTypes: true });
-    } catch (err) {
-      if (err.code === 'ENOENT') return;
-      throw err;
-    }
-    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    for (const entry of entries) {
-      const abs = resolve(absDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(abs);
-        continue;
-      }
-      if (!entry.isFile()) continue;
-      // POSIX-style relative path so Win/Linux produce identical map keys.
-      const rel = relative(root, abs).split('\\').join('/');
-      // readFileSync returns a Buffer, so byte-level CRLF differences are
-      // visible to the hash (a text-mode read on Windows would normalise them
-      // away and false-negative on real drift).
-      const buf = readFileSync(abs);
-      const hash = createHash('sha256').update(buf).digest('hex');
-      files.set(rel, hash);
-    }
-  }
-  walk(root);
-  return files;
 }
 
 const { data: mcpPkg } = await readJson(MCP_PKG);
@@ -255,55 +208,7 @@ const drift = [];
   }
 }
 
-// 7. packages/pi/package.json — `@tesseron/pi` ships in lockstep with the rest
-//    of the SDK fixed group (changesets handles the bump). Catch drift here in
-//    case anyone hand-edits one without the other.
-{
-  const { data, raw } = await readJson(PI_PKG);
-  if (data.version !== target) {
-    drift.push({
-      file: PI_PKG,
-      from: data.version,
-      to: target,
-      next: serialize({ ...data, version: target }),
-      currentRaw: raw,
-    });
-  }
-}
-
-// 8. packages/pi/extensions/tesseron.ts — pinned `npx -y @tesseron/mcp@<v>`
-//    target lives in a single `TESSERON_MCP_VERSION` constant. Rewrite as
-//    text (not JSON) so we don't have to parse TypeScript.
-{
-  let raw;
-  try {
-    raw = await readFile(PI_EXTENSION, 'utf8');
-  } catch (err) {
-    console.error(`[sync-plugin-version] failed to read ${PI_EXTENSION}: ${err.message}`);
-    process.exit(2);
-  }
-  const pinPattern = /(const TESSERON_MCP_VERSION = ')([^']+)(';)/;
-  const match = raw.match(pinPattern);
-  if (!match) {
-    console.error(
-      `[sync-plugin-version] ${PI_EXTENSION}: could not find \`const TESSERON_MCP_VERSION = '<version>';\` pin`,
-    );
-    process.exit(2);
-  }
-  const current = match[2];
-  if (current !== target) {
-    const next = raw.replace(pinPattern, `$1${target}$3`);
-    drift.push({
-      file: PI_EXTENSION,
-      from: `TESSERON_MCP_VERSION (${current} → ${target})`,
-      to: target,
-      next,
-      currentRaw: raw,
-    });
-  }
-}
-
-// 9 + 10. README install snippets — match every literal
+// 7 + 8. README install snippets — match every literal
 // `@tesseron/{mcp,docs-mcp}@<semver>` and rewrite. The placeholder
 // `@tesseron/mcp@<version>` (with literal `<version>` text) is intentionally
 // not matched because the regex requires digits.
@@ -333,39 +238,6 @@ for (const file of README_TARGETS) {
   }
 }
 
-// 11. Skill tree mirror: plugin/skills/ → packages/pi/skills/
-//
-// The five Tesseron skills are edited under plugin/skills/ and ship from
-// packages/pi/ as well. Pi has no idiomatic primitive that lets two consumer
-// packages reference one on-disk source (bundledDependencies works for nested
-// pi packages but not for a sibling Claude plugin; pnpm doesn't bundle
-// `workspace:*` deps; Pi's pi.skills paths can't escape the package root).
-// So we mirror the tree, hash-compare every file, and fail --check on drift.
-{
-  const sourceFiles = walkSkillTree(PLUGIN_SKILLS_DIR);
-  const targetFiles = walkSkillTree(PI_SKILLS_DIR);
-  const driftedPaths = [];
-
-  for (const [relPath, hash] of sourceFiles) {
-    const targetHash = targetFiles.get(relPath);
-    if (targetHash === undefined) driftedPaths.push(`+ ${relPath}`);
-    else if (targetHash !== hash) driftedPaths.push(`~ ${relPath}`);
-  }
-  for (const relPath of targetFiles.keys()) {
-    if (!sourceFiles.has(relPath)) driftedPaths.push(`- ${relPath}`);
-  }
-
-  if (driftedPaths.length > 0) {
-    drift.push({
-      file: PI_SKILLS_DIR,
-      from: `${driftedPaths.length} skill file(s) drifted: ${driftedPaths.slice(0, 5).join(', ')}${driftedPaths.length > 5 ? `, +${driftedPaths.length - 5} more` : ''}`,
-      to: 'mirror of plugin/skills/',
-      // Marker handled by the writer at the bottom of the script.
-      mirror: true,
-    });
-  }
-}
-
 if (drift.length === 0) {
   // Log on both paths: in check mode the green check is the only signal CI
   // emits, and a positive confirmation makes the guard's success auditable.
@@ -383,14 +255,6 @@ if (checkMode) {
 }
 
 for (const d of drift) {
-  if (d.mirror) {
-    // Full directory mirror: blow away the target and re-copy from source.
-    // This is the simplest way to make deletions propagate (file removed from
-    // plugin/skills/ should also disappear from packages/pi/skills/).
-    rmSync(d.file, { recursive: true, force: true });
-    cpSync(PLUGIN_SKILLS_DIR, d.file, { recursive: true });
-  } else {
-    await writeFile(d.file, d.next);
-  }
+  await writeFile(d.file, d.next);
   console.log(`[sync-plugin-version] ${d.file}: ${d.from} → ${d.to}`);
 }

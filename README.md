@@ -72,11 +72,26 @@ Codex consumes the same plugin manifest as Claude Code, so the gateway, docs ser
 
 ### Pi
 
+Pi has no built-in MCP support, but the community-maintained [`pi-mcp-adapter`](https://www.npmjs.com/package/pi-mcp-adapter) is the canonical bridge. Install it once:
+
 ```bash
-pi install -l npm:@tesseron/pi@2.6.1
+pi install npm:pi-mcp-adapter
 ```
 
-Installs the [`@tesseron/pi`](./packages/pi) package as a project-local Pi extension (`-l` writes to `.pi/settings.json`). Pi auto-installs missing project-local packages on every run, so this also doubles as the team-share command. Drop the `-l` for a global install.
+Then add Tesseron to `.mcp.json` in your project root (or `~/.config/mcp/mcp.json` for a global install):
+
+```jsonc
+{
+  "mcpServers": {
+    "tesseron": { "command": "npx", "args": ["-y", "@tesseron/mcp@2.7.0"] },
+    "tesseron-docs": { "command": "npx", "args": ["-y", "@tesseron/docs-mcp@2.7.0"] }
+  }
+}
+```
+
+`pi-mcp-adapter` discovers and exposes the Tesseron tools to Pi automatically. Use `"directTools": true` per server entry to surface each Tesseron action as a top-level Pi tool instead of going through the `mcp` proxy.
+
+To pick up the skill bundle as well, point Pi's settings `skills` array at a clone of [`plugin/skills/`](./plugin/skills) — the same folder Claude Code / Codex use.
 
 ### OpenCode
 
@@ -135,7 +150,6 @@ See [`examples/`](./examples) for working apps in vanilla TS, React, Svelte, Vue
 | [`@tesseron/vite`](./packages/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
 | [`@tesseron/mcp`](./packages/mcp) | MCP gateway server (`tesseron-mcp` CLI; launched by each client's install path via `npx`). |
 | [`@tesseron/docs-mcp`](./packages/docs-mcp) | MCP server that serves the Tesseron docs (`search_docs`, `read_doc`, `list_docs`) for chapter-and-verse spec lookups inside agent sessions. |
-| [`@tesseron/pi`](./packages/pi) | Pi coding-agent extension: wraps `@tesseron/mcp` + `@tesseron/docs-mcp` as 8 typed Pi tools and ships the same skill bundle as the Claude/Codex plugin. |
 | [`@tesseron/devtools`](./packages/devtools) | In-browser debug UI served by the MCP gateway *(private stub, not yet published)*. |
 | [`create-tesseron`](./packages/create-tesseron) | `npm create tesseron@latest` scaffolder *(private stub, not yet published)*. |
 
@@ -164,7 +178,7 @@ For the authoritative, continuously-updated list of which client supports which 
 
 **v1.0** shipped April 2026; the SDK is at **v2.6** as of writing. The protocol is stable at [**1.0.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources, session resume.
 
-Published to npm: `@tesseron/{core,web,server,react,mcp,docs-mcp,pi}` ship in lockstep at the same version (currently **2.6.1**). `@tesseron/{svelte,vue,vite}` version independently. The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language.
+Published to npm: `@tesseron/{core,web,server,react,mcp,docs-mcp}` ship in lockstep at the same version (currently **2.7.0**). `@tesseron/{svelte,vue,vite}` version independently. The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language.
 
 On the roadmap: the devtools UI, a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
