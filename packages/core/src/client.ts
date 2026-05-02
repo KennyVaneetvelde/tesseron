@@ -414,6 +414,8 @@ export class TesseronClient implements BuilderRegistry {
 
     const ctx: ActionContext = {
       signal: controller.signal,
+      withTimeout: <T>(value: Promise<T> | T, ms: number): Promise<T> =>
+        withTimeoutAgainstSignal(value, ms, controller.signal),
       agentCapabilities: this.welcome?.capabilities ?? {
         sampling: false,
         elicitation: false,
@@ -533,8 +535,20 @@ export class TesseronClient implements BuilderRegistry {
       },
     };
 
+    // Race the handler against the abort signal so a handler stuck inside a
+    // non-AbortSignal-aware Promise (e.g. `modern-screenshot.domToPng`,
+    // `<img>.decode`, `document.fonts.ready`, `Audio.play`) doesn't pin the
+    // wire indefinitely. When the timeout or an `actions/cancel` aborts the
+    // controller, the reaper rejects, we send the error response, and the
+    // orphaned handler keeps running on its own — that's the app's problem to
+    // clean up, but the agent isn't held hostage.
+    const handlerPromise = Promise.resolve().then(() => action.handler(input, ctx));
+    // Belt-and-suspenders: even though Promise.race attaches a rejection
+    // listener to handlerPromise, attach our own so a late rejection from the
+    // orphaned handler can never surface as an unhandledrejection.
+    handlerPromise.catch(() => {});
     try {
-      const output = await action.handler(input, ctx);
+      const output = await Promise.race([handlerPromise, abortReaper(controller.signal)]);
       if (action.outputSchema && action.strictOutput) {
         const result = await standardValidate(action.outputSchema, output);
         if (!result.ok) {
@@ -600,6 +614,70 @@ export class TesseronClient implements BuilderRegistry {
     sub.unsubscribe();
     this.subscriptions.delete(params.subscriptionId);
   }
+}
+
+/**
+ * Promise that rejects when `signal` aborts. Mirrors the abort-reason mapping
+ * used by `handleInvoke`'s catch block: a `TimeoutError` reason propagates as
+ * itself, anything else collapses to `CancelledError`.
+ */
+function abortReaper(signal: AbortSignal): Promise<never> {
+  return new Promise<never>((_, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason instanceof TimeoutError ? signal.reason : new CancelledError());
+      return;
+    }
+    signal.addEventListener(
+      'abort',
+      () => {
+        reject(signal.reason instanceof TimeoutError ? signal.reason : new CancelledError());
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * Implementation of `ctx.withTimeout`. Resolves on inner success, rejects with
+ * `TimeoutError(ms)` if the local deadline elapses, or with the abort reason
+ * if `signal` aborts first.
+ */
+function withTimeoutAgainstSignal<T>(
+  value: Promise<T> | T,
+  ms: number,
+  signal: AbortSignal,
+): Promise<T> {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return Promise.reject(new Error('ctx.withTimeout: ms must be a non-negative finite number'));
+  }
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const settle = (action: () => void): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      action();
+    };
+    const onAbort = (): void => {
+      settle(() => {
+        const reason = signal.reason;
+        reject(reason instanceof TimeoutError ? reason : new CancelledError());
+      });
+    };
+    const timer = setTimeout(() => {
+      settle(() => reject(new TimeoutError(ms)));
+    }, ms);
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve(value).then(
+      (resolved) => settle(() => resolve(resolved)),
+      (err) => settle(() => reject(err)),
+    );
+  });
 }
 
 function resolveOrigin(): string {

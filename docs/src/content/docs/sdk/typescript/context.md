@@ -24,6 +24,7 @@ interface ActionContext {
 
   // Lifecycle
   readonly signal: AbortSignal;
+  withTimeout<T>(value: Promise<T> | T, ms: number): Promise<T>;
 
   // Messaging
   progress(update: { message?: string; percent?: number; data?: unknown }): void;
@@ -51,6 +52,21 @@ Standard [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortS
 ```
 
 Pass `ctx.signal` to everything that accepts one: `fetch`, `setTimeout`, database drivers, nested `ctx.sample` calls.
+
+The SDK guarantees the wire is freed at the deadline regardless of whether the handler observes `ctx.signal`. Once the timer fires, the agent receives `-32002 Timeout` (or `-32001 Cancelled` on agent cancellation) immediately. A handler stuck in a non-signal-aware promise keeps running orphaned — that's the app's problem to clean up, but the agent isn't held hostage. See [`ctx.withTimeout`](#ctxwithtimeout-drop-stuck-inner-promises) for the in-handler companion.
+
+## `ctx.withTimeout(value, ms)` - drop stuck inner promises
+
+A small race helper for handlers that wrap browser APIs which don't accept an `AbortSignal` — `modern-screenshot.domToPng`, `<canvas>.toBlob`, `<img>.decode`, `document.fonts.ready`, `Audio.play`, `MediaRecorder`. Resolves with `value` if it settles within `ms`, otherwise rejects with `TimeoutError`. Also rejects if `ctx.signal` aborts first (with the abort reason — `TimeoutError` or `CancelledError`).
+
+```ts
+.handler(async (_input, ctx) => {
+  const dataUrl = await ctx.withTimeout(domToPng(document.body), 8_000);
+  return { dataUrl };
+});
+```
+
+The original promise keeps running orphaned; the handler moves on. Use this to bound a single problematic call without giving the whole action a tighter `.timeout({ ms })` than it actually needs.
 
 ## `ctx.progress(update)` - streaming updates
 
