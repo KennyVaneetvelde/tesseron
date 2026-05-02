@@ -1,5 +1,12 @@
 # @tesseron/web
 
+## 2.8.0
+
+### Patch Changes
+
+- Updated dependencies [[`bcf950d`](https://github.com/BrainBlend-AI/tesseron/commit/bcf950d5ba9f567a1d7a0b080b094544d30bfd86)]:
+  - @tesseron/core@2.8.0
+
 ## 2.7.0
 
 ### Minor Changes
