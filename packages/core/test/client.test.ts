@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { PROTOCOL_VERSION, TesseronClient, type Transport } from '../src/index.js';
+import {
+  type ActionContext,
+  PROTOCOL_VERSION,
+  TesseronClient,
+  TesseronErrorCode,
+  TimeoutError,
+  type Transport,
+} from '../src/index.js';
 import { JsonRpcDispatcher } from '../src/internal.js';
 
 interface PairedSetup {
@@ -242,5 +249,148 @@ describe('TesseronClient end-to-end', () => {
     expect(observed).toEqual([{ agentId: 'claude-code', claimCode: undefined }]);
     expect(client.getWelcome()?.claimCode).toBeUndefined();
     expect(client.getWelcome()?.agent).toEqual({ id: 'claude-code', name: 'Claude Code' });
+  });
+
+  it('frees the wire with -32002 Timeout when the handler ignores ctx.signal', async () => {
+    // Regression for #85: a handler awaiting a non-AbortSignal-aware promise
+    // (modern-screenshot.domToPng, <img>.decode, etc.) used to hang the wire
+    // forever — the agent's pending tools/call sat indefinitely because
+    // `await action.handler(...)` never resolved. Now the SDK races the
+    // handler against the abort signal so the timeout response always fires.
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    client
+      .action('hangs')
+      .timeout({ ms: 30 })
+      // Intentionally ignore ctx.signal — represents a third-party promise
+      // that doesn't accept an AbortSignal.
+      .handler(() => new Promise<never>(() => {}));
+
+    let clientMessageHandler: ((m: unknown) => void) | undefined;
+    const gateway = new JsonRpcDispatcher((m) => {
+      queueMicrotask(() => clientMessageHandler?.(m));
+    });
+    gateway.on('tesseron/hello', () => ({
+      sessionId: 'test',
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { streaming: false, subscriptions: false, sampling: false, elicitation: false },
+      agent: { id: 'a', name: 'a' },
+    }));
+
+    const transport: Transport = {
+      send: (m) => queueMicrotask(() => gateway.receive(m)),
+      onMessage: (h) => {
+        clientMessageHandler = h;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    await client.connect(transport);
+
+    await expect(
+      gateway.request('actions/invoke', {
+        name: 'hangs',
+        input: {},
+        invocationId: 'inv-timeout',
+      }),
+    ).rejects.toMatchObject({ code: TesseronErrorCode.Timeout });
+  });
+
+  it('frees the wire with -32001 Cancelled when actions/cancel arrives on a stuck handler', async () => {
+    // Companion to the timeout case: actions/cancel from the agent must also
+    // free the wire even when the handler doesn't observe ctx.signal.
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    client
+      .action('hangs')
+      .timeout({ ms: 60_000 })
+      .handler(() => new Promise<never>(() => {}));
+
+    let clientMessageHandler: ((m: unknown) => void) | undefined;
+    const gateway = new JsonRpcDispatcher((m) => {
+      queueMicrotask(() => clientMessageHandler?.(m));
+    });
+    gateway.on('tesseron/hello', () => ({
+      sessionId: 'test',
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { streaming: false, subscriptions: false, sampling: false, elicitation: false },
+      agent: { id: 'a', name: 'a' },
+    }));
+
+    const transport: Transport = {
+      send: (m) => queueMicrotask(() => gateway.receive(m)),
+      onMessage: (h) => {
+        clientMessageHandler = h;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    await client.connect(transport);
+
+    const pending = gateway.request('actions/invoke', {
+      name: 'hangs',
+      input: {},
+      invocationId: 'inv-cancel',
+    });
+    // Let the SDK pick up the invoke before we cancel.
+    await new Promise((r) => setImmediate(r));
+    gateway.notify('actions/cancel', { invocationId: 'inv-cancel' });
+
+    await expect(pending).rejects.toMatchObject({ code: TesseronErrorCode.Cancelled });
+  });
+
+  it('ctx.withTimeout resolves on success and rejects with TimeoutError on the inner deadline', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    const captured: { resolved?: unknown; rejected?: unknown } = {};
+    client
+      .action('inner')
+      .timeout({ ms: 5_000 })
+      .handler(async (_input: unknown, ctx: ActionContext) => {
+        // Fast inner promise resolves within the deadline.
+        const ok = await ctx.withTimeout(Promise.resolve('ok'), 50);
+        captured.resolved = ok;
+        // Slow inner promise misses the deadline; helper rejects with TimeoutError.
+        try {
+          await ctx.withTimeout(new Promise<never>(() => {}), 20);
+        } catch (err) {
+          captured.rejected = err;
+        }
+        return 'done';
+      });
+
+    let clientMessageHandler: ((m: unknown) => void) | undefined;
+    const gateway = new JsonRpcDispatcher((m) => {
+      queueMicrotask(() => clientMessageHandler?.(m));
+    });
+    gateway.on('tesseron/hello', () => ({
+      sessionId: 'test',
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { streaming: false, subscriptions: false, sampling: false, elicitation: false },
+      agent: { id: 'a', name: 'a' },
+    }));
+
+    const transport: Transport = {
+      send: (m) => queueMicrotask(() => gateway.receive(m)),
+      onMessage: (h) => {
+        clientMessageHandler = h;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    await client.connect(transport);
+
+    const result = await gateway.request('actions/invoke', {
+      name: 'inner',
+      input: {},
+      invocationId: 'inv-with-timeout',
+    });
+    expect(result).toEqual({ invocationId: 'inv-with-timeout', output: 'done' });
+    expect(captured.resolved).toBe('ok');
+    expect(captured.rejected).toBeInstanceOf(TimeoutError);
+    expect((captured.rejected as TimeoutError).code).toBe(TesseronErrorCode.Timeout);
   });
 });

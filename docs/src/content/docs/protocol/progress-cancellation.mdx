@@ -105,6 +105,7 @@ tesseron.action('generateReport')
 - `ctx.signal` is a standard [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). Pass it to `fetch`, `setTimeout`, database drivers, or anything else that accepts one.
 - Cancellation fires for **two reasons**: the agent explicitly cancelled, or the action's timeout expired. Your handler treats them the same way - yield as fast as you can.
 - After abort, the SDK returns an error response with code `-32001 Cancelled` (explicit) or `-32002 Timeout` (timer).
+- **The wire is freed at the deadline regardless of the handler.** The SDK races the handler against the abort signal, so a handler stuck inside a non-signal-aware promise (`modern-screenshot.domToPng`, `<canvas>.toBlob`, `<img>.decode`, `document.fonts.ready`, `Audio.play`, `MediaRecorder`, ...) doesn't pin the agent's `tools/call` indefinitely - the orphaned handler keeps running, but the agent has already received its error response. To bound an individual stuck call from inside the handler, use [`ctx.withTimeout(p, ms)`](/sdk/typescript/context/#ctxwithtimeout-drop-stuck-inner-promises).
 
 Wire format - notification from gateway to app:
 

@@ -110,6 +110,26 @@ export interface ActionContext {
   elicit<T>(req: ElicitRequest<T>): Promise<T | null>;
   /** Emits a structured log entry forwarded over MCP `notifications/message`. */
   log(entry: LogEntry): void;
+  /**
+   * Race a promise against a fixed deadline while honouring `ctx.signal`.
+   *
+   * Resolves with `value` if it settles within `ms`. Otherwise rejects with
+   * a `TimeoutError`. If `ctx.signal` aborts (outer action timeout or agent
+   * cancellation) before either fires, rejects with the abort reason
+   * (`TimeoutError` or `CancelledError`).
+   *
+   * Use this to drop a stuck inner promise that doesn't accept an
+   * `AbortSignal` — common with browser DOM/canvas/font/media APIs like
+   * `modern-screenshot.domToPng`, `<canvas>.toBlob`, `<img>.decode`,
+   * `document.fonts.ready`, `Audio.play`, `MediaRecorder`. The original
+   * promise keeps running orphaned; the handler can move on.
+   *
+   * @example
+   * ```ts
+   * const dataUrl = await ctx.withTimeout(domToPng(document.body), 8_000);
+   * ```
+   */
+  withTimeout<T>(value: Promise<T> | T, ms: number): Promise<T>;
 }
 
 /** Payload for {@link ActionContext.log}. */

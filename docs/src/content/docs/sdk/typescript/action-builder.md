@@ -86,6 +86,8 @@ Per-invocation timeout. Default 60 000 ms. When exceeded, the handler's `ctx.sig
 .timeout({ ms: 5 * 60 * 1000 })   // big report, 5 minutes
 ```
 
+The SDK races the handler against the deadline, so the agent receives the timeout response even if the handler is stuck in a non-`AbortSignal`-aware promise. To bound a single inner call from inside the handler, use [`ctx.withTimeout(p, ms)`](/sdk/typescript/context/#ctxwithtimeout-drop-stuck-inner-promises).
+
 ## `.strictOutput()`
 
 Turns `.output(schema)` from documentation into enforcement. Validation failure becomes `-32005 HandlerError` with `issues` in `error.data`.
