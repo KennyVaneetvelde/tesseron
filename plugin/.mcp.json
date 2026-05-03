@@ -3,12 +3,12 @@
     "tesseron": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@tesseron/mcp@2.7.0"]
+      "args": ["-y", "@tesseron/mcp@2.8.0"]
     },
     "tesseron-docs": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@tesseron/docs-mcp@2.7.0"]
+      "args": ["-y", "@tesseron/docs-mcp@2.8.0"]
     }
   }
 }

@@ -1,5 +1,22 @@
 # @tesseron/core
 
+## 2.8.0
+
+### Minor Changes
+
+- [#86](https://github.com/BrainBlend-AI/tesseron/pull/86) [`bcf950d`](https://github.com/BrainBlend-AI/tesseron/commit/bcf950d5ba9f567a1d7a0b080b094544d30bfd86) by Kenny - fix: free the wire on action timeout/cancel even when the handler ignores `ctx.signal` (closes [#85](https://github.com/BrainBlend-AI/tesseron/issues/85))
+
+  The SDK now races the handler against the abort signal, so a handler stuck inside a non-`AbortSignal`-aware promise (`modern-screenshot.domToPng`, `<canvas>.toBlob`, `<img>.decode`, `document.fonts.ready`, `Audio.play`, `MediaRecorder`, ...) no longer pins the agent's `tools/call` indefinitely. When the per-action `.timeout({ ms })` elapses or the agent sends `actions/cancel`, the SDK responds with `-32002 Timeout` or `-32001 Cancelled` immediately. The orphaned handler keeps running until it settles (still the app's job to clean up), but the agent is no longer held hostage.
+
+  Adds `ctx.withTimeout(value, ms)` for the in-handler companion: bound a single stuck inner call without giving the whole action a tighter outer timeout than it actually needs. Resolves on success, rejects with `TimeoutError` on the local deadline, and rejects with the abort reason if `ctx.signal` aborts first.
+
+  ```ts
+  .handler(async (_input, ctx) => {
+    const dataUrl = await ctx.withTimeout(domToPng(document.body), 8_000);
+    return { dataUrl };
+  });
+  ```
+
 ## 2.7.0
 
 ### Minor Changes
