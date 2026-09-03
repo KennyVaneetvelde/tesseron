@@ -120,7 +120,13 @@ Each `on(...)` handler maps to the corresponding builder. Implement progress / s
 
 Before you ship, make sure the SDK passes every line of this list. An SDK that fails any line is not Tesseron-compliant.
 
-Part of this list is executable. [`conformance/`](https://github.com/eigenwise/tesseron/tree/main/conformance) in the Tesseron repo holds the same assertions as scripted JSON exchanges, so "does my port handle cancellation correctly" is a command instead of a careful re-read. The fixtures are plain JSON with no dependency on this workspace: vendor the directory, write a ~200-line runner that plays the gateway side, and walk the steps. The format and the runner contract are in [`conformance/README.md`](https://github.com/eigenwise/tesseron/blob/main/conformance/README.md). It is a starter set covering the handshake, action lifecycle, resources, and error model; the prose list below is still the wider contract.
+Part of this list is executable. Build a small host adapter that reads `TESSERON_CONFORMANCE_FIXTURE`, registers its canned actions and resources, and prints the readiness line described in the [fixture adapter contract](https://github.com/eigenwise/tesseron/blob/main/conformance/README.md). Then run the shipped protocol 1.2 suite:
+
+```bash
+npx @tesseron/conformance@1.2.0 --host "./build/tesseron-conformance-host"
+```
+
+Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domain sockets. The package carries the fixture corpus, reports skips separately, and runs each fixture against a fresh host process. The prose list below remains the wider implementation checklist.
 
 **Handshake**
 - [ ] Sends `tesseron/hello` immediately after the binding's connection becomes ready.

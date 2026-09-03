@@ -1,0 +1,86 @@
+{
+  "id": "bind/ws-success",
+  "title": "A matching WebSocket bind code opens before host traffic starts",
+  "spec": "/protocol/transport-bindings/ws/",
+  "requires": ["host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    },
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "connect": {
+        "bindCode": "AB3X-7K",
+        "expect": "open"
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello",
+        "params": {
+          "protocolVersion": "~regex:^1\\.[0-9]+\\.[0-9]+$",
+          "app": {
+            "id": "~string",
+            "name": "~string",
+            "origin": "~string"
+          },
+          "actions": "~array",
+          "resources": "~array",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_bind_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_bind_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "tesseron/claimed",
+        "params": {
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "claimedAt": 1714145210123
+        }
+      }
+    }
+  ]
+}

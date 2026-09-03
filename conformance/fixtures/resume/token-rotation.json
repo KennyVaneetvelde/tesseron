@@ -109,7 +109,6 @@
             "id": "agent_conformance",
             "name": "conformance-runner"
           },
-          "claimCode": "~absent",
           "resumeToken": "rt_conformance_0002"
         }
       },

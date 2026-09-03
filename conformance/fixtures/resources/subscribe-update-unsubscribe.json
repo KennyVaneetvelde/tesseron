@@ -96,7 +96,8 @@
             "total": 42
           }
         }
-      }
+      },
+      "notBefore": "subscribed"
     },
     {
       "send": {

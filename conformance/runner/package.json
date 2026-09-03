@@ -1,0 +1,48 @@
+{
+  "name": "@tesseron/conformance",
+  "version": "1.2.0",
+  "description": "Executable conformance suite for Tesseron protocol hosts.",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://eigenwise.io/"
+  },
+  "homepage": "https://github.com/eigenwise/tesseron/tree/main/conformance#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eigenwise/tesseron.git",
+    "directory": "conformance/runner"
+  },
+  "bugs": {
+    "url": "https://github.com/eigenwise/tesseron/issues"
+  },
+  "keywords": ["tesseron", "conformance", "protocol", "websocket", "sdk"],
+  "type": "module",
+  "bin": {
+    "tesseron-conformance": "./dist/tesseron-conformance.cjs"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/copy-fixtures.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.5.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

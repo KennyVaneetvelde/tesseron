@@ -1,0 +1,31 @@
+{
+  "id": "bind/ws-mismatch",
+  "title": "A mismatched WebSocket bind code is rejected with HTTP 403",
+  "spec": "/protocol/transport-bindings/ws/",
+  "requires": ["host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    },
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "connect": {
+        "bindCode": "WRONG-0",
+        "expect": {
+          "upgradeStatus": 403
+        }
+      }
+    }
+  ]
+}
