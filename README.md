@@ -48,6 +48,8 @@ Live applications (browser tabs, Electron/Tauri desktop apps, Node daemons, CLIs
 
 > **It's a protocol, not just a TypeScript library — and not just for the web.** The JS/TS SDKs are the reference implementation and already cover the browser, Node, and desktop (Electron/Tauri). But the wire protocol is [CC BY 4.0](#license) and language-agnostic: anything that can open a WebSocket and speak JSON-RPC 2.0 can host actions, so a Python daemon, a Rust desktop app, or a .NET line-of-business tool can speak it too. Web is simply where the first SDKs landed — not the boundary of what Tesseron is.
 
+WebMCP is a useful browser-native path for public sites that want an assistant to fill forms. The [Tesseron and WebMCP](https://eigenwise.github.io/tesseron/overview/why/#5-tesseron-and-webmcp) section explains the difference, including Tauri and Python processes, cross-app flows, and agents like Claude Code.
+
 <p align="center">
   <img src="./assets/diagrams/pieces-fit-together.png" alt="USER prompts the agent; YOUR APP (browser or Node, using @tesseron/web or /server) opens a loopback WebSocket and announces itself; the MCP GATEWAY (@tesseron/mcp) discovers it via ~/.tesseron/instances/ and dials in; the gateway bridges to the MCP CLIENT (Claude Code, Codex, OpenCode, Pi, Cursor, Claude Desktop, ...) over stdio." width="900">
 </p>

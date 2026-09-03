@@ -38,6 +38,19 @@ The gateway exposes those actions as MCP tools over stdio. Any MCP-capable agent
 
 Tesseron is a protocol, not a web framework. The first SDKs happen to target the browser (vanilla, React, Svelte, Vue) and Node (servers, CLIs, Electron/Tauri desktop apps) - but anything that can open a WebSocket and speak JSON-RPC 2.0 can host actions. A Python daemon driving a data pipeline, a Rust desktop app, a .NET line-of-business tool: all of them can expose the same typed actions the same way. The JS/TS implementation is just where it started; see [Porting Tesseron](/sdk/porting/) and the [Python SDK status](/sdk/python/).
 
+## 5. Tesseron and WebMCP
+
+The [W3C WebMCP draft](https://webmachinelearning.github.io/webmcp/) is a W3C Community Group draft co-authored by Google and Microsoft. It lets a website expose tools to the browser's own agent. Chrome put it behind a flag in Chrome 146 in February 2026, and the [Chrome origin trial](https://developer.chrome.com/blog/ai-webmcp-origin-trial) is ongoing. The July 2026 draft moved the API from `navigator.modelContext` to `document.modelContext`. Chrome 150 deprecated the old name. `provideContext()` was removed in March 2026. Only Chromium implements WebMCP today. It exposes tools through `registerTool()` with a JSON schema or through annotated forms. Those tools run in the page as the logged-in user. The agent has to live in the browser, either built in or installed as an extension. A public website that wants the browser's own assistant to fill forms is the right fit.
+
+- **Any process, not a page.** Tesseron can expose actions from a Tauri app, Python daemon, CLI, or game, and a Python daemon can expose `importTodos` while a Tauri app uses system webviews that cannot reach WebMCP through its own UI.
+- **The agent is outside, and it is the one you already use.** Claude Code, Cursor, or Claude Desktop can build, run, and drive the app through Tesseron, while a coding agent cannot reach `document.modelContext`, so Claude Code can call `addTodo` after editing its handler.
+- **One gateway sees every running app.** Tesseron can expose a browser tab and a desktop app together, so a cross-app flow is built in; for example, it can read an invoice from a web app and post it into a local accounting app.
+- **The app can talk back.** Tesseron supports sampling, elicitation, `confirm`, resources with subscriptions, progress, cancellation, and resume; for example, `importTodos` can report each added item while a subscribed resource updates.
+- **Loopback plus an explicit claim.** Tesseron stays on loopback and requires the user's claim code, so a third-party script on the page cannot register a tool; for example, an unrelated analytics script cannot expose `deleteAccount` through the gateway.
+- **One CC BY spec, several languages, conformance-tested.** The protocol is CC BY 4.0, SDKs can be written in several languages, and the conformance suite checks them; for example, the same `addTodo` action can run in TypeScript and Rust.
+
+The [@tesseron/web opt-in bridge](/sdk/typescript/web/) can register the same actions in `document.modelContext` when you choose it. Use WebMCP for browser-native agents and Tesseron for the wider set of processes and agents.
+
 ## Tradeoffs (be honest)
 
 - **Localhost by default.** Tesseron is a local-first developer tool. Apps bind to `127.0.0.1`; the gateway only dials loopback URLs. Nothing leaks off the machine.
