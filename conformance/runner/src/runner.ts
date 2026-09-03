@@ -1,7 +1,8 @@
 import { type ChildProcess, type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { statSync } from 'node:fs';
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { EndpointConnectionController } from './connection.js';
 import {
@@ -113,6 +114,41 @@ class HostLaunchFailure extends Error {
   }
 }
 
+/**
+ * Rewrites a `--host` that is nothing but a path into its quoted absolute form.
+ *
+ * The host is launched through a shell, and cmd.exe ends the command token at
+ * the first `/`, so `--host "build/tesseron-conformance-host"` dies as
+ * `'build' is not recognized` before the host process exists. Every compiled
+ * SDK names its host that way, the example in `conformance/README.md`
+ * included, and an absolute path resolves on both shells.
+ *
+ * A command with arguments (`node dist/bin.js`) does not name a file, so it
+ * falls through untouched and keeps its shell semantics.
+ */
+export function resolveHostCommand(
+  hostCommand: string,
+  workingDirectory: string = process.cwd(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const candidate = resolve(workingDirectory, hostCommand.trim());
+  // Windows hangs the extension off the file, not the command: `cargo build`
+  // writes tesseron-conformance-host.exe and the fixture author still writes
+  // the name without it.
+  const executable =
+    existingFile(candidate) ??
+    (platform === 'win32' ? existingFile(`${candidate}.exe`) : undefined);
+  return executable ? `"${executable}"` : hostCommand;
+}
+
+function existingFile(candidate: string): string | undefined {
+  try {
+    return statSync(candidate, { throwIfNoEntry: false })?.isFile() ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 class LaunchedHost {
   readonly issue: Promise<HostIssue>;
   private issueValue?: HostIssue;
@@ -137,7 +173,7 @@ class LaunchedHost {
     const fixturePath = join(temporaryDirectory, 'fixture.json');
     await writeFile(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`, { mode: 0o600 });
 
-    const child = spawn(hostCommand, {
+    const child = spawn(resolveHostCommand(hostCommand), {
       cwd: process.cwd(),
       env: { ...process.env, TESSERON_CONFORMANCE_FIXTURE: fixturePath },
       shell: true,

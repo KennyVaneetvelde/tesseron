@@ -6,6 +6,7 @@
       "node_modules",
       ".turbo",
       "sdks/typescript/examples",
+      "sdks/rust/**",
       "**/.astro/**",
       "assets/diagrams/**",
       ".claude/**"

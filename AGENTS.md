@@ -31,6 +31,9 @@ repo; do not introduce one.
 - `gateway/`: the gateway binary published as `@tesseron/mcp` (`bin: tesseron-mcp`).
 - `docs-mcp/`: the docs MCP server published as `@tesseron/docs-mcp`.
 - `conformance/`: language-neutral fixtures and the Node runner workspace.
+- `sdks/rust/`: the Rust SDK (`tesseron`) and `tesseron-conformance-host`. Its own
+  cargo workspace, invisible to pnpm and to Biome. In progress; see
+  [`sdks/rust/README.md`](./sdks/rust/README.md) for what it covers.
 - `plugin/` — the Claude Code plugin (also accepted by Codex). Skills live in
   `plugin/skills/`, the MCP wiring in `plugin/.mcp.json`, the manifest in
   `plugin/.claude-plugin/plugin.json`.
@@ -38,6 +41,20 @@ repo; do not introduce one.
 - `.agents/plugins/marketplace.json` — Codex marketplace listing (same plugin
   source, Codex-preferred path).
 - `docs/` — Starlight site at https://eigenwise.github.io/tesseron/.
+
+`sdks/rust/` does not move with pnpm. Run cargo from the repo root and point it
+at that manifest, the way CI does:
+
+```bash
+cargo fmt --manifest-path sdks/rust/Cargo.toml --all --check
+cargo clippy --manifest-path sdks/rust/Cargo.toml --workspace --all-targets -- -D warnings
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace
+cargo build --manifest-path sdks/rust/Cargo.toml --workspace
+```
+
+House rules there: no `unwrap()` outside tests (`unwrap_used` is denied),
+`#![deny(missing_docs)]` on the library, no abbreviations in names. `Cargo.lock`
+is committed.
 
 ## Plugin manifest is version-coupled
 

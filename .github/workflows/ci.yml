@@ -60,3 +60,62 @@ jobs:
       - name: Docs change carries a docs-mcp changeset
         if: github.event_name == 'pull_request'
         run: pnpm check-docs-changeset
+
+  rust:
+    name: Rust SDK
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sdks/rust
+
+      # --all, because without it cargo fmt reaches the root package only and
+      # the conformance host goes unchecked.
+      - name: Format
+        run: cargo fmt --manifest-path sdks/rust/Cargo.toml --all --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path sdks/rust/Cargo.toml --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --manifest-path sdks/rust/Cargo.toml --workspace
+
+      - name: Build the conformance host
+        run: cargo build --manifest-path sdks/rust/Cargo.toml --workspace
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      # SQ-13 publishes @tesseron/conformance. Once 1.2.0 is on npm, delete the
+      # install and this build and run `npx @tesseron/conformance@1.2.0` in the
+      # steps below, so the Rust host is checked against the published corpus
+      # instead of against whatever happens to be in the tree.
+      - name: Build the conformance runner
+        run: pnpm -r --filter @tesseron/conformance build
+
+      # Every fixture the Rust host cannot serve yet is named here. The runner
+      # cross-checks the four capability flags against the hello frame, so a
+      # capability declared true in the SDK and listed here fails the run.
+      - name: Run the conformance suite
+        env:
+          TESSERON_CONFORMANCE_UNSUPPORTED: elicitation,host-minted-claim,sampling,streaming,subscriptions,uds
+        run: node conformance/runner/dist/tesseron-conformance.cjs --host "sdks/rust/target/debug/tesseron-conformance-host"

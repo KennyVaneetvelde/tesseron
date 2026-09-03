@@ -1,0 +1,52 @@
+[package]
+name = "tesseron"
+version = "0.1.0"
+description = "Rust SDK for the Tesseron protocol: expose typed app actions and resources to MCP-compatible agents."
+readme = "README.md"
+keywords = ["tesseron", "mcp", "jsonrpc", "agents", "websocket"]
+categories = ["network-programming", "api-bindings"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+futures-util = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "net", "sync", "time", "macros", "io-util"] }
+tokio-tungstenite = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[lints]
+workspace = true
+
+# The SDK is the workspace root rather than a member beside the conformance
+# host, because `cargo fmt --manifest-path sdks/rust/Cargo.toml` needs a package
+# to point at: a virtual manifest gives it no targets and it exits 1.
+[workspace]
+members = ["conformance-host"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/eigenwise/tesseron"
+
+[workspace.dependencies]
+futures-util = "0.3"
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = "1"
+tokio-tungstenite = "0.30"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"

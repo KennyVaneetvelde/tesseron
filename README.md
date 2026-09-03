@@ -194,6 +194,8 @@ Published to npm: eight TypeScript packages — `@tesseron/{core,web,server,reac
 
 The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language. The [conformance fixtures](./conformance) are the executable half of that.
 
+A Rust SDK is in progress under [`sdks/rust/`](./sdks/rust): handshake, claiming, resume, action invocation and resource reads work today; streaming, subscriptions, sampling and elicitation don't yet. Nothing is on crates.io.
+
 On the roadmap: a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
 ## Development
