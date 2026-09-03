@@ -1,0 +1,32 @@
+{
+  "id": "bind/uds-mismatch",
+  "title": "A mismatched UDS bind code returns -32009 and closes",
+  "spec": "/protocol/transport-bindings/uds/",
+  "requires": ["uds", "host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    },
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "connect": {
+        "bindCode": "WRONG-0",
+        "expect": {
+          "bindErrorCode": -32009,
+          "closes": true
+        }
+      }
+    }
+  ]
+}

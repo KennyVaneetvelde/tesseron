@@ -1,126 +1,216 @@
-# Tesseron conformance fixtures
+# Tesseron conformance
 
-Executable version of the [porting checklist](../docs/src/content/docs/sdk/porting.md).
-Every fixture is a scripted exchange in plain JSON. No TypeScript, no test framework,
-no dependency on this repo. If your runtime can parse JSON and open a socket, it can
-run these.
+This directory contains the language-neutral fixture corpus and the executable runner for Tesseron protocol hosts. The runner plays the gateway and dials the host directly. It never starts `@tesseron/mcp`, reads discovery manifests, or touches `~/.tesseron`.
 
-The point: "is this implementation correct" should be a command you run, not an
-argument you have. Five implementations of a protocol without a shared suite means
-five subtly incompatible implementations, discovered through bug reports.
+The fixture corpus is licensed CC BY 4.0, like the protocol specification. See [`LICENSE`](../docs/src/content/docs/protocol/LICENSE).
 
-Licensed CC BY 4.0, same as the spec. See [`LICENSE`](../docs/src/content/docs/protocol/LICENSE).
+## Run it
 
-## What is under test
+Build your host adapter, then pass its command to the published CLI:
 
-Fixtures test a **host**: the thing a port actually writes. The runner plays the
-gateway, so you never need a real `@tesseron/mcp` process to get a signal.
-
-```
-  your host implementation  <--- fixture steps --->  the runner (plays gateway)
+```bash
+npx @tesseron/conformance@1.2.0 --host "./build/tesseron-conformance-host"
 ```
 
-The gateway itself is not portable work. It is one binary that dials out to your app
-and speaks the same wire protocol regardless of what language wrote the manifest, so
-a port needs the host side only.
+Available options:
 
-## Fixture format
+```text
+tesseron-conformance --host "<command>" [--fixtures <dir>] [--only <id glob>] [--json]
+```
+
+`--fixtures` overrides the fixture corpus shipped inside the npm package. `--only` accepts `*` and `?` in a fixture ID glob. `--json` prints one report document and no human result lines.
+
+This repository runs its TypeScript reference host with:
+
+```bash
+pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build
+pnpm conformance:run
+```
+
+## Host launch contract
+
+The runner starts a fresh host process for every selected fixture:
+
+1. It creates a private temporary directory.
+2. It writes the complete fixture document to `<temp>/fixture.json` with private permissions.
+3. It starts the trusted `--host` shell command with `TESSERON_CONFORMANCE_FIXTURE` set to that absolute path.
+4. It waits up to 5000 ms for exactly one stdout line:
+   - `tesseron-conformance-url=ws://127.0.0.1:<port>/<path>`
+   - `tesseron-conformance-uds=<absolute-path>`, only for a fixture requiring `uds`
+5. It dials that endpoint and plays the gateway side of the fixture.
+6. It closes all connections, closes the child's stdin, and force-kills a child that does not stop after the cleanup allowance.
+
+The endpoint must use loopback and an ephemeral port. Put diagnostics on stderr. EOF, another stdout line, malformed readiness, a non-loopback URL, timeout, or early exit fails the fixture with launch evidence. A crash after launch fails the active step.
+
+A host adapter should stop cleanly when stdin closes and should also handle its platform's normal termination signals.
+
+## Capabilities and skips
+
+Set `TESSERON_CONFORMANCE_UNSUPPORTED` to a comma-separated list of tags the host cannot support. Empty or absent means every known tag is supported. Known tags are:
+
+```text
+actions, elicitation, host-minted-claim, resources, resume,
+sampling, streaming, subscriptions, uds
+```
+
+Unknown and duplicate tags are runner errors. A fixture is skipped when any of its `requires` tags is unsupported, and the report names every missing tag. Windows hosts that have no POSIX Unix domain sockets should include `uds`.
+
+For selected fixtures, the `streaming`, `subscriptions`, `sampling`, and `elicitation` fields in `tesseron/hello.params.capabilities` must agree with the unsupported list.
+
+## Fixture document
+
+Each JSON file under `fixtures/` has this shape:
 
 ```jsonc
 {
   "id": "actions/invoke-success",
-  "title": "A well-formed invoke returns the handler output verbatim",
+  "title": "A valid invoke returns its output",
   "spec": "/protocol/actions/",
-  "requires": ["actions"],
+  "requires": [],
   "fixture": {
     "actions": [
       { "name": "add", "returns": { "sum": 3 } }
     ]
   },
   "steps": [
-    { "recv": { "method": "tesseron/hello" } },
-    { "send": { "result": { "sessionId": "s_test", "claimCode": "AB3X-7K" } } }
+    { "recv": { "id": "~capture:helloId", "method": "tesseron/hello" } },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": { "sessionId": "s_test", "protocolVersion": "1.2.0" }
+      }
+    }
   ]
 }
 ```
 
-- `id` — path-shaped, matches the file path under `fixtures/`.
-- `spec` — the docs page this pins down. A fixture with no spec anchor is a bug in
-  the fixture, not a feature.
-- `requires` — capability tags. A host that does not implement `uds` or `resume`
-  skips those fixtures and reports them as skipped, never as passed.
-- `fixture` — the app the host must stand up before the exchange: actions with
-  canned return values, resources with canned reads. Keeps handler logic out of the
-  wire assertions.
-- `steps` — ordered. `recv` is a frame the runner expects **from** the host; `send`
-  is a frame the runner writes **to** it.
+`id` must match the path below `fixtures/` without `.json`. `spec` is the absolute docs route that defines the behavior. `requires` controls honest skips. `fixture` tells the adapter which canned app to register. `steps` is the ordered gateway script.
 
-### Matchers
+## Fixture adapter grammar
 
-Session ids, invocation ids, claim codes, and timestamps are volatile, so `recv`
-frames match structurally rather than by equality. A `recv` object asserts only the
-keys it names; extra keys on the actual frame are allowed (a host may carry fields
-from a later minor). String values starting with `~` are matchers:
+The adapter reads the `fixture` object before opening its endpoint. Omitted `actions` and `resources` mean empty lists.
+
+### Actions
+
+Every action entry requires `name` and accepts:
+
+| Field | Adapter behavior |
+|---|---|
+| `description` | Register this action description. The default is an empty string. |
+| `returns` | Return a deep copy of this JSON value. The default is `null`. |
+| `inputSchema` | Register this JSON Schema as both runtime validation and manifest schema. Invalid input must fail before the handler runs. |
+| `assertHandlerNotCalled` | Throw if the handler runs. Used with input validation fixtures. |
+| `blocksUntilCancelled` | Keep the handler pending until the SDK's cancellation path aborts it. |
+| `progress` | Call the action context's progress method once per entry, in array order. Each entry may contain `percent`, `message`, and `data`. |
+| `confirms` | Call the action context's confirm method with this question. |
+| `returnsConfirmResult` | Return `{ "confirmed": <boolean> }` after `confirms`. |
+| `elicits` | Call the action context's structured elicit method with `{ "question", "jsonSchema" }` and a permissive runtime validator. This lets the SDK validate the outgoing JSON Schema itself. |
+
+An adapter applies behaviors in this order: reject unexpected handler calls, enter the cancellation wait, emit progress, confirm, elicit, then return the canned value. `returnsConfirmResult` ends the handler after confirmation.
+
+### Resources
+
+Every resource entry requires `name` and accepts:
+
+| Field | Adapter behavior |
+|---|---|
+| `description` | Register this resource description. The default is an empty string. |
+| `value` | Return a deep copy from each read. The default is `null`. |
+| `subscribable` | Register the resource's subscription callback. |
+| `emits` | Queue each `{ "afterStep", "value" }` update in array order after subscription setup returns. `afterStep` names the labeled runner step used as the ordering boundary; the corresponding `recv` uses `notBefore` to prove the update arrived later. Cleanup cancels every queued update. |
+
+### Host-minted claims
+
+`hostMintedClaim` has deterministic test data:
+
+```json
+{
+  "code": "AB3X-7K",
+  "sessionId": "s_conformance_bind_0001",
+  "resumeToken": "rt_conformance_bind_0001"
+}
+```
+
+When present, the adapter answers the app's hello locally, waits for a valid bind, then replays the cached hello to the runner. WebSocket bind protocols are exactly `tesseron-gateway` and `tesseron-bind.<code>`. UDS uses `tesseron/bind` as the first NDJSON request. A code becomes spent after the replay response.
+
+## Step grammar
+
+A step contains exactly one kind. Waits default to 2000 ms. `timeoutMs` overrides `recv`, `connect`, `reconnect`, and `expectClosed`. `expectSilence` requires its own `timeoutMs`. There is no sleep step.
+
+| Step | Meaning |
+|---|---|
+| `recv: <matcher>` | Consume the next host envelope and partially match it. |
+| `send: <envelope>` | Resolve `~ref` values and write one literal JSON-RPC 2.0 envelope. Other matchers are invalid here. |
+| `connect: { bindCode?, expect? }` | Dial the ready endpoint. Fixtures without an explicit initial connect use an implicit plain WebSocket connection. |
+| `reconnect: true | { bindCode?, expect? }` | Dial the same endpoint after a drop. `true` reuses the prior bind code and expects an open connection. |
+| `dropTransport: true` | Close WS with code 1001 and reason `conformance drop`, or destroy UDS, then forget the connection. |
+| `expectClosed: true | { code?, reason? }` | Wait for close. Code and reason checks apply only to WebSocket. |
+| `expectSilence: <matcher>` | Fail if a matching frame arrives during the explicit timeout. Unrelated frames stay buffered. |
+| `expectFileMode: { target, mode }` | Compare POSIX mode bits for UDS `socket` or `parent`. Modes are `0600` and `0700`. |
+
+A connect expectation is one of:
+
+```jsonc
+"open"
+{ "upgradeStatus": 403 }
+{ "bindErrorCode": -32009, "closes": true }
+```
+
+WebSocket failures use `upgradeStatus`. UDS bind failures use `bindErrorCode`; `closes` defaults to `false`.
+
+A `recv` step may have `label`. A later `recv` may use `notBefore: "<label>"`; the runner compares the frame's arrival time with the moment that labeled step completed. Labels and captures are local to one fixture and references must point backward.
+
+## Matchers
+
+A `recv` object names the keys it requires. Extra actual keys are allowed. Arrays must have exactly the expected length.
 
 | Matcher | Matches |
 |---|---|
-| `~any` | any value, including `null` |
-| `~string`, `~number`, `~boolean`, `~object`, `~array` | that JSON type |
-| `~regex:<pattern>` | a string matching the pattern |
-| `~capture:<name>` | any value, bound to `<name>` for later steps |
-| `~ref:<name>` | equal to whatever `<name>` captured earlier |
-| `~absent` | the key must not be present |
+| `~any` | Any present JSON value, including `null`. |
+| `~string` | A string. |
+| `~number` | A number. |
+| `~boolean` | A boolean. |
+| `~object` | A non-array object. |
+| `~array` | An array. |
+| `~regex:<pattern>` | A string accepted by the regular expression. |
+| `~capture:<name>` | Any present value, copied into a fixture-local capture. |
+| `~ref:<name>` | A deep-equal match against a prior capture. In `send`, it inserts a deep copy. |
+| `~absent` | The containing object must not have this key. |
 
-`~capture` / `~ref` is what pins id correlation: capture the `id` on a `recv`, echo
-it with `~ref` on the `send`, and a host that mismatches request ids fails loudly.
+Captures commit only when the complete matcher succeeds.
 
-### Timing
+## Reports and exit codes
 
-`recv` waits up to 2000 ms by default; override per step with `"timeoutMs"`. A step
-carrying `"notBefore"` asserts ordering: the frame must not arrive before the named
-step completed. Nothing else about timing is asserted, because wall-clock assertions
-are how a suite becomes flaky.
+Human output contains one line per fixture and one summary:
 
-## Runner contract
+```text
+PASS handshake/hello-minimal
+SKIP uds/file-mode missing uds
+FAIL actions/invoke-success step 3: expected {...}; actual {...}
+summary: 1 passed, 1 skipped, 1 failed
+```
 
-A runner is ~200 lines in any language. It must:
+`--json` writes one document:
 
-1. Read every `.json` under `fixtures/`, recursively.
-2. Skip fixtures whose `requires` names a capability the implementation declares it
-   lacks. **Report skips separately from passes.** A suite that reports 40/40 while
-   silently skipping 12 is worse than no suite.
-3. Stand up the host with the `fixture` app, connect, and walk `steps` in order.
-4. On `recv`, read the next frame and match it. On `send`, resolve matchers against
-   captures and write it.
-5. Fail with the fixture `id`, the step index, the expected shape, and the actual
-   frame. All three, or debugging the failure means adding print statements.
+```json
+{
+  "passed": ["handshake/hello-minimal"],
+  "skipped": [{ "id": "uds/file-mode", "missing": ["uds"] }],
+  "failed": [{ "id": "actions/invoke-success", "stepIndex": 3, "expected": {}, "actual": {} }],
+  "summary": { "passed": 1, "skipped": 1, "failed": 1 },
+  "exitCode": 1
+}
+```
 
-Exit non-zero if any fixture fails. Print the skip list.
+Exit code `0` means no selected fixture failed, even when some were skipped. Exit code `1` means at least one fixture failed. Exit code `2` means invalid CLI usage, fixture schema, unsupported tags, or launch configuration prevented a fixture result.
 
-## Adding a fixture
+## Changing the corpus
 
-A fixture earns its place by pinning behaviour that a reasonable implementer would
-get wrong. The traps already covered:
+A fixture belongs here when it pins behavior that a reasonable SDK author could get wrong and the protocol already defines. Keep implementation choices out of matchers. Validate source fixtures with:
 
-- `ctx.confirm` collapses decline, cancel, and missing-capability all to `false`,
-  while `ctx.elicit` returns `null` on decline but *throws* when unsupported.
-- `resources/subscribe` and `read` each commit separately; chaining both registers
-  the resource twice.
-- Resume rotates the token every time. A host that keeps presenting the original
-  fails the second reconnect.
-- `actions/progress` percent must increase monotonically.
-- The `log` notification method is bare `log`, not `tesseron/log`.
+```bash
+pnpm conformance:validate
+```
 
-Fixtures must not encode reference-implementation *choices* — code alphabet, id
-format, timeout defaults beyond the documented 60 000 ms. If the spec permits it,
-the fixture must permit it.
-
-## Status
-
-Starter set. It covers the handshake, the action lifecycle, resources, and the error
-model. Not yet covered: sampling depth capping, the full elicit schema-rejection
-matrix, UDS file-mode enforcement, and the host-minted bind flow on both bindings.
-Those are the next ones to write.
-
-No runner ships yet. The format is stable enough to write against; the reference
-runner lands with the first non-TypeScript SDK.
+The current corpus covers handshake, actions, cancellation, progress, resources, elicitation schema rejection, resume token rotation, host-minted binds on WebSocket and UDS, and UDS file permissions. Sampling depth belongs to gateway integration tests because no host wire frame carries that depth.

@@ -51,6 +51,12 @@ jobs:
       - name: Validate conformance fixtures
         run: pnpm conformance:validate
 
+      - name: Build conformance runner and reference host
+        run: pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build
+
+      - name: Run conformance suite
+        run: pnpm conformance:run
+
       - name: Docs change carries a docs-mcp changeset
         if: github.event_name == 'pull_request'
         run: pnpm check-docs-changeset

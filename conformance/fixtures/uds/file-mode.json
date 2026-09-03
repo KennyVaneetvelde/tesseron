@@ -1,0 +1,79 @@
+{
+  "id": "uds/file-mode",
+  "title": "UDS endpoints use private parent and socket mode bits",
+  "spec": "/protocol/transport-bindings/uds/",
+  "requires": ["uds"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "expectFileMode": {
+        "target": "parent",
+        "mode": "0700"
+      }
+    },
+    {
+      "expectFileMode": {
+        "target": "socket",
+        "mode": "0600"
+      }
+    },
+    {
+      "connect": {
+        "expect": "open"
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello",
+        "params": {
+          "protocolVersion": "~regex:^1\\.[0-9]+\\.[0-9]+$",
+          "app": {
+            "id": "~string",
+            "name": "~string",
+            "origin": "~string"
+          },
+          "actions": "~array",
+          "resources": "~array",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_uds_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_uds_0001"
+        }
+      }
+    }
+  ]
+}

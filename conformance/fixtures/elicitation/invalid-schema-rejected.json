@@ -1,0 +1,378 @@
+{
+  "id": "elicitation/invalid-schema-rejected",
+  "title": "Invalid elicitation schemas fail before a request is sent",
+  "spec": "/protocol/elicitation/",
+  "requires": ["elicitation"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "nonObject",
+        "elicits": {
+          "question": "Invalid schema case: nonObject",
+          "jsonSchema": "not-an-object"
+        }
+      },
+      {
+        "name": "topLevelNonObject",
+        "elicits": {
+          "question": "Invalid schema case: topLevelNonObject",
+          "jsonSchema": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "topLevelOneOf",
+        "elicits": {
+          "question": "Invalid schema case: topLevelOneOf",
+          "jsonSchema": {
+            "type": "object",
+            "oneOf": [
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "topLevelAnyOf",
+        "elicits": {
+          "question": "Invalid schema case: topLevelAnyOf",
+          "jsonSchema": {
+            "type": "object",
+            "anyOf": [
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "topLevelAllOf",
+        "elicits": {
+          "question": "Invalid schema case: topLevelAllOf",
+          "jsonSchema": {
+            "type": "object",
+            "allOf": [
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "topLevelNot",
+        "elicits": {
+          "question": "Invalid schema case: topLevelNot",
+          "jsonSchema": {
+            "type": "object",
+            "not": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      {
+        "name": "propertyObject",
+        "elicits": {
+          "question": "Invalid schema case: propertyObject",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "propertyArray",
+        "elicits": {
+          "question": "Invalid schema case: propertyArray",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello",
+        "params": {
+          "protocolVersion": "~regex:^1\\.[0-9]+\\.[0-9]+$",
+          "app": {
+            "id": "~string",
+            "name": "~string",
+            "origin": "~string"
+          },
+          "actions": "~array",
+          "resources": "~array",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_elicit_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_elicit_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-1",
+        "method": "actions/invoke",
+        "params": {
+          "name": "nonObject",
+          "input": {},
+          "invocationId": "invalid-invocation-1"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-1",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-2",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelNonObject",
+          "input": {},
+          "invocationId": "invalid-invocation-2"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-2",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-3",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelOneOf",
+          "input": {},
+          "invocationId": "invalid-invocation-3"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-3",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-4",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelAnyOf",
+          "input": {},
+          "invocationId": "invalid-invocation-4"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-4",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-5",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelAllOf",
+          "input": {},
+          "invocationId": "invalid-invocation-5"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-5",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-6",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelNot",
+          "input": {},
+          "invocationId": "invalid-invocation-6"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-6",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-7",
+        "method": "actions/invoke",
+        "params": {
+          "name": "propertyObject",
+          "input": {},
+          "invocationId": "invalid-invocation-7"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-7",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invalid-8",
+        "method": "actions/invoke",
+        "params": {
+          "name": "propertyArray",
+          "input": {},
+          "invocationId": "invalid-invocation-8"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "invalid-8",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    }
+  ]
+}

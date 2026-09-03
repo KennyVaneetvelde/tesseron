@@ -1,0 +1,30 @@
+{
+  "id": "bind/ws-legacy",
+  "title": "A host-minted WebSocket claim rejects a dial without a bind code",
+  "spec": "/protocol/transport-bindings/ws/",
+  "requires": ["host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    },
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "connect": {
+        "expect": {
+          "upgradeStatus": 426
+        }
+      }
+    }
+  ]
+}
