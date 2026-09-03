@@ -2,6 +2,7 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::Value;
 
@@ -38,6 +39,7 @@ impl fmt::Debug for ResourceReader {
 pub struct ResourceEmitter {
     channel: Arc<dyn GatewayChannel>,
     subscription_id: String,
+    active: Arc<AtomicBool>,
 }
 
 impl ResourceEmitter {
@@ -45,12 +47,20 @@ impl ResourceEmitter {
         Self {
             channel,
             subscription_id,
+            active: Arc::new(AtomicBool::new(true)),
         }
+    }
+
+    pub(crate) fn active_flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.active)
     }
 
     /// Pushes one new value to the subscribed agent. Fire-and-forget: a value
     /// emitted after the transport closed is dropped rather than queued.
     pub fn emit(&self, value: Value) {
+        if !self.active.load(Ordering::Acquire) {
+            return;
+        }
         let params = serde_json::to_value(ResourceUpdatedParams {
             subscription_id: self.subscription_id.clone(),
             value,
@@ -82,6 +92,7 @@ impl fmt::Debug for ResourceEmitter {
 /// keeps emitting into a session the agent already left.
 pub struct Subscription {
     stop: Option<Box<dyn FnOnce() + Send>>,
+    active: Option<Arc<AtomicBool>>,
 }
 
 impl Subscription {
@@ -90,16 +101,28 @@ impl Subscription {
     pub fn new(stop: impl FnOnce() + Send + 'static) -> Self {
         Self {
             stop: Some(Box::new(stop)),
+            active: None,
         }
     }
 
     /// For a subscriber that registered nothing needing teardown.
     #[must_use]
     pub const fn without_cleanup() -> Self {
-        Self { stop: None }
+        Self {
+            stop: None,
+            active: None,
+        }
+    }
+
+    pub(crate) fn gate_emitter(mut self, active: Arc<AtomicBool>) -> Self {
+        self.active = Some(active);
+        self
     }
 
     pub(crate) fn stop(mut self) {
+        if let Some(active) = self.active.take() {
+            active.store(false, Ordering::Release);
+        }
         if let Some(stop) = self.stop.take() {
             stop();
         }
