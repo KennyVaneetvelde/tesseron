@@ -151,7 +151,10 @@ with `progress` (percent clamped to 0..=100 and never below the ceiling already 
 `sample`/`sample_as`, `log`, and resources with subscribe/unsubscribe and `resources/updated`
 pushes. Only host-minted claims are missing, by design. A per-connection handshake gate in
 `session.rs` holds invocations and claims that arrive before the welcome is applied.
-`conformance-host/` is the fixture adapter the runner drives.
+`conformance-host/` is the fixture adapter the runner drives. `examples/todo` and `examples/prompts` are
+the canonical example pair (same action names and schemas as the TypeScript `vanilla-todo` and
+`node-prompts`, minus the UI-only `setFilter`); `examples/validate-e2e.mjs` proves them through the
+real gateway.
 
 ## Not packages
 
