@@ -72,7 +72,7 @@ update on delete, `not_found`, the sampling and confirm responders).
 
 ## The conformance corpus is not part of `pnpm test`
 
-`conformance/fixtures/` holds 36 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 3 handshake,
+`conformance/fixtures/` holds 37 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 4 handshake,
 3 resources, 1 resume, 1 uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
 every `pnpm-workspace.yaml` glob so a port can vendor the directory.
 
@@ -117,6 +117,6 @@ pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 40 unit + 19 integration + 3 host + 1 doctest
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 44 unit + 25 integration + 3 host + 1 doctest
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```

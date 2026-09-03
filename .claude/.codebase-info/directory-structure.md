@@ -35,7 +35,7 @@ tesseron/
 │   └── rust/                 cargo workspace: crate `tesseron` 0.1.0 is the ROOT package (not a
 │       │                     virtual manifest, so `cargo fmt --manifest-path` has a target)
 │       ├── src/              protocol, jsonrpc, error, manifest, host, session, action, resource, context, elicit_schema
-│       ├── tests/            gateway_session.rs: 19 WebSocket integration tests playing the gateway
+│       ├── tests/            gateway_session.rs: 25 WebSocket integration tests playing the gateway
 │       ├── conformance-host/ member crate, private bin tesseron-conformance-host
 │       └── examples/         todo/ and prompts/ (headless daemons, canonical action set, workspace members)
 │           │                 validate-e2e.mjs drives both through the real gateway: `pnpm example:rust:e2e`
@@ -45,7 +45,7 @@ tesseron/
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
-│   ├── fixtures/             36 scripted JSON exchanges. no deps on this workspace.
+│   ├── fixtures/             37 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
 │   ├── run-reference.mjs     `pnpm conformance:run` (TS host) / `conformance:run:rust`; takes --host, --unsupported,
 │   │                         always passes --fixtures so the live corpus runs, never the copy in runner/dist
