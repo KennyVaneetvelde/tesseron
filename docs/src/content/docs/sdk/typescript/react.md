@@ -204,7 +204,7 @@ Don't try to conditionally call the hooks themselves - that breaks the Rules of 
 
 ## Full component example
 
-Pulled from `examples/react-todo/src/app.tsx`:
+Pulled from `sdks/typescript/examples/react-todo/src/app.tsx`:
 
 ```tsx
 import { useTesseronAction, useTesseronConnection, useTesseronResource } from '@tesseron/react';

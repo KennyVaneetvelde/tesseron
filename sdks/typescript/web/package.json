@@ -1,0 +1,71 @@
+{
+  "name": "@tesseron/web",
+  "version": "2.10.1",
+  "description": "Browser SDK for Tesseron. Declares actions and resources, opens a WebSocket to the local gateway.",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Kenny Vaneetvelde",
+    "email": "kenny.vaneetvelde@gmail.com",
+    "url": "https://eigenwise.io/"
+  },
+  "homepage": "https://github.com/eigenwise/tesseron#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eigenwise/tesseron.git",
+    "directory": "sdks/typescript/web"
+  },
+  "bugs": {
+    "url": "https://github.com/eigenwise/tesseron/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agents",
+    "typescript",
+    "sdk",
+    "websocket",
+    "browser",
+    "tesseron"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "^1.0.0",
+    "@tesseron/core": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    }
+  }
+}

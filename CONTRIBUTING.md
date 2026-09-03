@@ -46,7 +46,8 @@ pnpm test
 ```
 
 See [`README.md`](./README.md) for the package layout, and
-[`examples/`](./examples) for working example apps to develop against.
+[`sdks/typescript/examples/`](./sdks/typescript/examples) for working example
+apps to develop against.
 
 ## Where to file what
 
@@ -58,7 +59,7 @@ Use `area: spec` for the protocol, `area: gateway` for the MCP gateway, `area: c
    so design direction is aligned before you spend time on a patch.
 2. Keep pull requests focused — one logical change per PR.
 3. Include tests for protocol or dispatcher behavior changes. The existing
-   test suite in `packages/core/test/` and `packages/mcp/test/` is the
+   test suite in `sdks/typescript/core/test/` and `gateway/test/` is the
    source of truth for expected behavior.
 4. Run `pnpm typecheck` and `pnpm test` locally before pushing.
 5. Make sure every commit is `Signed-off-by:`.

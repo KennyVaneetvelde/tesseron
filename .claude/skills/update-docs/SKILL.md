@@ -1,7 +1,7 @@
 ---
 name: update-docs
 description: >-
-  Use this skill after any change to `packages/**` source that shifts
+  Use this skill after any change to `sdks/typescript/**`, `gateway/**`, or `docs-mcp/**` source that shifts
   Tesseron's public surface - protocol messages, exported types, action/resource
   builder APIs, ActionContext methods, transports, gateway CLI flags, or React
   hooks - to sync `docs/src/content/docs/` so the Starlight site matches the
@@ -13,11 +13,11 @@ description: >-
 
 # Update Tesseron docs
 
-Keep `docs/src/content/docs/` aligned with whatever just changed in `packages/**`. The docs are the published Starlight site and the contract Tesseron users read, so drift here is user-visible.
+Keep `docs/src/content/docs/` aligned with whatever just changed in `sdks/typescript/**`, `gateway/**`, or `docs-mcp/**`. The docs are the published Starlight site and the contract Tesseron users read, so drift here is user-visible.
 
 ## Prerequisites
 
-- A recent edit to `packages/**` (use `git diff` / `git diff --stat HEAD` to see the change set).
+- A recent edit to `sdks/typescript/**`, `gateway/**`, or `docs-mcp/**` (use `git diff` / `git diff --stat HEAD` to see the change set).
 - The docs tree at `docs/src/content/docs/`. If it's missing, stop and flag it.
 
 ## Doc pages and what they own
@@ -40,7 +40,7 @@ Keep `docs/src/content/docs/` aligned with whatever just changed in `packages/**
 | `protocol/errors.mdx` | Every defined error code and what raises it. |
 | `protocol/lifecycle.mdx` | Session state machine, what happens to pending work. |
 | `protocol/security.mdx` | Origin enforcement, claim flow, trust boundaries. |
-| `sdk/typescript/index.mdx` | Install, `packages/` landscape, first action snippet. |
+| `sdk/typescript/index.mdx` | Install, `sdks/typescript/` landscape, first action snippet. |
 | `sdk/typescript/action-builder.md` | `tesseron.action(...)` fluent API. |
 | `sdk/typescript/standard-schema.md` | Zod / Valibot / etc. adapter plumbing. |
 | `sdk/typescript/context.md` | `ActionContext` methods: progress, sample, confirm, elicit, signal. |
@@ -64,7 +64,7 @@ Run these in one go:
 ```bash
 git status --short
 git diff --stat HEAD
-git diff HEAD -- packages/
+git diff HEAD -- sdks/typescript gateway docs-mcp
 ```
 
 Focus on exported symbols, public types, protocol method names, CLI flags, and `.md`/`.mdx` snippets inside packages. Ignore changes under `**/*.test.ts`, `**/*.spec.ts`, `**/__tests__/**`, `tsconfig*.json`, `biome*.json`, `.changeset/`, and CI config - those don't require doc updates.
@@ -101,7 +101,7 @@ cd docs && npx astro check
 
 End your turn with a bullet list:
 
-- Modified packages: `packages/...`
+- Modified packages: `sdks/typescript/...`, `gateway/`, or `docs-mcp/`
 - Docs updated: `docs/src/content/docs/...`
 - Docs reviewed but unchanged (and why)
 

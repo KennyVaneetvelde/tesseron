@@ -150,7 +150,7 @@ pnpm --filter @tesseron/mcp start
 npx @tesseron/mcp
 ```
 
-Combined with a custom MCP client, this lets you iterate on the SDK without running through Claude Code. See `packages/mcp/src/cli.ts` for the reference bootstrap.
+Combined with a custom MCP client, this lets you iterate on the SDK without running through Claude Code. See `gateway/src/cli.ts` for the reference bootstrap.
 
 ## Common mistakes
 

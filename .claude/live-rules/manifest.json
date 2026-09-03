@@ -30,10 +30,11 @@
     },
     {
       "path": "rules/release-lockstep.md",
-      "hash": "e0594446b707af3fb15176336b73c5840f088232c61f48cb3f6cd32ef376eb75",
+      "hash": "dd89f2f88811a3ec3391312bb4219992afbd9a886d3e9a1c7b07ccefeda56c72",
       "description": "Eight packages release as one fixed version; docs-mcp releases alone",
       "globs": [
-        "packages/*/package.json",
+        "sdks/typescript/*/package.json",
+        "gateway/package.json",
         ".changeset/**"
       ],
       "dirs": [],

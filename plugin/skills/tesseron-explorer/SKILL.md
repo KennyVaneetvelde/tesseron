@@ -12,7 +12,7 @@ Map an existing Tesseron TypeScript application — its app manifests, actions, 
 The caller specifies what to explore in the invocation prompt:
 
 - **Project** — walk from the project root.
-- **Package** — scope to a package or directory (e.g. `packages/core`, `examples/react-todo`).
+- **Package** — scope to a package or directory (e.g. `sdks/typescript/core`, `sdks/typescript/examples/react-todo`).
 - **Feature** — trace a specific capability end-to-end (e.g. "how does session resume flow through the client").
 
 If the caller does not specify, start from the directory the parent thread is operating in and locate every file that imports from `@tesseron/*`.

@@ -8,7 +8,7 @@ related:
 
 **What it teaches:** the raw action / resource builder API with no framework in the way. Read this before any of the framework-specific examples.
 
-**Source:** [`examples/vanilla-todo`](https://github.com/eigenwise/tesseron/tree/main/examples/vanilla-todo)
+**Source:** [`sdks/typescript/examples/vanilla-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/vanilla-todo)
 
 ## Run it
 
