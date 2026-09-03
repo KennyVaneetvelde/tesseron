@@ -116,17 +116,6 @@ jobs:
       # cross-checks the four capability flags against the hello frame, so a
       # capability declared true in the SDK and listed here fails the run.
       - name: Run the conformance suite
-        if: runner.os != 'Windows'
         env:
           TESSERON_CONFORMANCE_UNSUPPORTED: elicitation,host-minted-claim,sampling,streaming,subscriptions,uds
         run: node conformance/runner/dist/tesseron-conformance.cjs --host "sdks/rust/target/debug/tesseron-conformance-host"
-
-      # The same command against the same binary, spelled for cmd.exe. The
-      # runner launches the host with `shell: true`, and cmd stops the command
-      # token at the first `/`, so the POSIX spelling above fails with
-      # "'sdks' is not recognized" before the host ever starts.
-      - name: Run the conformance suite
-        if: runner.os == 'Windows'
-        env:
-          TESSERON_CONFORMANCE_UNSUPPORTED: elicitation,host-minted-claim,sampling,streaming,subscriptions,uds
-        run: node conformance/runner/dist/tesseron-conformance.cjs --host ".\sdks\rust\target\debug\tesseron-conformance-host"

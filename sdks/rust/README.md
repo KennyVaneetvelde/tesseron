@@ -97,10 +97,11 @@ TESSERON_CONFORMANCE_UNSUPPORTED=elicitation,host-minted-claim,sampling,streamin
   --host "sdks/rust/target/debug/tesseron-conformance-host"
 ```
 
-On Windows that last command needs the host path spelled `.\sdks\rust\target\debug\tesseron-conformance-host`.
-The runner launches the host through `cmd.exe`, which stops the command token at
-the first `/` and reports `'sdks' is not recognized`. Nothing in this crate can
-work around it; the runner would have to resolve the path.
+That works on Windows too, but only since the runner started resolving a
+`--host` that is nothing but a path. Before that, cmd.exe ended the command
+token at the first `/` and the whole suite died as `'sdks' is not recognized`.
+If you are pinned to `@tesseron/conformance` 1.2.0 or older, spell the path
+`.\sdks\rust\target\debug\tesseron-conformance-host` instead.
 
 ## House rules
 
