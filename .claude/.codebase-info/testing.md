@@ -68,16 +68,25 @@ Two manual e2e scripts are not part of the suite: `gateway/scripts/e2e-browser-c
 
 ## The conformance corpus is not part of `pnpm test`
 
-`conformance/fixtures/` holds 12 scripted JSON exchanges that pin protocol behavior for **other
-languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
+`conformance/fixtures/` holds 21 scripted JSON exchanges (actions, bind, elicitation, handshake,
+resources, resume, uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
 every `pnpm-workspace.yaml` glob so a port can vendor the directory.
 
 `pnpm conformance:validate` (`conformance/validate.mjs`, zero deps, wired into `ci.yml`) only lints
 the fixtures: id matches path, spec anchor present, matcher vocabulary valid, no `~ref` before its
 `~capture`. **It never opens a socket and never exercises any SDK.** A green run means the
-corpus is well-formed, not that anything conforms. The runner (`@tesseron/conformance` at
-`conformance/runner/`, plus a private reference host at `sdks/typescript/conformance-host/`) is
-being built under SQ-13 and will add `pnpm conformance:run` to CI. The format and runner
+corpus is well-formed, not that anything conforms.
+
+`pnpm conformance:run` (`conformance/run-reference.mjs`) is the executable half: it launches the
+`@tesseron/conformance` runner (`conformance/runner/`, 7 unit tests for the matcher and step
+engine against an in-process fake host) with `--host` pointing at the private TypeScript reference
+host (`sdks/typescript/conformance-host/`, built on `@tesseron/server`). Per fixture the runner
+spawns the host with `TESSERON_CONFORMANCE_FIXTURE`, reads the `tesseron-conformance-url=` line,
+dials, walks the steps, and prints PASS/FAIL/SKIP per fixture; exit 1 on any failure, 2 on a
+runner error. Fixtures whose `requires` the host lacks (declared via
+`TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped. On Windows the four `uds` fixtures skip because
+`run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check. Both
+packages must be built first (`pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build`). The format and runner
 contract are in `conformance/README.md`.
 
 ## The command to run
@@ -87,4 +96,5 @@ pnpm typecheck && pnpm test        # what CI gates on, minus lint
 pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
+pnpm conformance:run               # runs them against the TS reference host (build first)
 ```

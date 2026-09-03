@@ -23,6 +23,7 @@ tesseron/
 │       ├── svelte/           @tesseron/svelte — 1 file, 3 primitives (no tests)
 │       ├── vue/              @tesseron/vue — 1 file, 3 primitives (no tests)
 │       ├── vite/             @tesseron/vite — dev-server plugin, 959 lines, 1 hook
+│       ├── conformance-host/ private reference host for the conformance suite, bin tesseron-conformance-host
 │       └── examples/         6 runnable integration fixtures, all private, all workspace:*
 │           ├── vanilla-todo/     @tesseron/web, no framework          port 5173
 │           ├── react-todo/       @tesseron/react — the ONLY hooks user  port 5174
@@ -34,10 +35,11 @@ tesseron/
 │   └── src/content/docs/     44 pages. docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
-├── conformance/              language-neutral fixture corpus for SDK ports
-│   ├── fixtures/             12 scripted JSON exchanges. no deps on this workspace.
+├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
+│   ├── fixtures/             21 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
-│   └── runner/               reserved in pnpm-workspace.yaml for @tesseron/conformance (in flight, SQ-13)
+│   ├── run-reference.mjs     `pnpm conformance:run`: runner against the TS reference host
+│   └── runner/               @tesseron/conformance 1.2.0, bin tesseron-conformance, depends on ws only
 ├── plugin/                   the Claude Code plugin (also accepted by Codex)
 │   ├── skills/
 │   ├── .mcp.json             npx -y @tesseron/{mcp,docs-mcp}@<version>

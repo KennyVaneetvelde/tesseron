@@ -24,9 +24,10 @@ There is **no ESLint and no Prettier** in this repo. Do not add either. `pnpm li
 `docs-mcp`, `conformance/runner`, and `docs`. Cross-package resolution is pure pnpm linking — **there are no TypeScript path aliases anywhere**.
 
 `conformance/fixtures/` stays outside the workspace on purpose: it is a JSON corpus meant to be
-vendored by other languages' SDK repos. Only `conformance/runner/` (the `@tesseron/conformance`
-CLI, being built under SQ-13) is a workspace package, and it depends on `ws` alone, never on
-`@tesseron/core`.
+vendored by other languages' SDK repos. `conformance/runner/` (the `@tesseron/conformance` CLI)
+is a workspace package that depends on `ws` alone, never on `@tesseron/core`, so a Python or Rust
+port's CI can `npx` it with nothing else from this repo installed. Its version is the protocol
+version (1.2.0), set by hand once at creation; it is outside the changesets fixed group.
 
 ## TypeScript strictness
 
@@ -61,8 +62,9 @@ Four workflows in `.github/workflows/`:
 
 - **`ci.yml`** — PR and push to main, cancels in-flight PR runs. One job: pnpm 9.15.4 + Node 20,
   `pnpm install --frozen-lockfile`, then `pnpm typecheck` → `pnpm test` → `pnpm lint` →
-  `pnpm sync-plugin-version --check` → `pnpm conformance:validate` → `pnpm check-docs-changeset`
-  (`:29-56`). The conformance step lints the fixture corpus that out-of-repo SDK ports consume; see
+  `pnpm sync-plugin-version --check` → `pnpm conformance:validate` → build every `@tesseron/*`
+  package → `pnpm conformance:run` → `pnpm check-docs-changeset` (`:29-62`). The conformance run
+  drives the runner against the TypeScript reference host; on Linux it must report zero skips. The conformance step lints the fixture corpus that out-of-repo SDK ports consume; see
   [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
   `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
   ships that prose.

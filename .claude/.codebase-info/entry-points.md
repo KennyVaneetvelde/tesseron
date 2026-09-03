@@ -8,6 +8,8 @@
 |---|---|---|---|
 | `tesseron-mcp` | `@tesseron/mcp` | `gateway/src/cli.ts` | `dist/tesseron-mcp.cjs` |
 | `tesseron-docs-mcp` | `@tesseron/docs-mcp` | `docs-mcp/src/cli.ts` | `dist/tesseron-docs-mcp.cjs` |
+| `tesseron-conformance` | `@tesseron/conformance` | `conformance/runner/src/bin.ts` | `dist/tesseron-conformance.cjs` |
+| `tesseron-conformance-host` | `@tesseron/conformance-host` (private) | `sdks/typescript/conformance-host/src/bin.ts` | `dist/bin.js` |
 
 Both declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled CJS via
 `publishConfig` (`gateway/package.json:40` vs `:76`).

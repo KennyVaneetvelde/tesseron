@@ -131,6 +131,13 @@ core, and its `tsconfig.json` is the only one that **does not extend `tsconfig.b
 See [gateway.md](gateway.md). `gateway/src/index.ts` re-exports all of core plus the gateway,
 bridge, and session types, so it is a superset of core's public surface.
 
+## `@tesseron/conformance` and the reference host
+
+`conformance/runner/` is the language-neutral suite runner (`ws` only, no core dependency; see
+[testing.md](testing.md)). `sdks/typescript/conformance-host/` is a private package that stands up
+`@tesseron/server` with the canned actions and resources a fixture asks for; it exists so the
+corpus is proven runnable before any port vendors it.
+
 ## Not packages
 
 `packages/` and `examples/` no longer exist in git. If they are on disk they are untracked

@@ -5,8 +5,8 @@
 Tesseron exposes typed app actions to MCP-compatible AI agents over WebSocket. No browser
 automation, no scraping. pnpm + turbo monorepo in a **hub layout** since 2026-09-03: the TypeScript
 SDK (seven packages plus 6 example apps) under `sdks/typescript/`, the gateway at `gateway/`, the
-docs server at `docs-mcp/`, a Starlight docs site, a language-neutral conformance corpus, and a
-version-coupled Claude Code plugin. 9 published packages at 2.10.1 (eight in one changesets `fixed`
+docs server at `docs-mcp/`, a Starlight docs site, a language-neutral conformance corpus with an executable runner
+(`@tesseron/conformance`), and a version-coupled Claude Code plugin. 9 published packages at 2.10.1 (eight in one changesets `fixed`
 group, docs-mcp released separately). Rust, Python, and C++ SDKs are planned as `sdks/<language>/`
 and later as their own repos.
 
