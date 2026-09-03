@@ -1165,7 +1165,7 @@ export class TesseronGateway extends EventEmitter {
       if (theirMajor !== ourMajor) {
         throw new TesseronError(
           TesseronErrorCode.ProtocolMismatch,
-          `Gateway speaks protocol ${PROTOCOL_VERSION}; SDK sent ${helloParams.protocolVersion}. Major version mismatch — pin compatible package versions.`,
+          `Gateway speaks protocol ${PROTOCOL_VERSION}; SDK sent ${helloParams.protocolVersion}. Major version mismatch. See https://eigenwise.github.io/tesseron/protocol/compatibility/`,
         );
       }
       if (theirMinor !== ourMinor) {
@@ -1396,7 +1396,7 @@ export class TesseronGateway extends EventEmitter {
       if (theirMajor !== ourMajor) {
         throw new TesseronError(
           TesseronErrorCode.ProtocolMismatch,
-          `Gateway speaks protocol ${PROTOCOL_VERSION}; SDK sent ${resumeParams.protocolVersion}. Major version mismatch on resume — pin compatible package versions or start a fresh session.`,
+          `Gateway speaks protocol ${PROTOCOL_VERSION}; SDK sent ${resumeParams.protocolVersion}. Major version mismatch on resume. See https://eigenwise.github.io/tesseron/protocol/compatibility/`,
         );
       }
       if (theirMinor !== ourMinor) {

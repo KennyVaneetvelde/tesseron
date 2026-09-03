@@ -132,8 +132,8 @@ Read the `framework` skill's `SKILL.md` if you want to see the routing table and
 
 - TypeScript 5.7+ (strict mode, `noUncheckedIndexedAccess` recommended).
 - Node 20+ for server / gateway processes.
-- Protocol version `1.0.0`. Session resume added in SDK v1.1.
-- `@tesseron/core`, `/web`, `/server`, `/react`, `/svelte`, `/vue`, `/vite`, `/mcp` released in lockstep — match them within a major version (currently `2.x`).
+- Protocol version `1.2.0`. See the [compatibility contract](https://eigenwise.github.io/tesseron/protocol/compatibility/) for cross-language rules.
+- `@tesseron/core`, `/web`, `/server`, `/react`, `/svelte`, `/vue`, `/vite`, `/mcp` share a version and should be installed together.
 
 ## Development
 

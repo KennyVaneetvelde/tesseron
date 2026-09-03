@@ -5,6 +5,7 @@ related:
   - protocol/wire-format
   - protocol/transport
   - protocol/handshake
+  - protocol/compatibility
   - protocol/actions
   - protocol/errors
   - protocol/lifecycle
@@ -56,6 +57,8 @@ The protocol is at **version `1.2.0`**.
     description="The binding-neutral channel contract, plus per-binding pages for WebSocket and Unix domain sockets." />
   <LinkCard title="Handshake & claiming" href="./handshake/"
     description="`tesseron/hello` → `welcome` → claim code → bound session." />
+  <LinkCard title="Compatibility" href="./compatibility/"
+    description="Protocol version support across SDKs and the gateway." />
   <LinkCard title="Action model" href="./actions/"
     description="How actions are declared, invoked, validated, and namespaced." />
   <LinkCard title="Progress & cancellation" href="./progress-cancellation/"

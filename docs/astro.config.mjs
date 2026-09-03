@@ -131,6 +131,7 @@ export default defineConfig({
               ],
             },
             { label: 'Handshake & claiming', link: '/protocol/handshake/' },
+            { label: 'Compatibility', link: '/protocol/compatibility/' },
             { label: 'Session resume', link: '/protocol/resume/' },
             { label: 'Action model', link: '/protocol/actions/' },
             { label: 'Progress & cancellation', link: '/protocol/progress-cancellation/' },
