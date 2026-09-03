@@ -434,6 +434,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "tesseron-prompts-example"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "tesseron",
+ "tokio",
+]
+
+[[package]]
+name = "tesseron-todo-example"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "tesseron",
+ "tokio",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
