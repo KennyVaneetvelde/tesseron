@@ -118,3 +118,67 @@ jobs:
       # Host-minted claims are the only thing the Rust host leaves out.
       - name: Run the conformance suite
         run: pnpm conformance:run:rust
+
+  python:
+    name: Python SDK
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: sdks/python/uv.lock
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the locked environment
+        run: uv sync --locked --directory sdks/python
+
+      - name: Lint
+        run: uv run --locked --directory sdks/python ruff check .
+
+      - name: Format
+        run: uv run --locked --directory sdks/python ruff format --check .
+
+      # src and tests, because a test importing conformance_host is what pulls the
+      # fixture adapter into the check as well.
+      - name: Typecheck
+        run: uv run --locked --directory sdks/python mypy --strict src tests
+
+      - name: Test
+        run: uv run --locked --directory sdks/python pytest
+
+      - name: Build the wheel
+        run: uv build --directory sdks/python
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      # SQ-13 publishes @tesseron/conformance. Once 1.2.0 is on npm, delete this
+      # build and run `npx @tesseron/conformance@1.2.0` below, so the Python host
+      # is checked against the published corpus instead of the tree.
+      - name: Build the conformance runner
+        run: pnpm -r --filter @tesseron/conformance build
+
+      # The helper adds uds on Windows and owns the unsupported list, which the
+      # runner cross-checks against the four hello capability flags: a capability
+      # declared true in the SDK and named here fails the run. This host speaks
+      # WebSocket only and takes gateway-minted claims only.
+      - name: Run the conformance suite
+        run: pnpm conformance:run:python
