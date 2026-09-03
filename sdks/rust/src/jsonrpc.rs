@@ -97,6 +97,22 @@ pub(crate) fn request(
     Ok(Value::Object(envelope))
 }
 
+/// Builds a notification envelope: a method with no id, so the peer never
+/// answers it. Fails only when `params` cannot serialise.
+pub(crate) fn notification(
+    method: &str,
+    params: impl Serialize,
+) -> Result<Value, serde_json::Error> {
+    let mut envelope = Map::new();
+    envelope.insert(
+        "jsonrpc".to_owned(),
+        Value::String(JSONRPC_VERSION.to_owned()),
+    );
+    envelope.insert("method".to_owned(), Value::String(method.to_owned()));
+    envelope.insert("params".to_owned(), serde_json::to_value(params)?);
+    Ok(Value::Object(envelope))
+}
+
 /// Builds a success response. Fails only when `result` cannot serialise.
 pub(crate) fn success(id: &RequestId, result: impl Serialize) -> Result<Value, serde_json::Error> {
     let mut envelope = envelope_with_id(id);
@@ -187,6 +203,19 @@ mod tests {
         assert_eq!(
             envelope["error"]["data"],
             serde_json::json!({ "issues": [] })
+        );
+    }
+
+    #[test]
+    fn a_notification_carries_no_id() {
+        let envelope =
+            notification("actions/progress", serde_json::json!({ "percent": 10 })).unwrap();
+        assert_eq!(envelope["jsonrpc"], "2.0");
+        assert_eq!(envelope["method"], "actions/progress");
+        assert_eq!(envelope["params"]["percent"], 10);
+        assert!(
+            envelope.get("id").is_none(),
+            "an id would make the gateway wait for a response"
         );
     }
 

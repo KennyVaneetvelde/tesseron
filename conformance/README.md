@@ -20,11 +20,27 @@ tesseron-conformance --host "<command>" [--fixtures <dir>] [--only <id glob>] [-
 
 `--fixtures` overrides the fixture corpus shipped inside the npm package. `--only` accepts `*` and `?` in a fixture ID glob. `--json` prints one report document and no human result lines.
 
-This repository runs its TypeScript reference host with:
+This repository runs its own hosts through `run-reference.mjs`, which builds the runner argument list, keeps `TESSERON_CONFORMANCE_UNSUPPORTED` in one place, and adds `uds` on Windows:
 
 ```bash
 pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build
 pnpm conformance:run
+```
+
+With no arguments it runs the TypeScript reference host. Two flags point it at another one:
+
+```text
+node conformance/run-reference.mjs [--host "<command>"] [--unsupported <tags>] [runner options]
+```
+
+`--host` takes a command line. A bare path is fine: the runner resolves it against the repository root and adds `.exe` on Windows. `--unsupported` takes the same comma-separated tags as the environment variable and replaces it, so each SDK names only what it still cannot serve. Anything else goes through to the runner, so `--only` and `--json` work as usual.
+
+The Rust host has its own script, and CI runs the same one:
+
+```bash
+cargo build --manifest-path sdks/rust/Cargo.toml --workspace
+pnpm -r --filter @tesseron/conformance build
+pnpm conformance:run:rust
 ```
 
 ## Host launch contract

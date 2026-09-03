@@ -112,10 +112,9 @@ jobs:
       - name: Build the conformance runner
         run: pnpm -r --filter @tesseron/conformance build
 
-      # Every fixture the Rust host cannot serve yet is named here. The runner
-      # cross-checks the four capability flags against the hello frame, so a
-      # capability declared true in the SDK and listed here fails the run.
+      # The helper adds uds on Windows and owns the unsupported list, which
+      # the runner cross-checks against the four hello capability flags: a
+      # capability declared true in the SDK and named here fails the run.
+      # Host-minted claims are the only thing the Rust host leaves out.
       - name: Run the conformance suite
-        env:
-          TESSERON_CONFORMANCE_UNSUPPORTED: elicitation,host-minted-claim,sampling,streaming,subscriptions,uds
-        run: node conformance/runner/dist/tesseron-conformance.cjs --host "sdks/rust/target/debug/tesseron-conformance-host"
+        run: pnpm conformance:run:rust

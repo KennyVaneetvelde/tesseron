@@ -9,14 +9,16 @@
 // clearest way to write one; the workspace denies it everywhere else.
 #![allow(clippy::unwrap_used)]
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use serde_json::{Value, json};
 use tesseron::{
-    Action, ActionContext, ActionError, GATEWAY_SUBPROTOCOL, HostEvent, ManifestPublication,
-    PROTOCOL_VERSION, Resource, Tesseron, TesseronErrorCode, TesseronHost, TesseronHostBuilder,
-    ValidationIssue,
+    Action, ActionContext, ActionError, ElicitRequest, GATEWAY_SUBPROTOCOL, HostEvent, LogEntry,
+    ManifestPublication, PROTOCOL_VERSION, ProgressUpdate, Resource, SampleRequest, Subscription,
+    Tesseron, TesseronErrorCode, TesseronHost, TesseronHostBuilder, ValidationIssue,
 };
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::Receiver;
@@ -153,10 +155,10 @@ fn welcome(session_id: &str, resume_token: &str, claim_code: Option<&str>) -> Va
         "sessionId": session_id,
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {
-            "streaming": false,
-            "subscriptions": false,
-            "sampling": false,
-            "elicitation": false
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
         },
         "agent": { "id": "pending", "name": "Awaiting agent" },
         "resumeToken": resume_token,
@@ -183,7 +185,7 @@ async fn started(builder: TesseronHostBuilder) -> (TesseronHost, Receiver<HostEv
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn hello_carries_the_manifest_and_declares_only_what_is_implemented() {
+async fn hello_carries_the_manifest_and_declares_every_capability() {
     let (host, mut events) = started(with_actions()).await;
     let mut gateway = Gateway::dial(host.url()).await;
 
@@ -202,10 +204,10 @@ async fn hello_carries_the_manifest_and_declares_only_what_is_implemented() {
     assert_eq!(params["protocolVersion"], PROTOCOL_VERSION);
     assert_eq!(params["app"]["id"], "todo");
     assert_eq!(params["app"]["name"], "Todo");
-    assert_eq!(params["capabilities"]["streaming"], false);
-    assert_eq!(params["capabilities"]["subscriptions"], false);
-    assert_eq!(params["capabilities"]["sampling"], false);
-    assert_eq!(params["capabilities"]["elicitation"], false);
+    assert_eq!(params["capabilities"]["streaming"], true);
+    assert_eq!(params["capabilities"]["subscriptions"], true);
+    assert_eq!(params["capabilities"]["sampling"], true);
+    assert_eq!(params["capabilities"]["elicitation"], true);
 
     let actions = params["actions"].as_array().unwrap();
     assert_eq!(actions.len(), 2, "registration order is preserved");
@@ -528,5 +530,471 @@ async fn a_dropped_transport_fails_the_invocations_it_orphaned() {
         next_event(&mut events).await,
         HostEvent::Disconnected
     ));
+    host.shutdown().await.unwrap();
+}
+
+/// A host whose handlers exercise every context round trip the gateway answers.
+fn with_context_actions() -> TesseronHostBuilder {
+    application()
+        .action(Action::json(
+            "report",
+            |_input: Value, context: ActionContext| async move {
+                context.progress(ProgressUpdate::new().percent(10.0));
+                context.progress(ProgressUpdate::new().percent(2.0).message("regressed"));
+                context.log(LogEntry::info("halfway"));
+                context.progress(ProgressUpdate::new().percent(100.0));
+                Ok(json!({ "done": true }))
+            },
+        ))
+        .action(Action::json(
+            "delete_all",
+            |_input: Value, context: ActionContext| async move {
+                let confirmed = context.confirm("Delete everything?").await?;
+                Ok(json!({ "confirmed": confirmed }))
+            },
+        ))
+        .action(Action::json(
+            "rename",
+            |_input: Value, context: ActionContext| async move {
+                let answer = context
+                    .elicit(
+                        ElicitRequest::new("What should it be called?").json_schema(json!({
+                            "type": "object",
+                            "properties": { "name": { "type": "string" } },
+                            "required": ["name"]
+                        })),
+                    )
+                    .await?;
+                Ok(json!({ "answer": answer }))
+            },
+        ))
+        .action(Action::json(
+            "rename_with_a_broken_schema",
+            |_input: Value, context: ActionContext| async move {
+                context
+                    .elicit(
+                        ElicitRequest::new("What should it be called?").json_schema(
+                            json!({ "type": "object", "oneOf": [{ "type": "object" }] }),
+                        ),
+                    )
+                    .await?;
+                Ok(Value::Null)
+            },
+        ))
+        .action(Action::json(
+            "whoami",
+            |_input: Value, context: ActionContext| async move {
+                Ok(json!({
+                    "agent": context.agent().id.clone(),
+                    "sampling": context.agent_capabilities().sampling
+                }))
+            },
+        ))
+        .action(Action::json(
+            "summarise",
+            |_input: Value, context: ActionContext| async move {
+                let summary = context
+                    .sample(SampleRequest::new("Summarise this").max_tokens(64))
+                    .await?;
+                Ok(json!({ "summary": summary }))
+            },
+        ))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn progress_streams_forward_and_a_regression_is_raised_to_the_ceiling() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "actions/invoke",
+            "params": { "name": "report", "input": {}, "invocationId": "inv-1" }
+        }))
+        .await;
+
+    let first = gateway.next_frame().await;
+    assert_eq!(first["method"], "actions/progress");
+    assert!(first.get("id").is_none(), "progress is a notification");
+    assert_eq!(first["params"]["invocationId"], "inv-1");
+    assert_eq!(first["params"]["percent"], 10.0);
+
+    let regressed = gateway.next_frame().await;
+    assert_eq!(
+        regressed["params"]["percent"], 10.0,
+        "a backwards percent is raised to the ceiling already sent"
+    );
+    assert_eq!(regressed["params"]["message"], "regressed");
+
+    let logged = gateway.next_frame().await;
+    assert_eq!(logged["method"], "log");
+    assert_eq!(logged["params"]["level"], "info");
+    assert_eq!(logged["params"]["message"], "halfway");
+
+    let last = gateway.next_frame().await;
+    assert_eq!(last["params"]["percent"], 100.0);
+
+    let answer = gateway.next_frame().await;
+    assert_eq!(answer["result"]["output"]["done"], true);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_declined_confirmation_is_false_rather_than_a_failure() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "actions/invoke",
+            "params": { "name": "delete_all", "input": {}, "invocationId": "inv-1" }
+        }))
+        .await;
+
+    let question = gateway.next_frame().await;
+    assert_eq!(question["method"], "elicitation/request");
+    assert_eq!(question["params"]["question"], "Delete everything?");
+    assert_eq!(
+        question["params"]["schema"],
+        json!({ "type": "object", "properties": {}, "required": [] }),
+        "confirm asks for no fields so the agent renders accept or decline"
+    );
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": question["id"].clone(),
+            "result": { "action": "decline" }
+        }))
+        .await;
+
+    let answer = gateway.next_frame().await;
+    assert_eq!(answer["result"]["output"]["confirmed"], false);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_accepted_elicitation_hands_the_value_to_the_handler() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "actions/invoke",
+            "params": { "name": "rename", "input": {}, "invocationId": "inv-1" }
+        }))
+        .await;
+
+    let question = gateway.next_frame().await;
+    assert_eq!(question["method"], "elicitation/request");
+    assert_eq!(question["params"]["invocationId"], "inv-1");
+    assert_eq!(question["params"]["schema"]["required"], json!(["name"]));
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": question["id"].clone(),
+            "result": { "action": "accept", "value": { "name": "Groceries" } }
+        }))
+        .await;
+
+    let answer = gateway.next_frame().await;
+    assert_eq!(answer["result"]["output"]["answer"]["name"], "Groceries");
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_schema_the_agent_cannot_render_fails_before_anything_is_asked() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    let refusal = gateway
+        .call(
+            1,
+            "actions/invoke",
+            json!({
+                "name": "rename_with_a_broken_schema",
+                "input": {},
+                "invocationId": "inv-1"
+            }),
+        )
+        .await;
+
+    assert_eq!(
+        refusal["error"]["code"], -32602,
+        "the very next frame is the refusal, so nothing was ever asked"
+    );
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sampling_forwards_the_prompt_and_returns_the_content() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "actions/invoke",
+            "params": { "name": "summarise", "input": {}, "invocationId": "inv-1" }
+        }))
+        .await;
+
+    let request = gateway.next_frame().await;
+    assert_eq!(request["method"], "sampling/request");
+    assert_eq!(request["params"]["prompt"], "Summarise this");
+    assert_eq!(request["params"]["maxTokens"], 64);
+    assert_eq!(request["params"]["invocationId"], "inv-1");
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": request["id"].clone(),
+            "result": { "content": "three sentences" }
+        }))
+        .await;
+
+    let answer = gateway.next_frame().await;
+    assert_eq!(answer["result"]["output"]["summary"], "three sentences");
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agent_that_negotiated_nothing_gets_the_documented_refusals() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    let mut plain = welcome("session-1", "token-1", Some("ABC-123"));
+    plain["capabilities"] = json!({
+        "streaming": false,
+        "subscriptions": false,
+        "sampling": false,
+        "elicitation": false
+    });
+    gateway.answer_next(plain).await;
+
+    let confirmed = gateway
+        .call(
+            1,
+            "actions/invoke",
+            json!({ "name": "delete_all", "input": {}, "invocationId": "inv-1" }),
+        )
+        .await;
+    assert_eq!(
+        confirmed["result"]["output"]["confirmed"], false,
+        "confirm has a safe default and never asks"
+    );
+
+    let elicited = gateway
+        .call(
+            2,
+            "actions/invoke",
+            json!({ "name": "rename", "input": {}, "invocationId": "inv-2" }),
+        )
+        .await;
+    assert_eq!(elicited["error"]["code"], -32007);
+
+    let sampled = gateway
+        .call(
+            3,
+            "actions/invoke",
+            json!({ "name": "summarise", "input": {}, "invocationId": "inv-3" }),
+        )
+        .await;
+    assert_eq!(sampled["error"]["code"], -32006);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_subscription_pushes_updates_and_its_cleanup_runs_on_unsubscribe() {
+    let torn_down = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&torn_down);
+    let host_builder = application().resource(
+        Resource::new("cart", || async { Ok(json!({ "total": 0 })) }).subscribe(move |emitter| {
+            let counter = Arc::clone(&counter);
+            let pushing = tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                emitter.emit(json!({ "total": 42 }));
+            });
+            Subscription::new(move || {
+                pushing.abort();
+                counter.fetch_add(1, Ordering::Relaxed);
+            })
+        }),
+    );
+    let (host, _events) = started(host_builder).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    let hello = gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+    assert_eq!(
+        hello["params"]["resources"][0]["subscribable"], true,
+        "registering a subscriber is what declares the resource subscribable"
+    );
+
+    let acknowledgement = gateway
+        .call(
+            1,
+            "resources/subscribe",
+            json!({ "name": "cart", "subscriptionId": "sub-1" }),
+        )
+        .await;
+    assert_eq!(acknowledgement["id"], 1);
+    assert!(acknowledgement.get("error").is_none());
+
+    let update = gateway.next_frame().await;
+    assert_eq!(update["method"], "resources/updated");
+    assert!(update.get("id").is_none());
+    assert_eq!(update["params"]["subscriptionId"], "sub-1");
+    assert_eq!(update["params"]["value"], json!({ "total": 42 }));
+
+    let dropped = gateway
+        .call(
+            2,
+            "resources/unsubscribe",
+            json!({ "subscriptionId": "sub-1" }),
+        )
+        .await;
+    assert_eq!(dropped["id"], 2);
+    assert_eq!(torn_down.load(Ordering::Relaxed), 1);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn subscribing_to_a_resource_that_declared_no_subscriber_is_refused() {
+    let (host, _events) = started(with_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    let refusal = gateway
+        .call(
+            1,
+            "resources/subscribe",
+            json!({ "name": "settings", "subscriptionId": "sub-1" }),
+        )
+        .await;
+    assert_eq!(refusal["error"]["code"], -32003);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dropped_transport_tears_down_every_subscription() {
+    let torn_down = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&torn_down);
+    let host_builder = application().resource(
+        Resource::new("cart", || async { Ok(Value::Null) }).subscribe(move |_emitter| {
+            let counter = Arc::clone(&counter);
+            Subscription::new(move || {
+                counter.fetch_add(1, Ordering::Relaxed);
+            })
+        }),
+    );
+    let (host, mut events) = started(host_builder).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Welcome(_)
+    ));
+    gateway
+        .call(
+            1,
+            "resources/subscribe",
+            json!({ "name": "cart", "subscriptionId": "sub-1" }),
+        )
+        .await;
+
+    gateway.drop_transport().await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Disconnected
+    ));
+    assert_eq!(
+        torn_down.load(Ordering::Relaxed),
+        1,
+        "a subscriber still holding a listener would emit into a closed socket"
+    );
+
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_claim_that_lands_behind_the_welcome_still_names_the_agent() {
+    let (host, _events) = started(with_context_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+    // Deliberately not waiting for the Welcome event first: a gateway writes
+    // the claim straight behind the welcome, and the host applies the welcome
+    // from a task the read loop only wakes, so both arrival orders happen.
+    gateway
+        .notify(
+            "tesseron/claimed",
+            json!({
+                "agent": { "id": "claude", "name": "Claude" },
+                "claimedAt": 1_756_900_000_000_i64,
+                "agentCapabilities": {
+                    "streaming": true,
+                    "subscriptions": true,
+                    "sampling": false,
+                    "elicitation": true
+                }
+            }),
+        )
+        .await;
+
+    let answer = gateway
+        .call(
+            1,
+            "actions/invoke",
+            json!({ "name": "whoami", "input": {}, "invocationId": "inv-1" }),
+        )
+        .await;
+    assert_eq!(answer["result"]["output"]["agent"], "claude");
+    assert_eq!(
+        answer["result"]["output"]["sampling"], false,
+        "the claim's own capability block is the one the agent agreed to"
+    );
+
+    gateway.drop_transport().await;
     host.shutdown().await.unwrap();
 }
