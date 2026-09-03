@@ -113,6 +113,7 @@ export type ElicitationHandler = (
  * `new TesseronGateway({ resumeTtlMs })` for embedders.
  */
 export const DEFAULT_RESUME_TTL_MS = 4 * 60 * 60 * 1000;
+const MAX_SAMPLING_DEPTH = 3;
 /**
  * Default cap on {@link TesseronGateway.zombieSessions}. A peer that repeatedly
  * connects and disconnects could otherwise pile up zombies until their TTLs
@@ -238,6 +239,7 @@ export class TesseronGateway extends EventEmitter {
   private readonly sessions = new Map<string, Session>();
   private readonly pendingClaims = new Map<string, string>();
   private readonly activeInvocations = new Map<string, ActiveInvocation>();
+  private readonly samplingDepths = new Map<string, Map<string, number>>();
   /**
    * Recently-closed sessions kept around for a TTL window so the SDK can
    * rejoin them with `tesseron/resume`. See {@link GatewayOptions.resumeTtlMs}.
@@ -344,6 +346,7 @@ export class TesseronGateway extends EventEmitter {
     this.sessions.clear();
     this.pendingClaims.clear();
     this.activeInvocations.clear();
+    this.samplingDepths.clear();
     for (const zombie of this.zombieSessions.values()) {
       clearTimeout(zombie.evictTimer);
     }
@@ -1144,6 +1147,7 @@ export class TesseronGateway extends EventEmitter {
       }
       this.sessions.delete(session.id);
       this.pendingClaims.delete(session.claimCode);
+      this.samplingDepths.delete(session.id);
       // Cancel any active invocations for this session
       for (const [invocationId, inv] of this.activeInvocations.entries()) {
         if (inv.sessionId === session.id) {
@@ -1568,7 +1572,30 @@ export class TesseronGateway extends EventEmitter {
       if (!session) {
         throw new TesseronError(TesseronErrorCode.Unauthorized, 'Hello not completed.');
       }
-      return this.samplingHandler(params as SamplingRequestParams, { session });
+
+      const request = params as SamplingRequestParams;
+      const invocationDepths = this.samplingDepths.get(session.id) ?? new Map<string, number>();
+      const samplingDepth = (invocationDepths.get(request.invocationId) ?? 0) + 1;
+      if (samplingDepth > MAX_SAMPLING_DEPTH) {
+        throw new TesseronError(
+          TesseronErrorCode.SamplingDepthExceeded,
+          `Sampling depth exceeds the maximum of ${MAX_SAMPLING_DEPTH}.`,
+        );
+      }
+
+      invocationDepths.set(request.invocationId, samplingDepth);
+      this.samplingDepths.set(session.id, invocationDepths);
+      try {
+        return await this.samplingHandler(request, { session });
+      } finally {
+        const activeSamplingDepth = invocationDepths.get(request.invocationId);
+        if (activeSamplingDepth === 1) {
+          invocationDepths.delete(request.invocationId);
+          if (invocationDepths.size === 0) this.samplingDepths.delete(session.id);
+        } else if (activeSamplingDepth !== undefined) {
+          invocationDepths.set(request.invocationId, activeSamplingDepth - 1);
+        }
+      }
     });
 
     dispatcher.on('elicitation/request', async (params) => {
