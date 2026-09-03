@@ -7,6 +7,7 @@
       ".turbo",
       "sdks/typescript/examples",
       "sdks/rust/**",
+      "sdks/python/**",
       "**/.astro/**",
       "assets/diagrams/**",
       ".claude/**"

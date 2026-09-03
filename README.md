@@ -196,7 +196,9 @@ The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0
 
 A Rust SDK is in progress under [`sdks/rust/`](./sdks/rust): handshake, claiming, resume, action invocation and resource reads work today; streaming, subscriptions, sampling and elicitation don't yet. Nothing is on crates.io.
 
-On the roadmap: a Streamable HTTP transport, a Python SDK, and bindings for desktop-native runtimes (Rust for Tauri, etc.).
+A Python SDK is in progress under [`sdks/python/`](./sdks/python): the whole host surface, and it passes every conformance fixture that doesn't need a Unix socket or a host-minted claim. Nothing is on PyPI.
+
+On the roadmap: a Streamable HTTP transport and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
 ## Development
 

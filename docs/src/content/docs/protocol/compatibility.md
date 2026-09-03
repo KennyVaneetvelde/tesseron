@@ -18,10 +18,11 @@ A host speaking protocol `1.x` works with a gateway speaking protocol `1.y`, as 
 | Protocol version | Packages that speak it |
 | --- | --- |
 | `1.2.0` | `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/svelte`, `@tesseron/vue`, `@tesseron/vite`, and `@tesseron/mcp` `>=2.10.0` |
+| `1.2.0` | [`tesseron`](/sdk/python/) (Python) `>=0.1.0`. Not on PyPI yet. |
 
 The table starts at `1.2.0`. The history checked for this page does not prove package boundaries for earlier protocol versions.
 
-Future Rust, Python, and C++ SDKs will get rows here. Their package versions are independent.
+The Python SDK carries its own version and moves on its own. It speaks the same protocol, which is the only thing that has to match. Future Rust and C++ SDKs will get rows here on the same terms.
 
 ## TypeScript package versions
 

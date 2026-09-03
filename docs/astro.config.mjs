@@ -102,7 +102,7 @@ export default defineConfig({
             },
           ],
           promote: ['index*', 'overview/**'],
-          demote: ['examples/**', 'sdk/python/**'],
+          demote: ['examples/**'],
         }),
       ],
       sidebar: [
@@ -173,12 +173,21 @@ export default defineConfig({
               ],
             },
             {
-              label: 'Other SDKs',
+              label: 'Python SDK',
               collapsed: false,
               items: [
-                { label: 'Python SDK (planned)', link: '/sdk/python/' },
-                { label: 'Port Tesseron to your language', link: '/sdk/porting/' },
+                { label: 'Overview', link: '/sdk/python/' },
+                { label: 'Actions', link: '/sdk/python/actions/' },
+                { label: 'Resources', link: '/sdk/python/resources/' },
+                { label: 'Context', link: '/sdk/python/context/' },
+                { label: 'Errors', link: '/sdk/python/errors/' },
+                { label: 'Conformance', link: '/sdk/python/conformance/' },
               ],
+            },
+            {
+              label: 'Other SDKs',
+              collapsed: false,
+              items: [{ label: 'Port Tesseron to your language', link: '/sdk/porting/' }],
             },
           ],
         },
