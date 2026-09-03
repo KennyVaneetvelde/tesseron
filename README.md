@@ -188,7 +188,7 @@ For the authoritative, continuously-updated list of which client supports which 
 
 **v1.0** shipped April 2026; the SDK is at **v2.10** as of writing. The protocol is at [**1.2.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources, session resume.
 
-Published to npm: eight packages — `@tesseron/{core,web,server,react,svelte,vue,vite,mcp}` — ship in lockstep at the same version (currently **2.10.1**). `@tesseron/docs-mcp` releases separately, because it ships the docs snapshot rather than protocol code and a prose fix shouldn't bump the whole SDK.
+Published to npm: eight TypeScript packages — `@tesseron/{core,web,server,react,svelte,vue,vite,mcp}` — share one version and should be installed together; see the [compatibility contract](https://eigenwise.github.io/tesseron/protocol/compatibility/) for cross-language rules. `@tesseron/docs-mcp` releases separately, because it ships the docs snapshot rather than protocol code and a prose fix shouldn't bump the whole SDK.
 
 The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language. The [conformance fixtures](./conformance) are the executable half of that.
 
