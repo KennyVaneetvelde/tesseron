@@ -47,10 +47,13 @@ claim session ABCD-XY
 | `svelte_todo__listTodos` | readOnly | Read the list, optionally filtered |
 | `svelte_todo__setFilter` | — | Change visible filter |
 
+The `todos://all` resource returns the complete todo list and pushes every todo mutation to subscribers.
+
 | Resource URI (subscribable) | What it returns |
 |---|---|
 | `tesseron://svelte_todo/currentFilter` | `'all' \| 'active' \| 'completed'` |
 | `tesseron://svelte_todo/todoStats` | `{ total, completed, pending }` |
+| `tesseron://svelte_todo/todos://all` | Complete todo list |
 
 ## How the live updates work
 

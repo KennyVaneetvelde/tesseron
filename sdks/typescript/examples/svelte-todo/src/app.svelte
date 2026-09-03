@@ -36,6 +36,7 @@
   // --- Subscriber registries: agents get pushed updates when state changes.
   const filterSubs = new Set<(v: Filter) => void>();
   const statsSubs = new Set<(v: typeof stats) => void>();
+  const todoSubscribers = new Set<(v: Todo[]) => void>();
   $effect(() => {
     const current = filter;
     filterSubs.forEach((fn) => fn(current));
@@ -43,6 +44,10 @@
   $effect(() => {
     const snapshot = stats;
     statsSubs.forEach((fn) => fn(snapshot));
+  });
+  $effect(() => {
+    const snapshot = todos;
+    todoSubscribers.forEach((subscriber) => subscriber(snapshot));
   });
 
   tesseron.app({
@@ -282,6 +287,15 @@
       return () => statsSubs.delete(emit);
     });
 
+  tesseron
+    .resource<Todo[]>('todos://all')
+    .describe('The complete todo list. Pushed on every mutation.')
+    .read(() => todos)
+    .subscribe((emit) => {
+      todoSubscribers.add(emit);
+      return () => todoSubscribers.delete(emit);
+    });
+
   function addInput(): void {
     const trimmed = input.trim();
     if (!trimmed) return;
@@ -397,7 +411,8 @@
     <p>
       Resources (subscribable):
       <code>tesseron://svelte_todo/currentFilter</code>,
-      <code>tesseron://svelte_todo/todoStats</code>.
+      <code>tesseron://svelte_todo/todoStats</code>,
+      <code>tesseron://svelte_todo/todos://all</code>.
     </p>
   </footer>
 </main>

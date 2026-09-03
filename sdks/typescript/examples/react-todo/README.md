@@ -46,10 +46,13 @@ claim session ABCD-XY
 | `todos__listTodos` | readOnly | Read the list, optionally filtered |
 | `todos__setFilter` | — | Change visible filter |
 
+The `todos://all` resource returns the complete todo list and pushes every todo mutation to subscribers.
+
 | Resource URI (subscribable) | What it returns |
 |---|---|
 | `tesseron://todos/currentFilter` | `'all' \| 'active' \| 'completed'` |
 | `tesseron://todos/todoStats` | `{ total, completed, pending }` |
+| `tesseron://todos/todos://all` | Complete todo list |
 
 ## How the live updates work
 

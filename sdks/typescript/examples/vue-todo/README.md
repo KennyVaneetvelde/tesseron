@@ -47,10 +47,13 @@ claim session ABCD-XY
 | `vue_todo__listTodos` | readOnly | Read the list, optionally filtered |
 | `vue_todo__setFilter` | — | Change visible filter |
 
+The `todos://all` resource returns the complete todo list and pushes every todo mutation to subscribers.
+
 | Resource URI (subscribable) | What it returns |
 |---|---|
 | `tesseron://vue_todo/currentFilter` | `'all' \| 'active' \| 'completed'` |
 | `tesseron://vue_todo/todoStats` | `{ total, completed, pending }` |
+| `tesseron://vue_todo/todos://all` | Complete todo list |
 
 ## How the live updates work
 
