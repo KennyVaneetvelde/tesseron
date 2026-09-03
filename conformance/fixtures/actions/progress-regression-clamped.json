@@ -1,24 +1,14 @@
 {
-  "id": "resources/subscribe-update-unsubscribe",
-  "title": "A subscription pushes updates and stops cleanly on unsubscribe",
-  "spec": "/protocol/resources/",
-  "requires": ["subscriptions"],
+  "id": "actions/progress-regression-clamped",
+  "title": "A progress regression is raised to the invocation's highest percent",
+  "spec": "/protocol/progress-cancellation/",
+  "requires": ["streaming"],
   "fixture": {
-    "resources": [
+    "actions": [
       {
-        "name": "cart",
-        "value": {
-          "total": 0
-        },
-        "subscribable": true,
-        "emits": [
-          {
-            "afterStep": "subscribed",
-            "value": {
-              "total": 42
-            }
-          }
-        ]
+        "name": "slow",
+        "progress": [{ "percent": 10 }, { "percent": 55 }, { "percent": 30 }, { "percent": 100 }],
+        "returns": { "done": true }
       }
     ]
   },
@@ -71,58 +61,53 @@
     {
       "send": {
         "jsonrpc": "2.0",
-        "id": "s-1",
-        "method": "resources/subscribe",
+        "id": "inv-1",
+        "method": "actions/invoke",
         "params": {
-          "name": "cart",
-          "subscriptionId": "sub-1"
+          "name": "slow",
+          "input": {},
+          "invocationId": "i-1"
         }
       }
     },
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-1",
-        "result": null
-      },
-      "label": "subscribed"
-    },
-    {
-      "recv": {
-        "jsonrpc": "2.0",
-        "method": "resources/updated",
-        "params": {
-          "subscriptionId": "sub-1",
-          "value": {
-            "total": 42
-          }
-        }
-      },
-      "notBefore": "subscribed"
-    },
-    {
-      "send": {
-        "jsonrpc": "2.0",
-        "id": "s-2",
-        "method": "resources/unsubscribe",
-        "params": {
-          "subscriptionId": "sub-1"
-        }
+        "method": "actions/progress",
+        "id": "~absent",
+        "params": { "invocationId": "i-1", "percent": 10 }
       }
     },
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-2",
-        "result": null
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 55 }
       }
     },
     {
-      "expectSilence": {
-        "method": "resources/updated"
-      },
-      "timeoutMs": 500,
-      "note": "The subscriber's cleanup function must have run. A further update here is a leak."
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 55 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 100 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "inv-1",
+        "result": {
+          "invocationId": "i-1",
+          "output": { "done": true }
+        }
+      }
     }
   ]
 }

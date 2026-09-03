@@ -1,24 +1,13 @@
 {
-  "id": "resources/subscribe-update-unsubscribe",
-  "title": "A subscription pushes updates and stops cleanly on unsubscribe",
+  "id": "resources/subscribe-not-subscribable",
+  "title": "Unknown and non-subscribable resources reject subscription requests",
   "spec": "/protocol/resources/",
   "requires": ["subscriptions"],
   "fixture": {
     "resources": [
       {
-        "name": "cart",
-        "value": {
-          "total": 0
-        },
-        "subscribable": true,
-        "emits": [
-          {
-            "afterStep": "subscribed",
-            "value": {
-              "total": 42
-            }
-          }
-        ]
+        "name": "snapshot",
+        "value": { "status": "ready" }
       }
     ]
   },
@@ -71,58 +60,32 @@
     {
       "send": {
         "jsonrpc": "2.0",
-        "id": "s-1",
+        "id": "subscribe-unknown",
         "method": "resources/subscribe",
-        "params": {
-          "name": "cart",
-          "subscriptionId": "sub-1"
-        }
+        "params": { "name": "missing", "subscriptionId": "sub-missing" }
       }
     },
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-1",
-        "result": null
-      },
-      "label": "subscribed"
-    },
-    {
-      "recv": {
-        "jsonrpc": "2.0",
-        "method": "resources/updated",
-        "params": {
-          "subscriptionId": "sub-1",
-          "value": {
-            "total": 42
-          }
-        }
-      },
-      "notBefore": "subscribed"
+        "id": "subscribe-unknown",
+        "error": { "code": -32003, "message": "Resource not subscribable: missing" }
+      }
     },
     {
       "send": {
         "jsonrpc": "2.0",
-        "id": "s-2",
-        "method": "resources/unsubscribe",
-        "params": {
-          "subscriptionId": "sub-1"
-        }
+        "id": "subscribe-static",
+        "method": "resources/subscribe",
+        "params": { "name": "snapshot", "subscriptionId": "sub-snapshot" }
       }
     },
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-2",
-        "result": null
+        "id": "subscribe-static",
+        "error": { "code": -32003, "message": "Resource not subscribable: snapshot" }
       }
-    },
-    {
-      "expectSilence": {
-        "method": "resources/updated"
-      },
-      "timeoutMs": 500,
-      "note": "The subscriber's cleanup function must have run. A further update here is a leak."
     }
   ]
 }

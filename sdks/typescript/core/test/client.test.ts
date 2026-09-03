@@ -681,6 +681,54 @@ describe('TesseronClient end-to-end', () => {
     await expect(pending).rejects.toMatchObject({ code: TesseronErrorCode.Cancelled });
   });
 
+  it('clamps progress percent and preserves the highest value per invocation', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    client.action('slow').handler((_input: unknown, context: ActionContext) => {
+      context.progress({ percent: -10, message: 'starting', data: { attempt: 1 } });
+      context.progress({ percent: 55 });
+      context.progress({ percent: 30, message: 'regressed', data: { retry: true } });
+      context.progress({ percent: 140 });
+      return { done: true };
+    });
+
+    let clientMessageHandler: ((m: unknown) => void) | undefined;
+    const gateway = new JsonRpcDispatcher((m) => {
+      queueMicrotask(() => clientMessageHandler?.(m));
+    });
+    gateway.on('tesseron/hello', () => ({
+      sessionId: 'test',
+      protocolVersion: PROTOCOL_VERSION,
+      capabilities: { streaming: true, subscriptions: false, sampling: false, elicitation: false },
+      agent: { id: 'a', name: 'a' },
+    }));
+    const progress: unknown[] = [];
+    gateway.onNotification('actions/progress', (params) => progress.push(params));
+
+    const transport: Transport = {
+      send: (m) => queueMicrotask(() => gateway.receive(m)),
+      onMessage: (h) => {
+        clientMessageHandler = h;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    await client.connect(transport);
+    await gateway.request('actions/invoke', {
+      name: 'slow',
+      input: {},
+      invocationId: 'inv-progress',
+    });
+
+    expect(progress).toEqual([
+      { invocationId: 'inv-progress', percent: 0, message: 'starting', data: { attempt: 1 } },
+      { invocationId: 'inv-progress', percent: 55, message: undefined, data: undefined },
+      { invocationId: 'inv-progress', percent: 55, message: 'regressed', data: { retry: true } },
+      { invocationId: 'inv-progress', percent: 100, message: undefined, data: undefined },
+    ]);
+  });
+
   it('ctx.withTimeout resolves on success and rejects with TimeoutError on the inner deadline', async () => {
     const client = new TesseronClient();
     client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });

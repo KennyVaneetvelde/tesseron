@@ -78,7 +78,13 @@ Response:
 { "jsonrpc": "2.0", "id": 15, "method": "resources/subscribe", "params": { "name": "currentRoute", "subscriptionId": "sub_1" } }
 ```
 
-Response is empty - the SDK just acknowledges and now holds the emitter callback.
+Response:
+
+```json
+{ "jsonrpc": "2.0", "id": 15, "result": null }
+```
+
+The `null` result acknowledges that the SDK now holds the emitter callback.
 
 ### Update (app → gateway, notification)
 
@@ -100,7 +106,15 @@ The gateway forwards this as MCP `notifications/resources/updated` to the agent.
 { "jsonrpc": "2.0", "id": 16, "method": "resources/unsubscribe", "params": { "subscriptionId": "sub_1" } }
 ```
 
-The SDK calls the unsubscribe function returned by your `.subscribe()` handler.
+The SDK calls the unsubscribe function returned by your `.subscribe()` handler, then acknowledges with `result: null`:
+
+```json
+{ "jsonrpc": "2.0", "id": 16, "result": null }
+```
+
+### Subscription failures
+
+A resource needs a `.subscribe()` handler before the gateway can subscribe. An unknown resource, or a declared resource without that handler, returns `-32003 ActionNotFound` with `Resource not subscribable: <name>`.
 
 ### List changed (app → gateway, notification)
 
