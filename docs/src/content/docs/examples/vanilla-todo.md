@@ -47,6 +47,6 @@ tesseron.resource('todoStats')
 await tesseron.connect();
 ```
 
-Nine actions (`addTodo`, `toggleTodo`, `deleteTodo`, `listTodos`, `setFilter`, `clearCompleted`, `renameTodo`, `importTodos`, `suggestTodos`) and two subscribable resources (`currentFilter`, `todoStats`) - a realistic-but-contained surface for experimenting.
+Nine actions (`addTodo`, `toggleTodo`, `deleteTodo`, `listTodos`, `setFilter`, `clearCompleted`, `renameTodo`, `importTodos`, `suggestTodos`) and three subscribable resources (`currentFilter`, `todoStats`, and `todos://all`, the full list) - a realistic-but-contained surface for experimenting.
 
 Features exercised: **actions, annotations (`destructive`, `requiresConfirmation`, `readOnly`), subscribable resources, Zod input validation, `ctx.confirm` (in `clearCompleted`), `ctx.elicit` with schema (in `renameTodo`), `ctx.progress` (in `importTodos`), `ctx.sample` (in `suggestTodos`), connection lifecycle**.
