@@ -89,6 +89,37 @@ async function sendHello(
   return responsePromise;
 }
 
+async function sendResume(
+  forSdk: Transport,
+  protocolVersion: string,
+): Promise<{ id: 1; result?: unknown; error?: { code: number; message: string } }> {
+  const responsePromise = new Promise<{
+    id: 1;
+    result?: unknown;
+    error?: { code: number; message: string };
+  }>((resolve) => {
+    forSdk.onMessage((message) => {
+      const response = message as { id?: number };
+      if (response.id === 1) resolve(message as never);
+    });
+  });
+  forSdk.send({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tesseron/resume',
+    params: {
+      protocolVersion,
+      sessionId: 'session',
+      resumeToken: 'token',
+      app: { id: 'vt_app', name: 'version test', origin: 'http://localhost' },
+      actions: [],
+      resources: [],
+      capabilities: { streaming: true, subscriptions: true, sampling: false, elicitation: false },
+    },
+  });
+  return responsePromise;
+}
+
 describe('protocol version handshake', () => {
   let gateway: TesseronGateway;
 
@@ -122,6 +153,19 @@ describe('protocol version handshake', () => {
     const resp = await sendHello(forSdk, '2.0.0');
     expect(resp.result).toBeUndefined();
     expect(resp.error?.code).toBe(-32000);
-    expect(resp.error?.message).toMatch(/Major version mismatch/);
+    expect(resp.error?.message).toBe(
+      'Gateway speaks protocol 1.2.0; SDK sent 2.0.0. Major version mismatch. See https://eigenwise.github.io/tesseron/protocol/compatibility/',
+    );
+  });
+
+  it('hard-rejects a major-mismatch resume with the compatibility link', async () => {
+    const { forGateway, forSdk } = pair();
+    gateway.handleConnection(forGateway);
+    const resp = await sendResume(forSdk, '2.0.0');
+    expect(resp.result).toBeUndefined();
+    expect(resp.error?.code).toBe(-32000);
+    expect(resp.error?.message).toBe(
+      'Gateway speaks protocol 1.2.0; SDK sent 2.0.0. Major version mismatch on resume. See https://eigenwise.github.io/tesseron/protocol/compatibility/',
+    );
   });
 });

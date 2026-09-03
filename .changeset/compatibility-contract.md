@@ -1,5 +1,6 @@
 ---
 '@tesseron/core': patch
+'@tesseron/mcp': patch
 ---
 
-Protocol mismatch error now links to the compatibility page.
+Protocol mismatch errors now link to the compatibility page.
