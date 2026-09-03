@@ -154,7 +154,10 @@ pushes. Only host-minted claims are missing, by design. A per-connection handsha
 `conformance-host/` is the fixture adapter the runner drives. `examples/todo` and `examples/prompts` are
 the canonical example pair (same action names and schemas as the TypeScript `vanilla-todo` and
 `node-prompts`, minus the UI-only `setFilter`); `examples/validate-e2e.mjs` proves them through the
-real gateway.
+real gateway. `examples/tauri-todo` is the desktop variant: `examples/todo/src/lib.rs` holds the store,
+the action registrations, and the `todos://all` resource, and both binaries import it, so the schemas
+cannot drift. The Tauri app holds the host in `tauri::State` and emits a Tauri event from the action
+handlers so the window re-renders after an agent mutation.
 
 ## Not packages
 

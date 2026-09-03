@@ -74,9 +74,11 @@ Four workflows in `.github/workflows/`:
   [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
   `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
   ships that prose.
-- **`ci.yml` `rust` job** (`:64-121`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
-  with `-D warnings`, `cargo test --workspace`, build, then the conformance runner against the Rust
-  host through `pnpm conformance:run:rust` (`--unsupported host-minted-claim`). The runner
+- **`ci.yml` `rust` job** (`:64-125`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
+  with `-D warnings`, `cargo test --workspace`, build (all three `--exclude tauri-todo`, then
+  `cargo check -p tauri-todo` on Windows only because Tauri needs GTK and WebKit on Linux), then the
+  conformance runner against the Rust host through `pnpm conformance:run:rust`
+  (`--unsupported host-minted-claim`). The runner
   cross-checks that list against the hello flags, so a capability declared true while listed fails.
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.

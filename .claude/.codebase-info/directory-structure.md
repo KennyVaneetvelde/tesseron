@@ -38,7 +38,8 @@ tesseron/
 │       ├── tests/            gateway_session.rs: 19 WebSocket integration tests playing the gateway
 │       ├── conformance-host/ member crate, private bin tesseron-conformance-host
 │       └── examples/         todo/ and prompts/ (headless daemons, canonical action set, workspace members)
-│                             validate-e2e.mjs drives both through the real gateway: `pnpm example:rust:e2e`
+│           │                 validate-e2e.mjs drives both through the real gateway: `pnpm example:rust:e2e`
+│           └── tauri-todo/   Tauri 2 window over the same store; imports todo/src/lib.rs, CI checks it on Windows only
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
 │   └── src/content/docs/     44 pages. docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
