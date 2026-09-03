@@ -49,7 +49,7 @@ The [W3C WebMCP draft](https://webmachinelearning.github.io/webmcp/) is a W3C Co
 - **Loopback plus an explicit claim.** Tesseron stays on loopback and requires the user's claim code, so a third-party script on the page cannot register a tool; for example, an unrelated analytics script cannot expose `deleteAccount` through the gateway.
 - **One CC BY spec, several languages, conformance-tested.** The protocol is CC BY 4.0, SDKs can be written in several languages, and the conformance suite checks them; for example, the same `addTodo` action can run in TypeScript and Rust.
 
-The [@tesseron/web opt-in bridge](/sdk/typescript/web/) can register the same actions in `document.modelContext` when you choose it. Use WebMCP for browser-native agents and Tesseron for the wider set of processes and agents.
+Tesseron does not build on WebMCP and does not publish into it. Use WebMCP for browser-native agents and Tesseron for the wider set of processes and agents.
 
 ## Tradeoffs (be honest)
 
