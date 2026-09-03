@@ -564,6 +564,7 @@ export class TesseronClient implements BuilderRegistry {
       controller.abort(new TimeoutError(action.timeoutMs));
     }, action.timeoutMs);
 
+    let highestProgressPercent: number | undefined;
     const ctx: ActionContext = {
       signal: controller.signal,
       withTimeout: <T>(value: Promise<T> | T, ms: number): Promise<T> =>
@@ -580,10 +581,17 @@ export class TesseronClient implements BuilderRegistry {
         userAgent: resolveUserAgent(),
       },
       progress: (update: ProgressUpdate) => {
+        const boundedPercent =
+          update.percent === undefined ? undefined : Math.min(100, Math.max(0, update.percent));
+        const percent =
+          boundedPercent === undefined
+            ? undefined
+            : Math.max(highestProgressPercent ?? boundedPercent, boundedPercent);
+        if (percent !== undefined) highestProgressPercent = percent;
         this.dispatcher?.notify('actions/progress', {
           invocationId: params.invocationId,
           message: update.message,
-          percent: update.percent,
+          percent,
           data: update.data,
         });
       },
