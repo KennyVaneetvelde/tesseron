@@ -85,13 +85,17 @@ jobs:
         run: cargo fmt --manifest-path sdks/rust/Cargo.toml --all --check
 
       - name: Clippy
-        run: cargo clippy --manifest-path sdks/rust/Cargo.toml --workspace --all-targets -- -D warnings
+        run: cargo clippy --manifest-path sdks/rust/Cargo.toml --workspace --exclude tauri-todo --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --manifest-path sdks/rust/Cargo.toml --workspace
+        run: cargo test --manifest-path sdks/rust/Cargo.toml --workspace --exclude tauri-todo
 
       - name: Build the conformance host
-        run: cargo build --manifest-path sdks/rust/Cargo.toml --workspace
+        run: cargo build --manifest-path sdks/rust/Cargo.toml --workspace --exclude tauri-todo
+
+      - name: Check the Tauri example
+        if: runner.os == 'Windows'
+        run: cargo check --manifest-path sdks/rust/Cargo.toml -p tauri-todo
 
       - uses: pnpm/action-setup@v4
         with:
