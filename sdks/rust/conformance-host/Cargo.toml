@@ -1,0 +1,18 @@
+[package]
+name = "tesseron-conformance-host"
+version = "0.1.0"
+description = "Adapter that drives the tesseron crate from a @tesseron/conformance fixture document."
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tesseron = { path = ".." }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std", "io-util", "signal", "time"] }
+
+[lints]
+workspace = true
