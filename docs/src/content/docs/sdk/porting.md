@@ -161,7 +161,7 @@ Part of this list is executable. [`conformance/`](https://github.com/eigenwise/t
 - [ ] `ctx.elicit` validates the response against the supplied Standard Schema and returns `null` on decline / cancel.
 - [ ] Raises a typed error (`SamplingNotAvailable`, `ElicitationNotAvailable`) when capabilities don't include them - except `ctx.confirm`, which swallows missing elicitation and returns `false`.
 - [ ] Rejects top-level non-object / `oneOf` / `anyOf` / nested-object elicit schemas with `-32602 InvalidParams` at the call site.
-- [ ] Caps sampling depth at 3 (or honours the gateway's cap).
+- [ ] Forwards `sampling/request` without counting sampling depth. The gateway enforces the depth cap of 3; no Tesseron frame carries depth.
 
 **Resources**
 - [ ] Responds to `resources/read` with `{ value }`.

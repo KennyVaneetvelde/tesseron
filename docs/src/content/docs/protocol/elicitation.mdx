@@ -59,13 +59,23 @@ Returns the validated value on accept, `null` on decline or cancel. Throws `Elic
 
 `jsonSchema` is technically optional; if you omit it, the SDK sends a permissive text-only fallback (`{ response: string }`), which Claude Code renders as a single text input. For good UX, always derive it from your validator - Zod 4 has `z.toJSONSchema(schema)` built in.
 
-MCP elicit constrains `requestedSchema`:
+MCP elicit constrains `requestedSchema`. In protocol 1.2.0, the host validator rejects these shapes with `-32602 InvalidParams`:
 
-- Top level must be `{ type: "object" }`.
-- Each property must be a primitive type (`string`, `number`, `integer`, `boolean`).
-- No `oneOf` / `anyOf` / `allOf` / `not` at the top level.
+- A schema that is not a JSON object.
+- A top-level `type` whose value is anything other than `"object"`.
+- A truthy top-level `oneOf`, `anyOf`, `allOf`, or `not` keyword.
+- A property whose checked `type` is `"object"`.
+- A property whose checked `type` is `"array"`.
+- A property whose checked `type` is any other non-primitive value. Present property types must be `"string"`, `"number"`, `"integer"`, or `"boolean"`.
 
-The SDK enforces this on send and surfaces an `InvalidParams` error (code `-32602`) at the `ctx.elicit` call site if you send something else.
+Two lenient cases are part of the 1.2.0 validator behavior:
+
+- A property without a `type` is accepted. The validator does not infer a type from the property's other keywords.
+- When a property's `type` is an array, only its first entry is checked. A primitive first entry is accepted even when a later entry is unsupported; an unsupported first entry is rejected.
+
+The lenient cases preserve the current 1.2.0 behavior. Tightening either rule should wait for a future minor, because it would reject schemas that currently pass.
+
+The SDK enforces these rules on send and surfaces the `InvalidParams` error at the `ctx.elicit` call site. The gateway checks the same schema again when it receives the request.
 
 <Sequence
   caption="ctx.confirm and ctx.elicit share the same wire flow - the difference is the requestedSchema they send."

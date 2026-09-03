@@ -94,7 +94,7 @@ If you passed a `schema`, the SDK validates `result.content` against it before r
 
 Sampling is recursive by construction: the agent is a Claude session that called your action, and you're asking that same Claude to think again. Without a cap, a malicious or buggy chain could spiral.
 
-The MCP gateway enforces `maxSamplingDepth = 3`. Each request from a handler that was itself invoked via sampling increments the counter. Exceeded → error `-32008 SamplingDepthExceeded`.
+The MCP gateway owns and enforces `maxSamplingDepth = 3`. Sampling depth is not a field in any Tesseron frame, so a host does not count or increment it and does not need its own depth check. The host forwards `sampling/request`; when the gateway detects that the cap is exceeded, it returns `-32008 SamplingDepthExceeded`.
 
 ## Capability gate
 
