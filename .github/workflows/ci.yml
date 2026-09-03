@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -48,3 +50,7 @@ jobs:
       # repo rather than as a failure here.
       - name: Validate conformance fixtures
         run: pnpm conformance:validate
+
+      - name: Docs change carries a docs-mcp changeset
+        if: github.event_name == 'pull_request'
+        run: pnpm check-docs-changeset

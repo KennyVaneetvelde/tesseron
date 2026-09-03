@@ -79,7 +79,8 @@ pnpm changeset
 
 `@tesseron/docs-mcp` is **not** in that group. It ships the docs snapshot rather
 than protocol code, so a prose correction releases on its own instead of forcing
-a bump across every SDK package. Give it its own changeset.
+a bump across every SDK package. Give it its own changeset. CI enforces that docs content changes
+carry a `@tesseron/docs-mcp` changeset.
 
 The release workflow at `.github/workflows/release.yml` opens a PR or publishes
 via `changesets/action@v1`.
