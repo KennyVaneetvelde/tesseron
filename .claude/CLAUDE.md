@@ -5,26 +5,26 @@ What's enabled here, at which scope, and the few things that bite. Project conve
 
 ## Scopes
 
-Three files decide what loads, and they mean different things:
+Two files decide what loads, and they mean different things:
 
 | File | Tracked? | What belongs in it |
 |---|---|---|
 | `.claude/settings.json` | yes, public | plugins a contributor needs to make sense of what's committed |
 | `.claude/settings.local.json` | no, gitignored | Kenny's personal workflow plugins and the gateway env |
-| `~/.claude/settings.json` | machine-wide | plugins that are genuinely per-machine, not per-project |
 
 **Project scope** carries `live-rules` and `codebase-mapper` from `eigenwise-toolshed`, because both
 write artifacts that are committed (`.claude/live-rules/`, `.claude/.codebase-info/`) and are
 useless to a contributor who can't load the plugin that reads them. Also here: `typescript-lsp`,
-`mcp-server-dev`, `skill-creator`, `plugin-dev`, `developer-kit-typescript`.
+`mcp-server-dev`, `skill-creator`, `plugin-dev`, `developer-kit-typescript`, `model-gateway` (wires
+`ANTHROPIC_BASE_URL` at `127.0.0.1:18764`; a contributor without the gateway running should disable it
+locally), and `ponytail`.
 
 **Local scope** carries `tesseron@tesseron` (this repo dogfooding its own plugin through a
 `directory` marketplace pointed at the repo root), plus `pr-review-toolkit`, `sidequest`,
 `observability`, and `quartermaster`. None of that should ship to contributors.
 
-**User scope** keeps `workbench` and `model-gateway`. Both are machine-wide by design: workbench
-updates Toolshed plugins, model-gateway wires `ANTHROPIC_BASE_URL` at `127.0.0.1:18764`. Installing
-either per-project is wrong.
+There is no user-scope layer for this repo anymore. `~/.claude/settings.json` holds nothing this project
+depends on; everything is either committed here or in the gitignored local file.
 
 ### Two dead entries
 
