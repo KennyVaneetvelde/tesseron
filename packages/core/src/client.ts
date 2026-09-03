@@ -523,8 +523,7 @@ export class TesseronClient implements BuilderRegistry {
     };
   }
 
-  /** Gives subclass bridges the hello-manifest metadata needed to expose local action invocations. */
-  protected actionManifest(): ActionManifestEntry[] {
+  private actionManifest(): ActionManifestEntry[] {
     return Array.from(this.actions.values()).map((a) => ({
       name: a.name,
       description: a.description,
@@ -544,8 +543,7 @@ export class TesseronClient implements BuilderRegistry {
     }));
   }
 
-  /** Routes subclass-originated invocations through the same validation and context path as gateway calls. */
-  protected async handleInvoke(params: ActionInvokeParams): Promise<ActionResultPayload> {
+  private async handleInvoke(params: ActionInvokeParams): Promise<ActionResultPayload> {
     const action = this.actions.get(params.name);
     if (!action) {
       throw new TesseronError(TesseronErrorCode.ActionNotFound, `Action not found: ${params.name}`);

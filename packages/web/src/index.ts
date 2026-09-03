@@ -1,6 +1,4 @@
 import {
-  type ActionDefinition,
-  type AppConfig,
   type ConnectOptions,
   type ResumeCredentials,
   TesseronClient,
@@ -15,29 +13,6 @@ import {
   localStorageResumeBackend,
 } from './reactive-core.js';
 import { BrowserWebSocketTransport } from './transport.js';
-
-interface WebMcpTool {
-  name: string;
-  description: string;
-  inputSchema: unknown;
-  execute(input: unknown): Promise<unknown>;
-}
-
-interface WebMcpModelContext {
-  registerTool(tool: WebMcpTool): void;
-  unregisterTool(name: string): void;
-}
-
-interface ModelContextHost {
-  modelContext?: WebMcpModelContext;
-}
-
-class WebMcpInvocationClient extends TesseronClient {
-  async invokeAction(name: string, input: unknown, invocationId: string): Promise<unknown> {
-    const result = await this.handleInvoke({ name, input, invocationId });
-    return result.output;
-  }
-}
 
 export * from '@tesseron/core';
 // The framework-neutral reactive core (connection controller, registration
@@ -93,8 +68,6 @@ export interface WebConnectOptions extends Omit<ConnectOptions, 'resume'> {
    * configure resume there, not here.
    */
   resume?: ResumeCredentials | boolean | string | ResumeStorage;
-  /** Registers this client's actions with the browser's WebMCP model context API. Default: false. */
-  webmcp?: boolean;
 }
 
 /**
@@ -126,30 +99,6 @@ export class WebTesseronClient extends TesseronClient {
     dedupKey: string;
     promise: Promise<WelcomeResult>;
   };
-  private webMcpModelContext?: WebMcpModelContext;
-  private readonly registeredWebMcpActions = new Set<string>();
-  private readonly webMcpInvocationClient = new WebMcpInvocationClient();
-  private webMcpInvocationCounter = 0;
-
-  override app(config: AppConfig): this {
-    super.app(config);
-    this.webMcpInvocationClient.app(config);
-    return this;
-  }
-
-  override registerAction(action: ActionDefinition): void {
-    super.registerAction(action);
-    this.webMcpInvocationClient.registerAction(action);
-    if (!this.webMcpModelContext) return;
-    this.unregisterWebMcpAction(action.name);
-    this.registerWebMcpAction(action.name);
-  }
-
-  override removeAction(name: string): void {
-    super.removeAction(name);
-    this.webMcpInvocationClient.removeAction(name);
-    this.unregisterWebMcpAction(name);
-  }
 
   override connect(
     target?: Transport | string,
@@ -174,10 +123,7 @@ export class WebTesseronClient extends TesseronClient {
           ),
         );
       }
-      return this.completeConnect(
-        super.connect(target, options as ConnectOptions),
-        options?.webmcp === true,
-      );
+      return super.connect(target, options as ConnectOptions);
     }
     const url = target ?? DEFAULT_GATEWAY_URL;
     const { storage, explicitCreds } = normalizeResume(options?.resume);
@@ -187,17 +133,12 @@ export class WebTesseronClient extends TesseronClient {
     // StrictMode mounts asking for `resume: true` share one connect), and
     // `resume: false` dedups against itself but not against storage-backed
     // calls.
-    const dedupKey = `${dedupKeyOf(options?.resume, storage, explicitCreds)}\x00webmcp:${
-      options?.webmcp === true
-    }`;
+    const dedupKey = dedupKeyOf(options?.resume, storage, explicitCreds);
     const inFlight = this.inFlightUrlConnect;
     if (inFlight && inFlight.url === url && inFlight.dedupKey === dedupKey) {
       return inFlight.promise;
     }
-    const promise = this.completeConnect(
-      this.runUrlConnect(url, storage, explicitCreds),
-      options?.webmcp === true,
-    );
+    const promise = this.runUrlConnect(url, storage, explicitCreds);
     const entry = { url, dedupKey, promise };
     this.inFlightUrlConnect = entry;
     promise
@@ -206,80 +147,6 @@ export class WebTesseronClient extends TesseronClient {
         if (this.inFlightUrlConnect === entry) this.inFlightUrlConnect = undefined;
       });
     return promise;
-  }
-
-  override async disconnect(): Promise<void> {
-    this.disableWebMcpBridge();
-    await super.disconnect();
-  }
-
-  private async completeConnect(
-    connection: Promise<WelcomeResult>,
-    webMcpEnabled: boolean,
-  ): Promise<WelcomeResult> {
-    const welcome = await connection;
-    if (webMcpEnabled) {
-      this.enableWebMcpBridge();
-    } else {
-      this.disableWebMcpBridge();
-    }
-    return welcome;
-  }
-
-  private enableWebMcpBridge(): void {
-    const modelContext = findWebMcpModelContext();
-    if (!modelContext) {
-      this.disableWebMcpBridge();
-      console.debug(
-        '[tesseron] WebMCP bridge enabled, but document.modelContext and navigator.modelContext are unavailable.',
-      );
-      return;
-    }
-
-    if (this.webMcpModelContext !== modelContext) {
-      this.disableWebMcpBridge();
-      this.webMcpModelContext = modelContext;
-    }
-
-    for (const action of this.actionManifest()) {
-      if (!this.registeredWebMcpActions.has(action.name)) {
-        this.registerWebMcpAction(action.name);
-      }
-    }
-  }
-
-  private disableWebMcpBridge(): void {
-    const modelContext = this.webMcpModelContext;
-    if (!modelContext) return;
-    for (const name of this.registeredWebMcpActions) {
-      modelContext.unregisterTool(name);
-    }
-    this.registeredWebMcpActions.clear();
-    this.webMcpModelContext = undefined;
-  }
-
-  private registerWebMcpAction(name: string): void {
-    const modelContext = this.webMcpModelContext;
-    const action = this.actionManifest().find((candidate) => candidate.name === name);
-    if (!modelContext || !action) return;
-
-    modelContext.registerTool({
-      name: action.name,
-      description: action.description,
-      inputSchema: action.inputSchema,
-      execute: (input) =>
-        this.webMcpInvocationClient.invokeAction(
-          action.name,
-          input,
-          `webmcp-${++this.webMcpInvocationCounter}`,
-        ),
-    });
-    this.registeredWebMcpActions.add(action.name);
-  }
-
-  private unregisterWebMcpAction(name: string): void {
-    if (!this.webMcpModelContext || !this.registeredWebMcpActions.delete(name)) return;
-    this.webMcpModelContext.unregisterTool(name);
   }
 
   private async runUrlConnect(
@@ -371,17 +238,6 @@ export class WebTesseronClient extends TesseronClient {
       throw err;
     }
   }
-}
-
-function findWebMcpModelContext(): WebMcpModelContext | undefined {
-  const documentModelContext =
-    typeof document === 'undefined'
-      ? undefined
-      : (document as Document & ModelContextHost).modelContext;
-  if (documentModelContext) return documentModelContext;
-  return typeof navigator === 'undefined'
-    ? undefined
-    : (navigator as Navigator & ModelContextHost).modelContext;
 }
 
 function isResumeCredentials(x: unknown): x is ResumeCredentials {
