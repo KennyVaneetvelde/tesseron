@@ -84,8 +84,16 @@ host (`sdks/typescript/conformance-host/`, built on `@tesseron/server`). Per fix
 spawns the host with `TESSERON_CONFORMANCE_FIXTURE`, reads the `tesseron-conformance-url=` line,
 dials, walks the steps, and prints PASS/FAIL/SKIP per fixture; exit 1 on any failure, 2 on a
 runner error. Fixtures whose `requires` the host lacks (declared via
-`TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped. On Windows the four `uds` fixtures skip because
-`run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check. Both
+`TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped. On Windows the six `uds` fixtures skip because
+`run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check.
+
+The Rust host runs the same corpus: `node conformance/runner/dist/tesseron-conformance.cjs --host
+"sdks/rust/target/debug/tesseron-conformance-host"` with `TESSERON_CONFORMANCE_UNSUPPORTED` set
+as in `ci.yml:120`. A `--host` that is only a path is resolved to its absolute native form
+(`conformance/runner/src/runner.ts` `resolveHostCommand`, 7 tests in `test/host-command.test.ts`),
+because cmd.exe otherwise splits a relative forward-slash path at the first slash. Every `bind/*`
+fixture requires `host-minted-claim`, which the Rust SDK skips by design (gateway-minted claims
+only). Both
 packages must be built first (`pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build`). The format and runner
 contract are in `conformance/README.md`.
 
@@ -97,4 +105,5 @@ pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 20 unit + 9 integration + 3 host + 1 doctest
 ```

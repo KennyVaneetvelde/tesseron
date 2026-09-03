@@ -5,6 +5,7 @@
 | Concern | Choice | Source of truth |
 |---|---|---|
 | Language | TypeScript 5.7, ES2022 target | `tsconfig.base.json:3` |
+| Rust SDK | edition 2024, MSRV 1.85, tokio + tokio-tungstenite 0.30 + serde_json + schemars 1 | `sdks/rust/Cargo.toml` |
 | Runtime | Node >= 20 | `package.json:12` |
 | Package manager | **pnpm 9.15.4**, workspace | `package.json:14`, `pnpm-workspace.yaml` |
 | Task runner | turbo 2.3 | `turbo.json` |
@@ -56,6 +57,11 @@ Framework packages carry peers, not deps: `react >=18`, `svelte >=4.0.0`, `vue >
 
 Sibling packages always use `workspace:*`.
 
+The Rust crate (`sdks/rust/`) shares nothing with the pnpm workspace. Its lints are workspace-wide
+in `Cargo.toml`: `missing_docs = warn`, `unsafe_code = forbid`, `clippy::unwrap_used = deny`. It
+versions independently (0.1.0); compatibility is declared by protocol version, never by matching an
+npm number.
+
 ## CI
 
 Four workflows in `.github/workflows/`:
@@ -68,6 +74,10 @@ Four workflows in `.github/workflows/`:
   [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
   `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
   ships that prose.
+- **`ci.yml` `rust` job** (`:64-121`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
+  with `-D warnings`, `cargo test --workspace`, build, then the conformance runner against the Rust
+  host with `TESSERON_CONFORMANCE_UNSUPPORTED` naming every capability the host lacks. The runner
+  cross-checks that list against the hello flags, so the list must shrink as capabilities land.
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.
   `pnpm sync-labels` pushes that file to GitHub.

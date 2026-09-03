@@ -138,6 +138,17 @@ bridge, and session types, so it is a superset of core's public surface.
 `@tesseron/server` with the canned actions and resources a fixture asks for; it exists so the
 corpus is proven runnable before any port vendors it.
 
+## `tesseron` (Rust, `sdks/rust/`)
+
+The application half of the protocol in Rust, written from the spec pages with the TypeScript core
+as reference only where the spec is silent. `Tesseron::builder().application(..).action(..)
+.listen().await` binds a loopback WebSocket on port 0, writes the v2 instance manifest (`0600` in a
+`0700` dir, advisory on Windows), and the gateway dials in; `HostEvent::Welcome` carries the
+gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. Part 1 (SQ-15)
+covers handshake, claiming, resume with in-memory token rotation, invoke with validation and
+cancel, and resource reads; streaming, subscriptions, sampling, and elicitation report `false`
+until part 2. `conformance-host/` is the fixture adapter the runner drives.
+
 ## Not packages
 
 `packages/` and `examples/` no longer exist in git. If they are on disk they are untracked

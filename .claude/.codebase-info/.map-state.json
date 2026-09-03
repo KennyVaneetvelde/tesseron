@@ -3,7 +3,7 @@
   "tool": "codebase-mapper",
   "version": "2.15.7",
   "mappedAt": "2026-09-03",
-  "gitCommit": "71a2468148ca6c0877feaedb234ec0091af93ce2",
+  "gitCommit": "d708310ded1feeeb3b55e89b6e781a5c9b2a402e",
   "documents": [
     "architecture.md",
     "coding-style.md",
@@ -19,18 +19,18 @@
     "testing.md"
   ],
   "hashes": {
-    "INDEX.md": "e237a991e832e0951180dfb16aecf66d967a6919370b990568fee17c59f6fcde",
+    "INDEX.md": "f7a996813b19634d8b8779c16979ee257c8bc69e00d879d1f166202de89688c3",
     "architecture.md": "ca8f8f9f9c631c2e8f8bd09bc74cf3d3d85e3c98ca5bbbefbc40ffe213ff152c",
     "coding-style.md": "5dccb9489b85c3407fac5f720a4862354baf9a07fe5b0eebeae3fa4dd03c3e85",
-    "directory-structure.md": "8ebdd0af22e9b7a8b2f5321692bbb806d021f51d58f7ce69d51282abf3ed9a1a",
-    "entry-points.md": "1196091b56becd7380513a7194a38d3d41ecb8869fe79449fd8f61a467186899",
+    "directory-structure.md": "1db66534322f64740f4aa46a6a9e853f06fe15dd420888da9470774b1e965d9c",
+    "entry-points.md": "084eb91c45d394988358ad5283429f31df1593de835b05920286f297d3e52e5b",
     "gateway.md": "be95f58a54d66b0770d37f25026dfa4d44fe2928274ff71e7ef23a4657e377ae",
-    "modules.md": "269b8f44d5421739cd8bf683ca5b4f5b7a94c6cc0b5a96686520156a4af132d3",
+    "modules.md": "06ce83e5484aabba3812b5eb9143cf2048e212b50737ed2ba7fc0107bd29a94b",
     "onboarding.md": "707de69dd7fed36237a45c16c61a4d648a61f88f3e162f817a01a1211f209bf1",
     "patterns.md": "68a2a47a7986c8b6850ddccb0ce83c2a32b3be608eb6f81cfca1cfa1e6e27a7d",
     "protocol.md": "52dc816e7c0e5d3b81e84022881f07441a73badca4227617bb21a2ab366d779d",
     "release-and-plugin.md": "4acc80b6dd047565cf1dd175346c538da9a04ab07e9ee2e2f9d98b6c47d259b4",
-    "tech-landscape.md": "845e5a35b8a3206512450015feb19c6f8424dce5399fefdb324eb73f955f02ea",
-    "testing.md": "9578c38d7b8cbd2374ada2da211cd6f6b0dd15636a005840b491ab6973371a32"
+    "tech-landscape.md": "beec29a4fea801c90a2ba0ac2f5adf839f265a97234fe52d75486863d165c729",
+    "testing.md": "3f4c6b85933426a15d616171d5d8e05789c463c932a630fef1a6bb3113122977"
   }
 }

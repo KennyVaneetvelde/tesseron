@@ -3,8 +3,9 @@
 *Last Updated: 2026-09-03*
 
 Monorepo laid out as a **hub**: the language-neutral pieces (spec, gateway, conformance, docs, plugin)
-sit at the top level, and each language SDK lives under `sdks/<language>/`. Only TypeScript exists
-today. 56 tracked source files under `sdks/typescript/*/src`, `gateway/src`, and `docs-mcp/src`.
+sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript and Rust
+exist today. 56 tracked TypeScript source files under `sdks/typescript/*/src`, `gateway/src`, and
+`docs-mcp/src`, plus ~4k lines of Rust under `sdks/rust/`.
 The layout landed on 2026-09-03 (commit 4ca98ea); it is the in-place precursor to per-language
 repos, so nothing under `sdks/typescript/` should reach up to `gateway/` except through
 `@tesseron/core`.
@@ -31,6 +32,11 @@ tesseron/
 │           ├── vue-todo/         @tesseron/vue                         port 5176
 │           ├── express-prompts/  @tesseron/server + express, sampling/elicitation heavy
 │           └── node-prompts/     @tesseron/server, headless, has validate:e2e
+│   └── rust/                 cargo workspace: crate `tesseron` 0.1.0 is the ROOT package (not a
+│       │                     virtual manifest, so `cargo fmt --manifest-path` has a target)
+│       ├── src/              protocol, jsonrpc, error, manifest, host, session, action, resource, context
+│       ├── tests/            gateway_session.rs: 9 WebSocket integration tests playing the gateway
+│       └── conformance-host/ member crate, private bin tesseron-conformance-host
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
 │   └── src/content/docs/     44 pages. docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
@@ -39,7 +45,7 @@ tesseron/
 │   ├── fixtures/             34 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
 │   ├── run-reference.mjs     `pnpm conformance:run`: runner against the TS reference host
-│   └── runner/               @tesseron/conformance 1.2.0, bin tesseron-conformance, depends on ws only
+│   └── runner/               @tesseron/conformance 1.2.x, bin tesseron-conformance, depends on ws only
 ├── plugin/                   the Claude Code plugin (also accepted by Codex)
 │   ├── skills/
 │   ├── .mcp.json             npx -y @tesseron/{mcp,docs-mcp}@<version>
@@ -87,5 +93,7 @@ The dependency shape is a fan, not a chain:
 - `sdks/typescript/vite/tsconfig.json` is the only one that does not extend `tsconfig.base.json`.
 - `sdks/typescript/examples/` is in the pnpm workspace but **excluded from Biome** (`biome.json:8`), so example code
   is neither linted nor formatted.
+- `sdks/rust/` must never reference a path above its own prefix; it is lifted into its own repo
+  at the split milestone. `conformance/` may reference `sdks/`, the reverse is forbidden.
 - `packages/` and `examples/` may still exist on disk in an old checkout. They are untracked
   leftovers (`node_modules/`, `.turbo/`) from before the move; git holds nothing there. Delete them.
