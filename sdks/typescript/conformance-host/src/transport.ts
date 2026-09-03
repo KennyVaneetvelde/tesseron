@@ -129,8 +129,11 @@ export class ConformanceHostEndpoint {
       if (newline < 0) return;
       socket.off('data', receiveBind);
       const line = buffer.slice(0, newline);
-      const remainder = buffer.slice(newline + 1);
-      this.handleUdsBind(socket, line, remainder, claim);
+      buffer = buffer.slice(newline + 1);
+      if (this.handleUdsBind(socket, line, buffer, claim) === 'await-bind') {
+        socket.on('data', receiveBind);
+        if (buffer.length > 0) receiveBind('');
+      }
     };
     socket.on('data', receiveBind);
   }
@@ -140,15 +143,29 @@ export class ConformanceHostEndpoint {
     line: string,
     remainder: string,
     claim: HostMintedClaimFixture,
-  ): void {
-    const request = parseBindRequest(line);
-    if (!request || !constantTimeCodeEqual(request.code, claim.code)) {
-      writeBindError(socket, request?.id ?? null, true);
-      return;
+  ): UdsBindHandling {
+    const request = parseUdsFirstFrame(line);
+    if (request.kind === 'non-bind') {
+      writeUdsBindError(socket, request.id, -32600, 'first UDS frame must be tesseron/bind', true);
+      return 'finished';
+    }
+    if (request.kind === 'invalid-bind-params') {
+      writeUdsBindError(
+        socket,
+        request.id,
+        -32602,
+        'tesseron/bind requires params.code as a string',
+        false,
+      );
+      return 'await-bind';
+    }
+    if (!constantTimeCodeEqual(request.code, claim.code)) {
+      writeUdsBindError(socket, request.id, -32009, 'bind code mismatch', true);
+      return 'finished';
     }
     if (this.claimReserved || this.claimSpent) {
-      writeBindError(socket, request.id, false);
-      return;
+      writeUdsBindError(socket, request.id, -32009, 'claim already spent', false);
+      return 'finished';
     }
     this.claimReserved = true;
     socket.write(
@@ -159,6 +176,7 @@ export class ConformanceHostEndpoint {
         if (remainder.length > 0) channel.acceptChunk(remainder);
       },
     );
+    return 'finished';
   }
 
   private attachChannel(channel: WireChannel): void {
@@ -416,34 +434,45 @@ function constantTimeCodeEqual(left: string, right: string): boolean {
   return timingSafeEqual(paddedLeft, paddedRight) && leftBytes.length === rightBytes.length;
 }
 
-function parseBindRequest(line: string): { id: unknown; code: string } | undefined {
+type UdsBindHandling = 'await-bind' | 'finished';
+
+type UdsFirstFrame =
+  | { kind: 'valid-bind'; id: unknown; code: string }
+  | { kind: 'invalid-bind-params'; id: unknown }
+  | { kind: 'non-bind'; id: unknown };
+
+function parseUdsFirstFrame(line: string): UdsFirstFrame {
+  let value: unknown;
   try {
-    const value: unknown = JSON.parse(line);
-    if (
-      typeof value !== 'object' ||
-      value === null ||
-      !('method' in value) ||
-      value.method !== 'tesseron/bind' ||
-      !('params' in value) ||
-      typeof value.params !== 'object' ||
-      value.params === null ||
-      !('code' in value.params) ||
-      typeof value.params.code !== 'string'
-    ) {
-      return undefined;
-    }
-    return { id: 'id' in value ? value.id : null, code: value.params.code };
+    value = JSON.parse(line);
   } catch {
-    return undefined;
+    return { kind: 'non-bind', id: null };
   }
+  if (!isObject(value) || value['method'] !== 'tesseron/bind') {
+    return { kind: 'non-bind', id: jsonRpcId(value) };
+  }
+  if (!isObject(value['params']) || typeof value['params']['code'] !== 'string') {
+    return { kind: 'invalid-bind-params', id: jsonRpcId(value) };
+  }
+  return { kind: 'valid-bind', id: jsonRpcId(value), code: value['params']['code'] };
 }
 
-function writeBindError(socket: Socket, id: unknown, closes: boolean): void {
-  const frame = `${JSON.stringify({
-    jsonrpc: '2.0',
-    id,
-    error: { code: -32009, message: closes ? 'bind code mismatch' : 'claim already spent' },
-  })}\n`;
+function jsonRpcId(value: unknown): unknown {
+  return isObject(value) && Object.hasOwn(value, 'id') ? value['id'] : null;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function writeUdsBindError(
+  socket: Socket,
+  id: unknown,
+  code: number,
+  message: string,
+  closes: boolean,
+): void {
+  const frame = `${JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } })}\n`;
   if (closes) socket.end(frame);
   else socket.write(frame);
 }

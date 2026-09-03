@@ -1,0 +1,85 @@
+{
+  "id": "bind/uds-missing-code",
+  "title": "A UDS bind request without code returns InvalidParams and stays open",
+  "spec": "/protocol/transport-bindings/uds/",
+  "requires": ["uds", "host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    }
+  },
+  "steps": [
+    {
+      "connect": {
+        "expect": "open"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "missing-code",
+        "method": "tesseron/bind",
+        "params": {}
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "missing-code",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "valid-bind",
+        "method": "tesseron/bind",
+        "params": {
+          "code": "AB3X-7K"
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "valid-bind",
+        "result": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_bind_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_bind_0001"
+        }
+      }
+    }
+  ]
+}

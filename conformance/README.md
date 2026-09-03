@@ -213,4 +213,18 @@ A fixture belongs here when it pins behavior that a reasonable SDK author could 
 pnpm conformance:validate
 ```
 
-The current corpus covers handshake, actions, cancellation, progress, resources, elicitation schema rejection, resume token rotation, host-minted binds on WebSocket and UDS, and UDS file permissions. Sampling depth belongs to gateway integration tests because no host wire frame carries that depth.
+## Coverage status
+
+The 34 source fixtures cover:
+
+- Minimal and manifest-bearing hellos, plus protocol-major rejection.
+- Action invocation, input validation, unknown actions, cancellation, and monotonic progress.
+- Resource reads and subscription updates.
+- Structured elicitation confirmation, every documented schema rejection, properties without `type`, and property `type` arrays where the first entry controls acceptance.
+- Resume-token rotation.
+- Host-minted claim binding on WebSocket and UDS, including mismatched, spent, missing-code, and non-bind-first-frame outcomes.
+- UDS parent and socket file permissions.
+
+The TypeScript reference run reports 28 passes and 6 honest UDS skips on Windows. Linux and macOS run all 34 fixtures, including the UDS cases.
+
+The corpus still leaves direct manifest discovery and lifecycle outside the runner because it dials each host endpoint directly. Sampling depth stays in gateway integration tests because host-wire frames carry no depth. Broader action, resource, resume, sampling, and elicitation behavior can gain fixtures when the protocol defines a distinct portable host rule worth pinning.

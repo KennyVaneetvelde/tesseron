@@ -1,0 +1,112 @@
+{
+  "id": "elicitation/schema-property-without-type",
+  "title": "An elicitation property without type is accepted unchanged",
+  "spec": "/protocol/elicitation/",
+  "requires": ["elicitation"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "missingPropertyType",
+        "elicits": {
+          "question": "An elicitation property without type is accepted unchanged",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "returns": {
+          "accepted": "missing-property-type"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_schema_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_schema_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "schema-accepted",
+        "method": "actions/invoke",
+        "params": {
+          "name": "missingPropertyType",
+          "input": {},
+          "invocationId": "schema-accepted"
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:elicitationId",
+        "method": "elicitation/request",
+        "params": {
+          "invocationId": "schema-accepted",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "~absent",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:elicitationId",
+        "result": {
+          "action": "accept",
+          "value": {
+            "value": "allowed"
+          }
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "schema-accepted",
+        "result": {
+          "invocationId": "schema-accepted",
+          "output": {
+            "accepted": "missing-property-type"
+          }
+        }
+      }
+    }
+  ]
+}

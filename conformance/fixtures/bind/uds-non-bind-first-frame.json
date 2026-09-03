@@ -1,0 +1,41 @@
+{
+  "id": "bind/uds-non-bind-first-frame",
+  "title": "A non-bind first UDS frame returns InvalidRequest and closes",
+  "spec": "/protocol/transport-bindings/uds/",
+  "requires": ["uds", "host-minted-claim"],
+  "fixture": {
+    "hostMintedClaim": {
+      "code": "AB3X-7K",
+      "sessionId": "s_conformance_bind_0001",
+      "resumeToken": "rt_conformance_bind_0001"
+    }
+  },
+  "steps": [
+    {
+      "connect": {
+        "expect": "open"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "unbound-hello",
+        "method": "tesseron/hello",
+        "params": {}
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "unbound-hello",
+        "error": {
+          "code": -32600,
+          "message": "~string"
+        }
+      }
+    },
+    {
+      "expectClosed": true
+    }
+  ]
+}

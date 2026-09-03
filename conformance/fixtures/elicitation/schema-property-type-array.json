@@ -1,0 +1,153 @@
+{
+  "id": "elicitation/schema-property-type-array",
+  "title": "Elicitation property type arrays check only their first entry",
+  "spec": "/protocol/elicitation/",
+  "requires": ["elicitation"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "primitiveFirstTypeArray",
+        "elicits": {
+          "question": "A primitive first type array entry is accepted",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": ["string", "object"]
+              }
+            }
+          }
+        },
+        "returns": {
+          "accepted": "primitive-first"
+        }
+      },
+      {
+        "name": "unsupportedFirstTypeArray",
+        "elicits": {
+          "question": "An unsupported first type array entry is rejected",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": ["object", "string"]
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_schema_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_schema_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "primitive-first",
+        "method": "actions/invoke",
+        "params": {
+          "name": "primitiveFirstTypeArray",
+          "input": {},
+          "invocationId": "primitive-first"
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:primitiveFirstElicitationId",
+        "method": "elicitation/request",
+        "params": {
+          "invocationId": "primitive-first",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": ["string", "object"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:primitiveFirstElicitationId",
+        "result": {
+          "action": "accept",
+          "value": {
+            "value": "allowed"
+          }
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "primitive-first",
+        "result": {
+          "invocationId": "primitive-first",
+          "output": {
+            "accepted": "primitive-first"
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "unsupported-first",
+        "method": "actions/invoke",
+        "params": {
+          "name": "unsupportedFirstTypeArray",
+          "input": {},
+          "invocationId": "unsupported-first"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "unsupported-first",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    }
+  ]
+}

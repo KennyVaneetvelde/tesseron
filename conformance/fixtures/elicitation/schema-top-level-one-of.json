@@ -1,0 +1,82 @@
+{
+  "id": "elicitation/schema-top-level-one-of",
+  "title": "A top-level oneOf elicitation schema is rejected",
+  "spec": "/protocol/elicitation/",
+  "requires": ["elicitation"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "topLevelOneOfSchema",
+        "elicits": {
+          "question": "A top-level oneOf elicitation schema is rejected",
+          "jsonSchema": {
+            "type": "object",
+            "oneOf": [
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_schema_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_schema_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "schema-rejection",
+        "method": "actions/invoke",
+        "params": {
+          "name": "topLevelOneOfSchema",
+          "input": {},
+          "invocationId": "schema-rejection"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "schema-rejection",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    }
+  ]
+}

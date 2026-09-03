@@ -1,0 +1,84 @@
+{
+  "id": "elicitation/schema-property-non-primitive",
+  "title": "A non-primitive elicitation property type is rejected",
+  "spec": "/protocol/elicitation/",
+  "requires": ["elicitation"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "nonPrimitivePropertySchema",
+        "elicits": {
+          "question": "A non-primitive elicitation property type is rejected",
+          "jsonSchema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": {
+                  "unsupported": true
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_schema_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "resumeToken": "rt_conformance_schema_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "schema-rejection",
+        "method": "actions/invoke",
+        "params": {
+          "name": "nonPrimitivePropertySchema",
+          "input": {},
+          "invocationId": "schema-rejection"
+        }
+      }
+    },
+    {
+      "expectSilence": {
+        "method": "elicitation/request"
+      },
+      "timeoutMs": 100
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "schema-rejection",
+        "error": {
+          "code": -32602,
+          "message": "~string"
+        }
+      }
+    }
+  ]
+}
