@@ -1,0 +1,47 @@
+[
+  {
+    "name": "area: spec",
+    "color": "496A8F",
+    "description": "Protocol wire format and compatibility"
+  },
+  {
+    "name": "area: gateway",
+    "color": "496A8F",
+    "description": "MCP gateway and discovery behavior"
+  },
+  {
+    "name": "area: conformance",
+    "color": "496A8F",
+    "description": "Cross-language fixtures and conformance runner"
+  },
+  {
+    "name": "area: sdk-typescript",
+    "color": "496A8F",
+    "description": "TypeScript SDK packages and examples"
+  },
+  {
+    "name": "area: sdk-rust",
+    "color": "496A8F",
+    "description": "Rust SDK and examples"
+  },
+  {
+    "name": "area: sdk-python",
+    "color": "496A8F",
+    "description": "Python SDK and examples"
+  },
+  {
+    "name": "area: sdk-cpp",
+    "color": "496A8F",
+    "description": "C++ SDK and examples"
+  },
+  {
+    "name": "area: docs",
+    "color": "496A8F",
+    "description": "Documentation and docs site"
+  },
+  {
+    "name": "area: plugin",
+    "color": "496A8F",
+    "description": "Claude Code and Codex plugin"
+  }
+]

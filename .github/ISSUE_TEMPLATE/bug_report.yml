@@ -2,6 +2,24 @@ name: Bug report
 description: Something in Tesseron is broken or behaves unexpectedly.
 labels: ["bug"]
 body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Tesseron does this issue affect?
+      options:
+        - area: spec
+        - area: gateway
+        - area: conformance
+        - area: sdk-typescript
+        - area: sdk-rust
+        - area: sdk-python
+        - area: sdk-cpp
+        - area: docs
+        - area: plugin
+    validations:
+      required: true
+
   - type: textarea
     id: summary
     attributes:
