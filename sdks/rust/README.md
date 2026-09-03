@@ -84,6 +84,12 @@ Subscribe *before* `listen()`. The gateway can dial and finish the handshake
 before `listen()` returns, and a receiver created afterwards misses the welcome
 that carries the claim code.
 
+## Examples
+
+Run `cargo run --manifest-path sdks/rust/examples/todo/Cargo.toml` for the headless todo app.
+Run `cargo run --manifest-path sdks/rust/examples/prompts/Cargo.toml` for the prompt library.
+Each prints a claim code after the gateway connects. In Claude Code with the Tesseron plugin loaded, tell Claude to claim that code, then call the actions.
+
 ## Working on it
 
 Edition 2024, MSRV 1.85. `Cargo.lock` is committed because the workspace holds a
