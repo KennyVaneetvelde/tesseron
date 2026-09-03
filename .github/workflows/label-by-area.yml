@@ -1,0 +1,35 @@
+name: Label issues by area
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply area label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          area="$(awk '
+            $0 == "### Area" { in_area = 1; next }
+            in_area && /^### / { exit }
+            in_area && NF { print; exit }
+          ' <<< "$ISSUE_BODY")"
+
+          case "$area" in
+            "area: spec"|"area: gateway"|"area: conformance"|"area: sdk-typescript"|"area: sdk-rust"|"area: sdk-python"|"area: sdk-cpp"|"area: docs"|"area: plugin")
+              gh issue edit "$ISSUE_NUMBER" --repo "$REPOSITORY" --add-label "$area"
+              ;;
+            *)
+              echo "No recognized area label found."
+              ;;
+          esac

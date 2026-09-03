@@ -21,6 +21,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "sync-plugin-version": "node scripts/sync-plugin-version.mjs",
+    "sync-labels": "node scripts/sync-labels.mjs",
     "conformance:validate": "node conformance/validate.mjs",
     "version-packages": "changeset version && pnpm sync-plugin-version && biome format --write .",
     "docs:dev": "pnpm --filter @tesseron/docs start",

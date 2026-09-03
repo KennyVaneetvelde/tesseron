@@ -48,6 +48,10 @@ pnpm test
 See [`README.md`](./README.md) for the package layout, and
 [`examples/`](./examples) for working example apps to develop against.
 
+## Where to file what
+
+Use `area: spec` for the protocol, `area: gateway` for the MCP gateway, `area: conformance` for fixtures and the runner, `area: sdk-typescript`, `area: sdk-rust`, `area: sdk-python`, or `area: sdk-cpp` for SDK work, `area: docs` for documentation, and `area: plugin` for the Claude Code and Codex plugin. Pick the area that owns the change and explain any cross-area impact in the issue.
+
 ## Submitting changes
 
 1. Open an issue first for anything larger than a small bug fix or doc tweak,
