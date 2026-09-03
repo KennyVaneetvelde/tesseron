@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "tool": "codebase-mapper",
-  "version": "2.15.5",
-  "mappedAt": "2026-08-21",
-  "gitCommit": "e878e21d481df5c2325b84e08f55100883912a7f",
+  "version": "2.15.7",
+  "mappedAt": "2026-09-03",
+  "gitCommit": "4ca98ea3eda24841766dde7336b3e88b1cf73794",
   "documents": [
     "architecture.md",
     "coding-style.md",
@@ -19,18 +19,18 @@
     "testing.md"
   ],
   "hashes": {
-    "INDEX.md": "f73769c4f344f86608864ea6f45e22b3290bd663903258a3c1254517dd37a207",
-    "architecture.md": "f9228d7344b6bc870ac7c8a60e923b5183197420d86eca8b14d1a2601dda0b40",
-    "coding-style.md": "80e613764b28c9521a32ff93c16210d25e71cb02e0691bd2145bf9531a16fad7",
-    "directory-structure.md": "d4f5b60b2f68924581bfb45c60288f8c9f44813d21cea09500da79d5a4c17e4a",
-    "entry-points.md": "c2ffadb9f0ea755c8e38e0469b08e9601c8537a6bc357da972c8c36566808d79",
-    "gateway.md": "7b64b88b4f6b56ad1fd874af2503c3dbc9f2f2df2bb914b8b57b55126ee572c4",
-    "modules.md": "f45b1a43f252c5950f8e9e40bcb8cb4aefcdab2a8df7f229ac730b35355e20a5",
-    "onboarding.md": "64eab2293e18b8e2dd08e845540c2965746e63bf97f50b84cb900d95aaa46538",
-    "patterns.md": "d531a5b0418448e37645996fcb2f3a4c7acbeb9768481bb36f87f0ea38dd70dc",
-    "protocol.md": "83b201ee555a9d6ab7288a1bc220fa70e4b0def4939cf9a7f309773f41ce5dff",
-    "release-and-plugin.md": "4466c56270831b93730be148ef6e299d0f71e3c3851cfec7c94616e1339a98db",
-    "tech-landscape.md": "9b64e0cc8adf737bd11d9c9148854a4c1ac6576dc528a3dd65701bf4c55798cd",
-    "testing.md": "398594a082777df68619375fe5734a9a7ac81e3f00cbae68ddc2ed61fb0224ae"
+    "INDEX.md": "b8379d0c826b3d73dd39e082aba761452a9caad015b7508e9be2a8fd586708fe",
+    "architecture.md": "ca8f8f9f9c631c2e8f8bd09bc74cf3d3d85e3c98ca5bbbefbc40ffe213ff152c",
+    "coding-style.md": "5dccb9489b85c3407fac5f720a4862354baf9a07fe5b0eebeae3fa4dd03c3e85",
+    "directory-structure.md": "ad583c1623058b0281015985695b6341e795af7539a8bbcfc090f1bfa48d6eae",
+    "entry-points.md": "58a8e610ecc67853cdeff3fb06b704769225f4bc4664641b9c63ecacd474f313",
+    "gateway.md": "be95f58a54d66b0770d37f25026dfa4d44fe2928274ff71e7ef23a4657e377ae",
+    "modules.md": "7fa72c24a3813ca8acd6d6a7f50f3fd36661d03f3ac76f226a9f14af73429fbb",
+    "onboarding.md": "707de69dd7fed36237a45c16c61a4d648a61f88f3e162f817a01a1211f209bf1",
+    "patterns.md": "68a2a47a7986c8b6850ddccb0ce83c2a32b3be608eb6f81cfca1cfa1e6e27a7d",
+    "protocol.md": "52dc816e7c0e5d3b81e84022881f07441a73badca4227617bb21a2ab366d779d",
+    "release-and-plugin.md": "4acc80b6dd047565cf1dd175346c538da9a04ab07e9ee2e2f9d98b6c47d259b4",
+    "tech-landscape.md": "71ce6ea302d6e16d4fae52a278dbff6a8523800255521ee45ecac44f544f9238",
+    "testing.md": "323d2a2767da207980dd20ae2de2af2d1581e95087c57a3c1c3883dc0c55245b"
   }
 }

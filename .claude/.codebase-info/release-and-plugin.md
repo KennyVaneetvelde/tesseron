@@ -1,6 +1,6 @@
 # Release and the plugin version contract
 
-*Last Updated: 2026-08-21*
+*Last Updated: 2026-09-03*
 
 Two coupled contracts. Both have a script that owns them. Neither should be edited by hand.
 
@@ -24,8 +24,8 @@ packages. It now carries its own version and needs its own changeset. Verify wit
 
 Rules:
 
-- Any user-visible change under `packages/` needs `pnpm changeset`.
-- **Never hand-edit a `version` field** in `packages/*/package.json`. `changeset version` owns it,
+- Any user-visible change under `sdks/typescript/`, `gateway/`, or `docs-mcp/` needs `pnpm changeset`.
+- **Never hand-edit a `version` field** in a package's `package.json`. `changeset version` owns it,
   through `pnpm version-packages`, which also runs the plugin version sync and Biome
   (`package.json:25`).
 - `.github/workflows/release.yml` publishes through `changesets/action@v1` with npm trusted
@@ -68,5 +68,7 @@ in the repo still implies that directory exists.
 `@tesseron/docs-mcp` bakes `docs/src/content/docs/` into `dist/docs-index.json` at build time, and
 turbo does **not** invalidate that cache when `docs/` changes. See
 [gateway.md](gateway.md#the-build-time-snapshot-and-its-coupling). Stale prose therefore ships to end
-users through the published docs server, which is why a public-surface change under `packages/`
-requires the matching page update in the same change.
+users through the published docs server, which is why a public-surface change under
+`sdks/typescript/` or `gateway/` requires the matching page update in the same change. CI enforces
+the other direction too: `pnpm check-docs-changeset` refuses a docs content edit that carries no
+`@tesseron/docs-mcp` changeset.

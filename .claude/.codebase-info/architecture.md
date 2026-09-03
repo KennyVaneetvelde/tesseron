@@ -1,6 +1,6 @@
 # Architecture
 
-*Last Updated: 2026-08-20*
+*Last Updated: 2026-09-03*
 
 Tesseron is an accessibility layer for AI agents. An app declares typed actions and resources; an
 MCP gateway projects them to an agent as MCP tools. No browser automation, no scraping.
@@ -23,33 +23,33 @@ MCP gateway projects them to an agent as MCP tools. No browser automation, no sc
 ```
 
 **The direction is the thing people get wrong.** The app binds and announces; the gateway is a
-transport *client* that dials in. `packages/mcp/src/gateway.ts:230` says so outright, and the
+transport *client* that dials in. `gateway/src/gateway.ts:230` says so outright, and the
 gateway has no port and no `start()`. What passes for "start" is `watchInstances()`
-(`packages/mcp/src/gateway.ts:471`), which watches `~/.tesseron/instances/` for manifests the app
+(`gateway/src/gateway.ts:471`), which watches `~/.tesseron/instances/` for manifests the app
 dropped there.
 
 Who does the listening depends on the consumer package:
 
 | App side | Listener | Manifest written by |
 |---|---|---|
-| Browser in Vite dev | the Vite dev server, at `/@tesseron/ws` | `packages/vite/src/index.ts:239` |
-| Node | `NodeWebSocketServerTransport` or `UnixSocketServerTransport` | `packages/server/src/transport.ts:79`, `uds-transport.ts:24` |
+| Browser in Vite dev | the Vite dev server, at `/@tesseron/ws` | `sdks/typescript/vite/src/index.ts:239` |
+| Node | `NodeWebSocketServerTransport` or `UnixSocketServerTransport` | `sdks/typescript/server/src/transport.ts:79`, `uds-transport.ts:24` |
 | Browser, non-Vite | dials a gateway URL instead (`@tesseron/web`) | n/a |
 
 ## One action invocation, end to end
 
 1. Agent calls MCP tool `<app_id>__<action>` (or the meta tool `tesseron__invoke_action`).
 2. `McpAgentBridge` splits on the first `__`, resolves the session via `latestClaimedByApp`
-   (`packages/mcp/src/mcp-bridge.ts:391`), which filters dead transports with `isClosed()` and
+   (`gateway/src/mcp-bridge.ts:391`), which filters dead transports with `isClosed()` and
    picks the largest `claimedAt` (`:541`).
 3. Gateway sends JSON-RPC `actions/invoke` `{name, input, invocationId}` over the dialed transport.
-4. `TesseronClient.handleInvoke` (`packages/core/src/client.ts:546`) looks up the action, validates
+4. `TesseronClient.handleInvoke` (`sdks/typescript/core/src/client.ts:546`) looks up the action, validates
    input through Standard Schema, arms an `AbortController` plus a timeout, and builds the
    `ActionContext`.
 5. Your handler runs as `(input, ctx) => O`. It can call `ctx.progress`, `ctx.sample`,
    `ctx.confirm`, `ctx.elicit`, `ctx.log`, and must respect `ctx.signal`.
 6. Result returns as `{invocationId, output}`. Errors become `TesseronError` codes and reach the
-   agent as MCP `structuredContent` (`packages/mcp/src/mcp-bridge.ts:911`).
+   agent as MCP `structuredContent` (`gateway/src/mcp-bridge.ts:911`).
 
 Sampling and elicitation run the *other* way: `ctx.sample` becomes a `sampling/request` back to the
 gateway, which calls `server.createMessage` on the MCP client (`mcp-bridge.ts:203`). Same for
@@ -68,8 +68,8 @@ A session starts unclaimed. Two paths get it claimed:
 - **Host-minted (tesseron#60).** The app mints the claim itself and sets `helloHandledByHost: true`
   in its manifest. The gateway does not auto-dial (`gateway.ts:540`); on claim it dials carrying the
   code as a `tesseron-bind.<code>` WS subprotocol or a `tesseron/bind` first frame
-  (`packages/mcp/src/dialer.ts:77`, `:247`). The constant-time compare happens **host-side**
-  (`packages/server/src/transport.ts:174`, `packages/vite/src/index.ts:838`).
+  (`gateway/src/dialer.ts:77`, `:247`). The constant-time compare happens **host-side**
+  (`sdks/typescript/server/src/transport.ts:174`, `sdks/typescript/vite/src/index.ts:838`).
 
 There is **no origin allowlist in `@tesseron/mcp`**. `handleConnection` takes an `origin` but only
 records it (`gateway.ts:1177`), and the sole in-package caller passes `undefined` (`gateway.ts:444`).

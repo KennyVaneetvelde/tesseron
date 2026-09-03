@@ -1,6 +1,6 @@
 # Patterns
 
-*Last Updated: 2026-08-20*
+*Last Updated: 2026-09-03*
 
 ## Reconnection is the recurring problem
 
@@ -9,13 +9,13 @@ StrictMode double-invokes. The guards are load-bearing and each traces to an iss
 
 | Issue | Guard | Where |
 |---|---|---|
-| tesseron#88 | `connectVersion` counter, sync supersede-close, await prior chain, bail if superseded | `packages/core/src/client.ts:273-342` |
-| tesseron#88 | URL-form connect de-duplication via `inFlightUrlConnect` | `packages/web/src/index.ts:97` |
-| tesseron#92 | `isClosed()` liveness probe, so dead sessions lose the tiebreak | `packages/mcp/src/mcp-bridge.ts:541` |
-| tesseron#60 | host-minted claims, gateway does not auto-dial | `packages/mcp/src/gateway.ts:540` |
+| tesseron#88 | `connectVersion` counter, sync supersede-close, await prior chain, bail if superseded | `sdks/typescript/core/src/client.ts:273-342` |
+| tesseron#88 | URL-form connect de-duplication via `inFlightUrlConnect` | `sdks/typescript/web/src/index.ts:97` |
+| tesseron#92 | `isClosed()` liveness probe, so dead sessions lose the tiebreak | `gateway/src/mcp-bridge.ts:541` |
+| tesseron#60 | host-minted claims, gateway does not auto-dial | `gateway/src/gateway.ts:540` |
 | tesseron#69 | pending-claim recovery across gateway restarts | `~/.tesseron/claims/` breadcrumbs |
 
-The Vite plugin's `Session` (`packages/vite/src/index.ts:85`) is deliberately decoupled from the
+The Vite plugin's `Session` (`sdks/typescript/vite/src/index.ts:85`) is deliberately decoupled from the
 browser socket for the same reason: a refresh detaches and re-attaches without the gateway ever
 seeing a disconnect.
 
@@ -23,7 +23,7 @@ Before you "simplify" any of this, read the referenced test.
 
 ## Extract shared logic to one home, adapt thinly
 
-`packages/web/src/reactive-core.ts` exists because react, svelte, and vue had drifted byte-for-byte
+`sdks/typescript/web/src/reactive-core.ts` exists because react, svelte, and vue had drifted byte-for-byte
 copies (`:1-19`). The adapters are now ~120 lines each and hold only lifecycle binding. **Any new
 behavior belongs in `reactive-core.ts`, not in three places.** A fourth adapter should be about 120
 lines too; if it isn't, something leaked.
@@ -38,7 +38,7 @@ a third entry (`node.ts`) purely to keep the main entry browser-safe.
 ## Cancellation and timeouts are enforced, not requested
 
 `handleInvoke` arms an `AbortController` plus a timeout, then races the handler against an abort
-reaper (`packages/core/src/client.ts:697`, reaper at `:776`) so a handler that ignores `ctx.signal`
+reaper (`sdks/typescript/core/src/client.ts:697`, reaper at `:776`) so a handler that ignores `ctx.signal`
 cannot pin the wire. Aborted state maps to `TimeoutError` or `CancelledError` (`:716`); `finally`
 always clears the timer and the invocation entry (`:721`).
 
@@ -57,7 +57,7 @@ the agent is translated into `SamplingNotAvailableError` / `ElicitationNotAvaila
 
 - CSPRNG only. Two tests scan source for `Math.random` and fail on it.
 - Constant-time compare for the resume token (`gateway.ts:1451`) and host-side bind codes
-  (`packages/server/src/transport.ts:174`). The legacy claim-code lookup is **not** timing-safe
+  (`sdks/typescript/server/src/transport.ts:174`). The legacy claim-code lookup is **not** timing-safe
   (`gateway.ts:780`) — a known asymmetry.
 - Claim codes use a 31-char confusable-free alphabet, `ABCDEFGHJKMNPQRSTUVWXYZ23456789`
   (`node/claim-mint.ts:17`).

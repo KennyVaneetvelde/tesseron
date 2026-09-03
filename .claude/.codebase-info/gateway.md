@@ -1,11 +1,11 @@
 # The gateway and the docs server
 
-*Last Updated: 2026-08-20*
+*Last Updated: 2026-09-03*
 
 ## `@tesseron/mcp` — binary `tesseron-mcp`
 
 `bin` is `./src/cli.ts` in the repo, swapped to `./dist/tesseron-mcp.cjs` on publish
-(`packages/mcp/package.json:40` vs `:76`). Fully bundled CJS, `noExternal: [/.*/]`.
+(`gateway/package.json:40` vs `:76`). Fully bundled CJS, `noExternal: [/.*/]`.
 
 ### There are no CLI flags
 
@@ -16,9 +16,9 @@
 | `TESSERON_TOOL_SURFACE` | `cli.ts:6` | `dynamic` \| `meta` \| `both`; anything else → `both` |
 | `TESSERON_RESUME_TTL_MS` | `cli.ts:19` | non-negative ms; `0` disables resume; invalid → warn + 4 h default |
 
-**`packages/mcp/README.md:98` still documents `TESSERON_PORT`, `TESSERON_HOST`, and
+**`gateway/README.md:98` still documents `TESSERON_PORT`, `TESSERON_HOST`, and
 `TESSERON_ORIGIN_ALLOWLIST`. Those are stale.** No such string exists in `src/`; they were removed
-in v2.0 (`packages/mcp/CHANGELOG.md:537`). Fix the README rather than trusting it.
+in v2.0 (`gateway/CHANGELOG.md:537`). Fix the README rather than trusting it.
 
 Startup: construct gateway (`cli.ts:39`) → `watchAppsJson()` (`:40`, a **deprecated alias** for
 `watchInstances()`, kept for 1.1.x embedders, `gateway.ts:648`) → bridge over `StdioServerTransport`
@@ -71,7 +71,7 @@ Progress forwards to `notifications/progress` **only when the caller supplies
 
 ## `@tesseron/docs-mcp` — binary `tesseron-docs-mcp`
 
-Three tools, built with the higher-level `McpServer` (contrast with `packages/mcp`, which uses raw
+Three tools, built with the higher-level `McpServer` (contrast with `gateway/`, which uses raw
 `Server` + request schemas): `list_docs` (`src/server.ts:31`), `search_docs` (`:52`, default limit 8),
 `read_doc` (`:84`, unknown slug → `isError`). Plus a resource template `tesseron-docs://{+slug}`
 (`:121`). Only CLI flag: `--snapshot <path>` (`src/cli.ts:6`).
@@ -81,12 +81,12 @@ Three tools, built with the higher-level `McpServer` (contrast with `packages/mc
 Docs are baked into a JSON artifact at build time. The published package contains no markdown and
 never reads `docs/` at runtime.
 
-- Script: `packages/docs-mcp/scripts/build-snapshot.ts`.
+- Script: `docs-mcp/scripts/build-snapshot.ts`.
 - Source path is **hardcoded relative to the package**:
   `resolve(packageRoot, '..', '..', 'docs', 'src', 'content', 'docs')` (`:9`), and it **hard-throws**
   if that directory is missing (`:27`). So `@tesseron/docs-mcp` cannot be built outside the
   monorepo, and renaming `docs/src/content/docs/` breaks the build.
-- Output: `packages/docs-mcp/dist/docs-index.json` (`:12`), minified, ~476 KB for 43 pages.
+- Output: `docs-mcp/dist/docs-index.json` (`:12`), minified, ~476 KB for 43 pages.
   `version` is `git rev-parse --short HEAD`, falling back to `'dev'` (`:14`).
 - Runs on every build: `"build": "pnpm build:snapshot && tsup"` and `prepublishOnly` (`package.json:41`).
 

@@ -1,23 +1,23 @@
 # Entry points
 
-*Last Updated: 2026-08-20*
+*Last Updated: 2026-09-03*
 
 ## Binaries
 
 | Binary | Package | Source | Published |
 |---|---|---|---|
-| `tesseron-mcp` | `@tesseron/mcp` | `packages/mcp/src/cli.ts` | `dist/tesseron-mcp.cjs` |
-| `tesseron-docs-mcp` | `@tesseron/docs-mcp` | `packages/docs-mcp/src/cli.ts` | `dist/tesseron-docs-mcp.cjs` |
+| `tesseron-mcp` | `@tesseron/mcp` | `gateway/src/cli.ts` | `dist/tesseron-mcp.cjs` |
+| `tesseron-docs-mcp` | `@tesseron/docs-mcp` | `docs-mcp/src/cli.ts` | `dist/tesseron-docs-mcp.cjs` |
 
 Both declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled CJS via
-`publishConfig` (`packages/mcp/package.json:40` vs `:76`).
+`publishConfig` (`gateway/package.json:40` vs `:76`).
 
 `tesseron-mcp` takes **no flags** — it is configured by `TESSERON_TOOL_SURFACE` and
 `TESSERON_RESUME_TTL_MS` only. `tesseron-docs-mcp` takes `--snapshot <path>`.
 
 ## Library entry points
 
-`@tesseron/core` has **five**, declared at `packages/core/package.json:34-60` and built at
+`@tesseron/core` has **five**, declared at `sdks/typescript/core/package.json:34-60` and built at
 `tsup.config.ts:4-10`:
 
 | Specifier | File | For |
@@ -52,20 +52,20 @@ await tesseron.connect();
 | Svelte / Vue | `@tesseron/svelte` / `@tesseron/vue` | same three primitives |
 | Node | `@tesseron/server` | binds a WS or UDS listener |
 
-Real examples: `examples/vanilla-todo/src/main.ts:46` (app) and `:425` (top-level await connect);
-`examples/react-todo/src/app.tsx:31`; `examples/node-prompts/src/prompt-lab.ts`.
+Real examples: `sdks/typescript/examples/vanilla-todo/src/main.ts:46` (app) and `:425` (top-level await connect);
+`sdks/typescript/examples/react-todo/src/app.tsx:31`; `sdks/typescript/examples/node-prompts/src/prompt-lab.ts`.
 
 ## Where execution begins internally
 
 | Path | Begins at |
 |---|---|
-| Agent invokes a tool | `packages/mcp/src/mcp-bridge.ts:376` (`CallTool`) |
-| Gateway discovers an app | `packages/mcp/src/gateway.ts:471` (`watchInstances`) |
-| Gateway dials an app | `packages/mcp/src/dialer.ts:67` / `:162` |
-| App receives an invocation | `packages/core/src/client.ts:546` (`handleInvoke`) |
-| App connects | `packages/core/src/client.ts:257` → `:356` (`doConnect`) |
-| Browser tab attaches in dev | `packages/vite/src/index.ts:500` (`upgrade` hook) |
-| Node app binds | `packages/server/src/transport.ts:142` / `uds-transport.ts:112` |
+| Agent invokes a tool | `gateway/src/mcp-bridge.ts:376` (`CallTool`) |
+| Gateway discovers an app | `gateway/src/gateway.ts:471` (`watchInstances`) |
+| Gateway dials an app | `gateway/src/dialer.ts:67` / `:162` |
+| App receives an invocation | `sdks/typescript/core/src/client.ts:546` (`handleInvoke`) |
+| App connects | `sdks/typescript/core/src/client.ts:257` → `:356` (`doConnect`) |
+| Browser tab attaches in dev | `sdks/typescript/vite/src/index.ts:500` (`upgrade` hook) |
+| Node app binds | `sdks/typescript/server/src/transport.ts:142` / `uds-transport.ts:112` |
 
 ## Scripts
 

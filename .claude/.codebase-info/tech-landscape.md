@@ -1,6 +1,6 @@
 # Tech landscape
 
-*Last Updated: 2026-08-21*
+*Last Updated: 2026-09-03*
 
 | Concern | Choice | Source of truth |
 |---|---|---|
@@ -20,12 +20,13 @@ There is **no ESLint and no Prettier** in this repo. Do not add either. `pnpm li
 
 ## Workspace
 
-`pnpm-workspace.yaml` has three globs: `packages/*`, `examples/*`, `docs`. Cross-package resolution
-is pure pnpm linking — **there are no TypeScript path aliases anywhere**.
+`pnpm-workspace.yaml` lists `sdks/typescript/*`, `sdks/typescript/examples/*`, `gateway`,
+`docs-mcp`, `conformance/runner`, and `docs`. Cross-package resolution is pure pnpm linking — **there are no TypeScript path aliases anywhere**.
 
-Root-level `conformance/` is outside all three on purpose. It has no `package.json` and never will:
-it is a JSON corpus meant to be vendored by other languages' SDK repos, so a workspace dependency
-would defeat it.
+`conformance/fixtures/` stays outside the workspace on purpose: it is a JSON corpus meant to be
+vendored by other languages' SDK repos. Only `conformance/runner/` (the `@tesseron/conformance`
+CLI, being built under SQ-13) is a workspace package, and it depends on `ws` alone, never on
+`@tesseron/core`.
 
 ## TypeScript strictness
 
@@ -35,7 +36,7 @@ would defeat it.
 import is split into `import type {…}` and `import {…}`.
 
 Per-package tsconfigs only `extends` the base and set `include: ["src"]`. **That means test
-directories are not typechecked** by `tsc --noEmit`. `packages/vite/tsconfig.json` is the sole
+directories are not typechecked** by `tsc --noEmit`. `sdks/typescript/vite/tsconfig.json` is the sole
 exception: it does not extend the base and hand-rolls `module: NodeNext`, dropping every extra
 strictness flag.
 
@@ -56,12 +57,18 @@ Sibling packages always use `workspace:*`.
 
 ## CI
 
-Three workflows in `.github/workflows/`:
+Four workflows in `.github/workflows/`:
 
 - **`ci.yml`** — PR and push to main, cancels in-flight PR runs. One job: pnpm 9.15.4 + Node 20,
   `pnpm install --frozen-lockfile`, then `pnpm typecheck` → `pnpm test` → `pnpm lint` →
-  `pnpm sync-plugin-version --check` → `pnpm conformance:validate` (`:30-50`). The last step lints
-  the fixture corpus that out-of-repo SDK ports consume; see [testing.md](testing.md).
+  `pnpm sync-plugin-version --check` → `pnpm conformance:validate` → `pnpm check-docs-changeset`
+  (`:29-56`). The conformance step lints the fixture corpus that out-of-repo SDK ports consume; see
+  [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
+  `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
+  ships that prose.
+- **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
+  collect and applies the matching `area: *` label from `.github/labels.json`.
+  `pnpm sync-labels` pushes that file to GitHub.
 - **`docs.yml`** — push to main, manual, plus a weekly cron `0 6 * * 1`. Builds Starlight, deploys to
   GitHub Pages.
 - **`release.yml`** — push to main and manual. Upgrades to **`npm@^11.5.1`** because Node 20's npm 10

@@ -1,12 +1,12 @@
 # Modules
 
-*Last Updated: 2026-08-21*
+*Last Updated: 2026-09-03*
 
 Nine published packages, all at **2.10.1**. Eight are in one changesets `fixed` group;
 `@tesseron/docs-mcp` releases on its own. See [release-and-plugin.md](release-and-plugin.md).
 
 Every package points `types` at `./src/index.ts` for workspace resolution and swaps to
-`./dist/index.d.ts` via `publishConfig` on publish (e.g. `packages/web/package.json:34` vs `:62`).
+`./dist/index.d.ts` via `publishConfig` on publish (e.g. `sdks/typescript/web/package.json:34` vs `:62`).
 All build with tsup, ESM+CJS.
 
 ## `@tesseron/core` — the whole protocol
@@ -128,10 +128,11 @@ core, and its `tsconfig.json` is the only one that **does not extend `tsconfig.b
 
 ## `@tesseron/mcp` and `@tesseron/docs-mcp`
 
-See [gateway.md](gateway.md). `packages/mcp/src/index.ts` re-exports all of core plus the gateway,
+See [gateway.md](gateway.md). `gateway/src/index.ts` re-exports all of core plus the gateway,
 bridge, and session types, so it is a superset of core's public surface.
 
 ## Not packages
 
-`packages/create-tesseron/` and `packages/devtools/` match the workspace glob but hold **only stale
-`.turbo/` and `node_modules/`** — no `package.json`, no source. Empty leftovers.
+`packages/` and `examples/` no longer exist in git. If they are on disk they are untracked
+`.turbo/` and `node_modules/` leftovers from before the 2026-09-03 move to `sdks/typescript/`,
+`gateway/`, and `docs-mcp/`. Delete them.
