@@ -59,7 +59,7 @@ Live applications (browser tabs, Electron/Tauri desktop apps, Node daemons, CLIs
 - **MCP-native.** Every action, resource, and capability maps to a standard MCP primitive. Users pick their agent.
 - **Click-to-connect.** Six-character claim code handshake. No API keys, no OAuth dance, no per-client configuration.
 - **First-class capabilities.** `ctx.confirm` for yes/no, `ctx.elicit` for schema-validated prompts, `ctx.sample` for agent LLM calls, `ctx.progress` for streaming updates, subscribable resources for live reads.
-- **Cross-client delivery.** First-class install paths for Claude Code, Codex, OpenCode, and Pi — each one a single command or short config snippet that wires the [MCP gateway](./packages/mcp) in. No bundled binary; the gateway is `npx -y @tesseron/mcp@<version>` on demand.
+- **Cross-client delivery.** First-class install paths for Claude Code, Codex, OpenCode, and Pi — each one a single command or short config snippet that wires the [MCP gateway](./gateway) in. No bundled binary; the gateway is `npx -y @tesseron/mcp@<version>` on demand.
 
 ## Install
 
@@ -123,11 +123,11 @@ To also pick up the skill bundle, point OpenCode's `skills.paths` at a clone of 
 
 ### Other MCP clients
 
-Claude Desktop, Cursor, VS Code Copilot, Cline, and any other MCP-compatible client work too — the gateway is plain stdio MCP. See the one-time setup in [`examples/README.md`](./examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
+Claude Desktop, Cursor, VS Code Copilot, Cline, and any other MCP-compatible client work too — the gateway is plain stdio MCP. See the one-time setup in [`sdks/typescript/examples/README.md`](./sdks/typescript/examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
 
 ### Then in your app
 
-Drop [`@tesseron/web`](./packages/web), [`@tesseron/server`](./packages/server), [`@tesseron/react`](./packages/react), [`@tesseron/svelte`](./packages/svelte), or [`@tesseron/vue`](./packages/vue) into your project, declare actions, and let the agent drive your real UI:
+Drop [`@tesseron/web`](./sdks/typescript/web), [`@tesseron/server`](./sdks/typescript/server), [`@tesseron/react`](./sdks/typescript/react), [`@tesseron/svelte`](./sdks/typescript/svelte), or [`@tesseron/vue`](./sdks/typescript/vue) into your project, declare actions, and let the agent drive your real UI:
 
 ```ts
 import { tesseron } from '@tesseron/web';
@@ -147,21 +147,21 @@ tesseron
 await tesseron.connect();
 ```
 
-See [`examples/`](./examples) for working apps in vanilla TS, React, Svelte, Vue, Express, and plain Node.
+See [`sdks/typescript/examples/`](./sdks/typescript/examples) for working apps in vanilla TS, React, Svelte, Vue, Express, and plain Node.
 
 ## Packages
 
 | Package | Purpose |
 |---|---|
-| [`@tesseron/core`](./packages/core) | Protocol types, action builder. Zero runtime deps beyond Standard Schema. |
-| [`@tesseron/web`](./packages/web) | Browser SDK. |
-| [`@tesseron/server`](./packages/server) | Node SDK. |
-| [`@tesseron/react`](./packages/react) | React hooks adapter. |
-| [`@tesseron/svelte`](./packages/svelte) | Svelte 5 adapter. |
-| [`@tesseron/vue`](./packages/vue) | Vue 3 adapter. |
-| [`@tesseron/vite`](./packages/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
-| [`@tesseron/mcp`](./packages/mcp) | MCP gateway server (`tesseron-mcp` CLI; launched by each client's install path via `npx`). |
-| [`@tesseron/docs-mcp`](./packages/docs-mcp) | MCP server that serves the Tesseron docs (`search_docs`, `read_doc`, `list_docs`) for chapter-and-verse spec lookups inside agent sessions. |
+| [`@tesseron/core`](./sdks/typescript/core) | Protocol types, action builder. Zero runtime deps beyond Standard Schema. |
+| [`@tesseron/web`](./sdks/typescript/web) | Browser SDK. |
+| [`@tesseron/server`](./sdks/typescript/server) | Node SDK. |
+| [`@tesseron/react`](./sdks/typescript/react) | React hooks adapter. |
+| [`@tesseron/svelte`](./sdks/typescript/svelte) | Svelte 5 adapter. |
+| [`@tesseron/vue`](./sdks/typescript/vue) | Vue 3 adapter. |
+| [`@tesseron/vite`](./sdks/typescript/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
+| [`@tesseron/mcp`](./gateway) | MCP gateway server (`tesseron-mcp` CLI; launched by each client's install path via `npx`). |
+| [`@tesseron/docs-mcp`](./docs-mcp) | MCP server that serves the Tesseron docs (`search_docs`, `read_doc`, `list_docs`) for chapter-and-verse spec lookups inside agent sessions. |
 
 The Claude Code / Codex plugin lives at [`plugin/`](./plugin), exposed via the marketplace manifests at [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) (Claude) and [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json) (Codex).
 

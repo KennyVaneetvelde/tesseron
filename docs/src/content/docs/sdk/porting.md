@@ -71,7 +71,7 @@ For a UDS binding (Linux / macOS):
 
 The gateway is always the **client** - it watches `~/.tesseron/instances/`, picks a dialer matching `transport.kind`, and connects. Your runtime never opens an outbound connection; it binds, announces, and waits.
 
-To add a binding the gateway doesn't yet know about, you also need to ship a `GatewayDialer` for the new `kind` (in TypeScript: `packages/mcp/src/dialer.ts`) and document the wire format under `/protocol/transport-bindings/<kind>/`.
+To add a binding the gateway doesn't yet know about, you also need to ship a `GatewayDialer` for the new `kind` (in TypeScript: `gateway/src/dialer.ts`) and document the wire format under `/protocol/transport-bindings/<kind>/`.
 
 Don't reinvent backoff or reconnect inside the transport - that's the user's job.
 

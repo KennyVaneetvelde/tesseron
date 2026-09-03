@@ -7,7 +7,7 @@ import type { Snapshot } from '../src/content/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
-const repoRoot = resolve(packageRoot, '..', '..');
+const repoRoot = resolve(packageRoot, '..');
 const docsRoot = resolve(repoRoot, 'docs', 'src', 'content', 'docs');
 const outPath = resolve(packageRoot, 'dist', 'docs-index.json');
 

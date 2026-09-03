@@ -128,11 +128,11 @@ If you're hacking on the gateway, point the plugin at your checkout rather than 
 
 The gateway is a small codebase:
 
-- `packages/mcp/src/cli.ts` - entry point.
-- `packages/mcp/src/gateway.ts` - session management, dialer dispatcher, instances-directory watcher.
-- `packages/mcp/src/dialer.ts` - per-binding dialers (`WsDialer`, `UdsDialer`).
-- `packages/mcp/src/session.ts` - a single session's state + claim code.
-- `packages/mcp/src/mcp-bridge.ts` - MCP stdio server + protocol translation.
+- `gateway/src/cli.ts` - entry point.
+- `gateway/src/gateway.ts` - session management, dialer dispatcher, instances-directory watcher.
+- `gateway/src/dialer.ts` - per-binding dialers (`WsDialer`, `UdsDialer`).
+- `gateway/src/session.ts` - a single session's state + claim code.
+- `gateway/src/mcp-bridge.ts` - MCP stdio server + protocol translation.
 
 Adding a new method (e.g., a custom `tesseron__debug_dump` tool) means editing `mcp-bridge.ts` for the MCP side and routing through `gateway.ts` if it also crosses the SDK channel. Keep new methods under a `tesseron__` prefix to avoid colliding with app action tools.
 

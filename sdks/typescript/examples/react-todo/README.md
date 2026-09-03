@@ -1,6 +1,6 @@
 # react-todo
 
-A real React 18 todo app whose state is also drivable by Claude through the [`@tesseron/react`](../../packages/react) hooks. **Adding, toggling, deleting, and clearing todos all happen via React `useState` — and they all update the visible list in real time when Claude calls the corresponding action.**
+A real React 18 todo app whose state is also drivable by Claude through the [`@tesseron/react`](../../react) hooks. **Adding, toggling, deleting, and clearing todos all happen via React `useState` — and they all update the visible list in real time when Claude calls the corresponding action.**
 
 ## What you'll see live
 
@@ -11,7 +11,7 @@ A real React 18 todo app whose state is also drivable by Claude through the [`@t
 
 ## Quick start
 
-> One-time MCP-client setup: [examples/README.md](../README.md#one-time-setup).
+> One-time MCP-client setup: [sdks/typescript/examples/README.md](../README.md#one-time-setup).
 
 ```bash
 pnpm --filter react-todo dev
@@ -90,5 +90,5 @@ The hooks register on mount and **deregister on unmount** (the gateway emits `no
 ## Adapt it
 
 - Wrap real state (a Zustand store, a React Query cache, a context) instead of `useState` — pass the mutator into the handler the same way.
-- Add more destructive actions that gate on `ctx.confirm()` — `clearCompleted` is the baseline. For structured prompts, use `ctx.elicit()` with a schema (see the [Phase 3 elicitation tests](../../packages/mcp/test/phase3.test.ts)).
+- Add more destructive actions that gate on `ctx.confirm()` — `clearCompleted` is the baseline. For structured prompts, use `ctx.elicit()` with a schema (see the [Phase 3 elicitation tests](../../../../gateway/test/phase3.test.ts)).
 - Surface live data via `useTesseronResource` so Claude can read app state on demand without a tool call.

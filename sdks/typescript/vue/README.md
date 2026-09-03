@@ -92,7 +92,7 @@ tesseronResource('count', {
 
 ## Pair with `@tesseron/web`
 
-`@tesseron/vue` re-exports the public surface of `@tesseron/web`, so you can mix raw calls with the helper functions. See [`examples/vue-todo`](https://github.com/eigenwise/tesseron/tree/main/examples/vue-todo) for a full app.
+`@tesseron/vue` re-exports the public surface of `@tesseron/web`, so you can mix raw calls with the helper functions. See [`sdks/typescript/examples/vue-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/vue-todo) for a full app.
 
 ## Docs
 
@@ -100,7 +100,7 @@ tesseronResource('count', {
 |---|---|
 | Main repo | <https://github.com/eigenwise/tesseron> |
 | Protocol spec | <https://eigenwise.github.io/tesseron/protocol/> |
-| Example app | <https://github.com/eigenwise/tesseron/tree/main/examples/vue-todo> |
+| Example app | <https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/vue-todo> |
 
 ## License
 

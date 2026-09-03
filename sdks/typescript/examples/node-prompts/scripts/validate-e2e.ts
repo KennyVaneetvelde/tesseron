@@ -1,6 +1,6 @@
 /**
- * End-to-end validation of the prompt-lab domain (used by examples/node-prompts
- * and examples/express-prompts). Acts as a reference MCP client that speaks the
+ * End-to-end validation of the prompt-lab domain (used by sdks/typescript/examples/node-prompts
+ * and sdks/typescript/examples/express-prompts). Acts as a reference MCP client that speaks the
  * parts of the MCP spec Claude Code currently does not: `sampling/createMessage`
  * and `elicitation/create`.
  *
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
 
   // --- Spawn the real CLI gateway subprocess -----------------------
   const scriptDir = fileURLToPath(new URL('.', import.meta.url));
-  const mcpPkgCwd = pathResolve(scriptDir, '../../../packages/mcp');
+  const mcpPkgCwd = pathResolve(scriptDir, '../../../../../gateway');
   const transport = new StdioClientTransport({
     command: 'node',
     args: ['--import', 'tsx/esm', 'src/cli.ts'],

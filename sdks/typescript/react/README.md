@@ -62,7 +62,7 @@ Every hook tracks its registration with the active Tesseron client and cleans up
 
 ## Pair with `@tesseron/web`
 
-`@tesseron/react` re-exports the public surface of `@tesseron/web`, so you can mix raw calls (e.g. inside a module-level setup file) with the hooks. See [`examples/react-todo`](https://github.com/eigenwise/tesseron/tree/main/examples/react-todo) for a full app.
+`@tesseron/react` re-exports the public surface of `@tesseron/web`, so you can mix raw calls (e.g. inside a module-level setup file) with the hooks. See [`sdks/typescript/examples/react-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/react-todo) for a full app.
 
 ## Docs
 
@@ -71,7 +71,7 @@ Every hook tracks its registration with the active Tesseron client and cleans up
 | Main repo | <https://github.com/eigenwise/tesseron> |
 | SDK reference | <https://eigenwise.github.io/tesseron/sdk/typescript/react/> |
 | Protocol spec | <https://eigenwise.github.io/tesseron/protocol/> |
-| Example app | <https://github.com/eigenwise/tesseron/tree/main/examples/react-todo> |
+| Example app | <https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/react-todo> |
 
 ## License
 

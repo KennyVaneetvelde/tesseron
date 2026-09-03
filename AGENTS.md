@@ -24,10 +24,13 @@ repo; do not introduce one.
 
 ## Workspace layout
 
-- `packages/core` — protocol types and the SDK runtime. No bundler dependency.
-- `packages/mcp` — the gateway binary published as `@tesseron/mcp` (`bin: tesseron-mcp`).
-- `packages/docs-mcp` — the docs MCP server published as `@tesseron/docs-mcp`.
-- `packages/{web,server,react,svelte,vue,vite}` — consumer SDKs.
+- `sdks/typescript/core`: protocol types and the TypeScript SDK runtime. No bundler dependency.
+- `sdks/typescript/{web,server,react,svelte,vue,vite}`: consumer SDKs.
+- `sdks/typescript/examples/`: runnable TypeScript example apps. Treat them as live integration
+  fixtures.
+- `gateway/`: the gateway binary published as `@tesseron/mcp` (`bin: tesseron-mcp`).
+- `docs-mcp/`: the docs MCP server published as `@tesseron/docs-mcp`.
+- `conformance/`: language-neutral fixtures and the Node runner workspace.
 - `plugin/` — the Claude Code plugin (also accepted by Codex). Skills live in
   `plugin/skills/`, the MCP wiring in `plugin/.mcp.json`, the manifest in
   `plugin/.claude-plugin/plugin.json`.
@@ -35,7 +38,6 @@ repo; do not introduce one.
 - `.agents/plugins/marketplace.json` — Codex marketplace listing (same plugin
   source, Codex-preferred path).
 - `docs/` — Starlight site at https://eigenwise.github.io/tesseron/.
-- `examples/` — runnable example apps. Treat as live integration fixtures.
 
 ## Plugin manifest is version-coupled
 
@@ -67,7 +69,7 @@ recreate them.
 ## Releases
 
 Releases are driven by Changesets. Add a changeset for any user-visible change
-under `packages/`:
+under `sdks/typescript/`, `gateway/`, or `docs-mcp/`:
 
 ```bash
 pnpm changeset

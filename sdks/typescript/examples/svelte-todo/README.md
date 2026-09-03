@@ -1,6 +1,6 @@
 # svelte-todo
 
-A real Svelte 5 (runes) todo app whose state is also drivable by Claude through [`@tesseron/web`](../../packages/web). **Adding, toggling, deleting, filtering, and clearing todos all happen via `$state` reactivity — and they all update the visible list in real time when Claude calls the corresponding action.**
+A real Svelte 5 (runes) todo app whose state is also drivable by Claude through [`@tesseron/web`](../../web). **Adding, toggling, deleting, filtering, and clearing todos all happen via `$state` reactivity — and they all update the visible list in real time when Claude calls the corresponding action.**
 
 ## What you'll see live
 
@@ -11,7 +11,7 @@ A real Svelte 5 (runes) todo app whose state is also drivable by Claude through 
 
 ## Quick start
 
-> One-time MCP-client setup: [examples/README.md](../README.md#one-time-setup).
+> One-time MCP-client setup: [sdks/typescript/examples/README.md](../README.md#one-time-setup).
 
 ```bash
 pnpm --filter svelte-todo dev
@@ -89,7 +89,7 @@ The whole round trip is sub-100ms locally. Assignment (not mutation!) is what tr
 
 - **Status stuck at `connecting`:** MCP gateway isn't reachable. See the [shared troubleshooting table](../README.md#troubleshooting).
 - **Tools don't appear in Claude after claim:** the gateway emits `notifications/tools/list_changed`; Claude Code picks this up automatically. If your client caches tools, reconnect the MCP server in its UI.
-- **`importTodos` shows only the final result, no `0/5 → 5/5` progress:** this is an MCP client-compatibility limitation, not a Tesseron bug. The handler emits `ctx.progress`; the gateway forwards it as MCP `notifications/progress` whenever the client supplies `_meta.progressToken` on the `tools/call` request (see [`packages/mcp/test/phase3.test.ts`](../../packages/mcp/test/phase3.test.ts) for the verified path). As of April 2026, Claude Code does not attach a `progressToken` to tool calls nor render in-flight progress notifications inline, so streaming updates are silently discarded client-side — you'll still see the terminal result. Clients like `@modelcontextprotocol/sdk` with an explicit `onprogress` handler receive them correctly. Tracked upstream in [tesseron#2](https://github.com/eigenwise/tesseron/issues/2).
+- **`importTodos` shows only the final result, no `0/5 → 5/5` progress:** this is an MCP client-compatibility limitation, not a Tesseron bug. The handler emits `ctx.progress`; the gateway forwards it as MCP `notifications/progress` whenever the client supplies `_meta.progressToken` on the `tools/call` request (see [`gateway/test/phase3.test.ts`](../../../../gateway/test/phase3.test.ts) for the verified path). As of April 2026, Claude Code does not attach a `progressToken` to tool calls nor render in-flight progress notifications inline, so streaming updates are silently discarded client-side — you'll still see the terminal result. Clients like `@modelcontextprotocol/sdk` with an explicit `onprogress` handler receive them correctly. Tracked upstream in [tesseron#2](https://github.com/eigenwise/tesseron/issues/2).
 - **HMR resets the todo list to the initial three:** expected — Vite's hot reload re-mounts the component, which re-runs `$state` initializers. Production builds don't have this.
 - **`vite-plugin-svelte` warns about preprocess:** the included `svelte.config.js` enables `vitePreprocess()` for `<script lang="ts">` support — leave it in.
 
@@ -97,4 +97,4 @@ The whole round trip is sub-100ms locally. Assignment (not mutation!) is what tr
 
 - Add a `$derived` rune for a "pending count" and expose it via `tesseron.resource()`.
 - Replace the in-component `$state` with a Svelte store (`writable`) so handlers drive a store shared across components.
-- Use `ctx.confirm()` inside a destructive handler to gate on user approval — `clearCompleted` already shows the pattern. For structured prompts, use `ctx.elicit()` with a schema (see the [Phase 3 elicitation tests](../../packages/mcp/test/phase3.test.ts)).
+- Use `ctx.confirm()` inside a destructive handler to gate on user approval — `clearCompleted` already shows the pattern. For structured prompts, use `ctx.elicit()` with a schema (see the [Phase 3 elicitation tests](../../../../gateway/test/phase3.test.ts)).

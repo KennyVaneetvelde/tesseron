@@ -8,7 +8,7 @@ related:
 
 **What it teaches:** declarative action registration in React. Mount = register; unmount = unregister. State is mutated through `setTodos` exactly like in a normal React app.
 
-**Source:** [`examples/react-todo`](https://github.com/eigenwise/tesseron/tree/main/examples/react-todo)
+**Source:** [`sdks/typescript/examples/react-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/react-todo)
 
 ## Run it
 

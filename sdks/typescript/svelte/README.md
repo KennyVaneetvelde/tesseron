@@ -96,7 +96,7 @@ To push state to the agent on every change, wire a subscriber using `$effect`:
 
 ## Pair with `@tesseron/web`
 
-`@tesseron/svelte` re-exports the public surface of `@tesseron/web`, so you can mix raw calls with the helper functions. See [`examples/svelte-todo`](https://github.com/eigenwise/tesseron/tree/main/examples/svelte-todo) for a full app.
+`@tesseron/svelte` re-exports the public surface of `@tesseron/web`, so you can mix raw calls with the helper functions. See [`sdks/typescript/examples/svelte-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/svelte-todo) for a full app.
 
 ## Docs
 
@@ -104,7 +104,7 @@ To push state to the agent on every change, wire a subscriber using `$effect`:
 |---|---|
 | Main repo | <https://github.com/eigenwise/tesseron> |
 | Protocol spec | <https://eigenwise.github.io/tesseron/protocol/> |
-| Example app | <https://github.com/eigenwise/tesseron/tree/main/examples/svelte-todo> |
+| Example app | <https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/svelte-todo> |
 
 ## License
 

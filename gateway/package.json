@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Eigenwise/tesseron.git",
-    "directory": "packages/mcp"
+    "directory": "gateway"
   },
   "bugs": {
     "url": "https://github.com/eigenwise/tesseron/issues"

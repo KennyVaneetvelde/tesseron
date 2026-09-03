@@ -6,7 +6,7 @@ This is the example to read if you want to expose a pure-logic domain from a CLI
 
 ## Quick start
 
-> One-time MCP-client setup: [examples/README.md](../README.md#one-time-setup).
+> One-time MCP-client setup: [sdks/typescript/examples/README.md](../README.md#one-time-setup).
 
 ```bash
 pnpm --filter node-prompts dev

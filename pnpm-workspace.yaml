@@ -1,4 +1,7 @@
 packages:
-  - "packages/*"
-  - "examples/*"
+  - "sdks/typescript/*"
+  - "sdks/typescript/examples/*"
+  - "gateway"
+  - "docs-mcp"
+  - "conformance/runner"
   - "docs"

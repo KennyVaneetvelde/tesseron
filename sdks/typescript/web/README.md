@@ -17,7 +17,7 @@ Browser SDK for [Tesseron](https://github.com/eigenwise/tesseron). Expose typed 
 npm install @tesseron/web
 ```
 
-You also need the [`@tesseron/mcp`](https://www.npmjs.com/package/@tesseron/mcp) gateway running locally — it's bundled inside the [Claude Code plugin](https://github.com/eigenwise/tesseron/tree/main/plugin), so `/plugin install tesseron@tesseron` is a one-command setup. For other MCP clients see the [setup guide](https://github.com/eigenwise/tesseron/blob/main/examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
+You also need the [`@tesseron/mcp`](https://www.npmjs.com/package/@tesseron/mcp) gateway running locally — it's bundled inside the [Claude Code plugin](https://github.com/eigenwise/tesseron/tree/main/plugin), so `/plugin install tesseron@tesseron` is a one-command setup. For other MCP clients see the [setup guide](https://github.com/eigenwise/tesseron/blob/main/sdks/typescript/examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
 
 ## Quick start
 

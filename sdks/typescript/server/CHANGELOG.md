@@ -224,9 +224,9 @@
 
   **`tesseron/claimed.agentCapabilities`.** The notification carries the gateway's authoritative sampling/elicitation bits so the SDK can overwrite the host's conservative pre-claim defaults. Action handlers gating on `ctx.agentCapabilities.sampling` see real values rather than the synthesized `false`s.
 
-  **Tests:** new `packages/mcp/test/server-host-mint.test.ts` exercises the full ServerTesseronClient ↔ gateway round-trip with a real bind. Existing tests updated to use `dialSdk`'s v3 path. Three legacy-only breadcrumb tests skipped pending a hand-rolled legacy SDK fixture; the breadcrumb code stays in the gateway for v1.1 SDK back-compat.
+  **Tests:** new `gateway/test/server-host-mint.test.ts` exercises the full ServerTesseronClient ↔ gateway round-trip with a real bind. Existing tests updated to use `dialSdk`'s v3 path. Three legacy-only breadcrumb tests skipped pending a hand-rolled legacy SDK fixture; the breadcrumb code stays in the gateway for v1.1 SDK back-compat.
 
-  **End-to-end validation:** ran the `examples/vanilla-todo` demo in a real browser, scraped the host-minted claim code, drove an MCP gateway (in-process) to `tesseron__claim_session(code)`. The gateway dialed with the bind subprotocol, the v3 hello replay flowed, the session was registered as claimed with the host-minted ids, the MCP tool list refreshed to show all 9 vanilla_todo actions, and an MCP-invoked `addTodo` round-tripped back to the browser DOM. All 6 demo apps (vanilla-todo, react-todo, svelte-todo, vue-todo, node-prompts, express-prompts) typecheck and build clean.
+  **End-to-end validation:** ran the `sdks/typescript/examples/vanilla-todo` demo in a real browser, scraped the host-minted claim code, drove an MCP gateway (in-process) to `tesseron__claim_session(code)`. The gateway dialed with the bind subprotocol, the v3 hello replay flowed, the session was registered as claimed with the host-minted ids, the MCP tool list refreshed to show all 9 vanilla_todo actions, and an MCP-invoked `addTodo` round-tripped back to the browser DOM. All 6 demo apps (vanilla-todo, react-todo, svelte-todo, vue-todo, node-prompts, express-prompts) typecheck and build clean.
 
 ### Patch Changes
 

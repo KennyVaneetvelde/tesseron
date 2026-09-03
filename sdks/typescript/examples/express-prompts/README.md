@@ -3,7 +3,7 @@
 A **prompt library** backend exposed two ways at once:
 
 - **HTTP** — `GET/POST/PATCH/DELETE /prompts` for any HTTP client (curl, another service, an internal dashboard).
-- **MCP** — the same state, exposed to Claude via [`@tesseron/server`](../../packages/server), plus sampling and elicitation actions that don't exist on the REST side.
+- **MCP** — the same state, exposed to Claude via [`@tesseron/server`](../../server), plus sampling and elicitation actions that don't exist on the REST side.
 
 Both channels mutate the same in-memory `Map`. Resource subscribers on the Tesseron side fire when a REST client adds or deletes a prompt, and vice versa.
 
@@ -11,7 +11,7 @@ This is the example to read if you want Claude to operate on a domain that your 
 
 ## Quick start
 
-> One-time MCP-client setup: [examples/README.md](../README.md#one-time-setup).
+> One-time MCP-client setup: [sdks/typescript/examples/README.md](../README.md#one-time-setup).
 
 ```bash
 pnpm --filter express-prompts dev

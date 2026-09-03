@@ -7,7 +7,7 @@ related:
 
 **What it teaches:** a pure-Node Tesseron integration whose domain revolves around `ctx.sample` and `ctx.elicit`. No Express, no HTTP server - just a Node script that registers actions and connects. Good when you're building a CLI, a daemon, or a worker that Claude should drive, and the agent's LLM is part of the workflow.
 
-**Source:** [`examples/node-prompts`](https://github.com/eigenwise/tesseron/tree/main/examples/node-prompts)
+**Source:** [`sdks/typescript/examples/node-prompts`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/node-prompts)
 
 ## Run it
 

@@ -15,7 +15,7 @@
  *   5. Call `tesseron__list_pending_claims` — must surface the new code.
  *   6. Claim it. Re-invoke `todos__addTodo` — must succeed.
  *
- * Run with `node packages/mcp/scripts/e2e-issue-69.mjs`. Expects the
+ * Run with `node gateway/scripts/e2e-issue-69.mjs`. Expects the
  * react-todo dev server to be running on http://localhost:5174 with one
  * pending instance.
  */
@@ -28,7 +28,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { CallToolResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, '../../..');
+const repoRoot = resolve(here, '../..');
 const bundle = resolve(repoRoot, 'plugin/server/index.cjs');
 
 if (!existsSync(bundle)) {

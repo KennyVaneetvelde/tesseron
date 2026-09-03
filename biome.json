@@ -5,7 +5,7 @@
       "dist",
       "node_modules",
       ".turbo",
-      "examples",
+      "sdks/typescript/examples",
       "**/.astro/**",
       "assets/diagrams/**",
       ".claude/**"

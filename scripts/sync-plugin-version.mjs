@@ -36,8 +36,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const MCP_PKG = resolve(repoRoot, 'packages/mcp/package.json');
-const DOCS_MCP_PKG = resolve(repoRoot, 'packages/docs-mcp/package.json');
+const MCP_PKG = resolve(repoRoot, 'gateway/package.json');
+const DOCS_MCP_PKG = resolve(repoRoot, 'docs-mcp/package.json');
 const PLUGIN_MANIFEST = resolve(repoRoot, 'plugin/.claude-plugin/plugin.json');
 const MARKETPLACE_MANIFEST = resolve(repoRoot, '.claude-plugin/marketplace.json');
 const CODEX_MARKETPLACE_MANIFEST = resolve(repoRoot, '.agents/plugins/marketplace.json');

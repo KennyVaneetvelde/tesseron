@@ -1,6 +1,6 @@
 # vue-todo
 
-A real Vue 3 (composition API) todo app whose state is also drivable by Claude through [`@tesseron/web`](../../packages/web). Same scenario as [`svelte-todo`](../svelte-todo), in Vue's reactivity model — `ref()` instead of runes. **Adding, toggling, deleting, filtering, and clearing todos all update the visible list the instant Claude calls an action.**
+A real Vue 3 (composition API) todo app whose state is also drivable by Claude through [`@tesseron/web`](../../web). Same scenario as [`svelte-todo`](../svelte-todo), in Vue's reactivity model — `ref()` instead of runes. **Adding, toggling, deleting, filtering, and clearing todos all update the visible list the instant Claude calls an action.**
 
 ## What you'll see live
 
@@ -11,7 +11,7 @@ A real Vue 3 (composition API) todo app whose state is also drivable by Claude t
 
 ## Quick start
 
-> One-time MCP-client setup: [examples/README.md](../README.md#one-time-setup).
+> One-time MCP-client setup: [sdks/typescript/examples/README.md](../README.md#one-time-setup).
 
 ```bash
 pnpm --filter vue-todo dev
@@ -91,7 +91,7 @@ Array writes use `todos.value = [...todos.value, todo]` (full reassignment) for 
 - **Status stuck at `connecting`:** MCP gateway isn't reachable. See the [shared troubleshooting table](../README.md#troubleshooting).
 - **Tools don't appear in Claude after claim:** the gateway emits `notifications/tools/list_changed`; Claude Code picks this up automatically.
 - **`vue-tsc` complains about `.vue` imports:** the included `tsconfig.json` already includes `src/**/*.vue` in the input set. If you scaffold a new file, restart the dev server.
-- **Static analysis tools (Biome, ESLint) don't understand `<template>`:** that's normal — Vue SFCs need their own tooling. The repo's Biome config ignores `examples/`.
+- **Static analysis tools (Biome, ESLint) don't understand `<template>`:** that's normal — Vue SFCs need their own tooling. The repo's Biome config ignores `sdks/typescript/examples/`.
 
 ## Adapt it
 

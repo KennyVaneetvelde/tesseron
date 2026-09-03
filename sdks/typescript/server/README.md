@@ -77,7 +77,7 @@ app.listen(3000);
 await tesseron.connect();
 ```
 
-Both channels mutate the same state. See [`examples/express-prompts`](https://github.com/eigenwise/tesseron/tree/main/examples/express-prompts) for a working version (prompt library with sampling and elicitation).
+Both channels mutate the same state. See [`sdks/typescript/examples/express-prompts`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/express-prompts) for a working version (prompt library with sampling and elicitation).
 
 ## Docs
 

@@ -1,6 +1,6 @@
 ---
 description: Eight packages release as one fixed version; docs-mcp releases alone
-globs: ["packages/*/package.json", ".changeset/**"]
+globs: ["sdks/typescript/*/package.json", "gateway/package.json", ".changeset/**"]
 prompt: ["release", "publish", "changeset", "version bump", "ship it"]
 priority: 60
 ---
@@ -14,9 +14,11 @@ rather than protocol code, and its content changes on a completely different cad
 correction releases on its own instead of forcing a bump across all eight SDK packages. Give it its
 own changeset. Do not "fix" this by adding it back.
 
-- Any user-visible change under `packages/` needs a changeset: `pnpm changeset`.
-- Never hand-edit a `version` field in `packages/*/package.json`. `changeset version` owns it, via
-  `pnpm version-packages`, which also runs the plugin version sync and Biome.
+- Any user-visible change under `sdks/typescript/` or `gateway/` needs a fixed-group changeset:
+  `pnpm changeset`.
+- Never hand-edit a `version` field in `sdks/typescript/*/package.json` or
+  `gateway/package.json`. `changeset version` owns it, via `pnpm version-packages`, which also runs
+  the plugin version sync and Biome.
 - Examples and `@tesseron/docs` are in the changesets `ignore` list. They don't get changesets.
 - `.github/workflows/release.yml` publishes through `changesets/action@v1`. Don't publish by hand.
 - That workflow pins `npm@^11.5.1` on purpose. npm 12 dropped Node 20, and `npm@latest` silently
