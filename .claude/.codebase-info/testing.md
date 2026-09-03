@@ -68,7 +68,7 @@ Two manual e2e scripts are not part of the suite: `gateway/scripts/e2e-browser-c
 
 ## The conformance corpus is not part of `pnpm test`
 
-`conformance/fixtures/` holds 21 scripted JSON exchanges (actions, bind, elicitation, handshake,
+`conformance/fixtures/` holds 34 scripted JSON exchanges (5 actions, 9 bind, 13 elicitation, 3 handshake,
 resources, resume, uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
 every `pnpm-workspace.yaml` glob so a port can vendor the directory.
 

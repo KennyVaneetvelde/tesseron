@@ -36,7 +36,7 @@ tesseron/
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
-│   ├── fixtures/             21 scripted JSON exchanges. no deps on this workspace.
+│   ├── fixtures/             34 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
 │   ├── run-reference.mjs     `pnpm conformance:run`: runner against the TS reference host
 │   └── runner/               @tesseron/conformance 1.2.0, bin tesseron-conformance, depends on ws only
