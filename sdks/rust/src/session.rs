@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -7,19 +9,21 @@ use futures_util::{SinkExt as _, StreamExt as _};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::action::issues_payload;
-use crate::context::{ActionContext, Cancellation};
+use crate::context::{ActionContext, Cancellation, GatewayChannel, InvocationEnvironment};
 use crate::error::{ActionError, ProtocolError, TesseronErrorCode};
 use crate::host::{HostEvent, SharedHost};
 use crate::jsonrpc::{self, IncomingFrame, RequestId};
 use crate::protocol::{
     CancelParams, ClaimedParams, InvokeParams, InvokeResult, PROTOCOL_VERSION, ReadResourceParams,
-    ReadResourceResult, WelcomeResult, methods, shares_major_version,
+    ReadResourceResult, SubscribeResourceParams, UnsubscribeResourceParams, WelcomeResult, methods,
+    shares_major_version,
 };
+use crate::resource::{ResourceEmitter, Subscription};
 
 /// How long an invocation may run before the host answers `-32002` on its own.
 ///
@@ -33,7 +37,9 @@ struct Session {
     outgoing: Mutex<Option<mpsc::UnboundedSender<Message>>>,
     pending: Mutex<HashMap<RequestId, oneshot::Sender<Result<Value, ProtocolError>>>>,
     invocations: Mutex<HashMap<String, Cancellation>>,
+    subscriptions: Mutex<HashMap<String, Subscription>>,
     next_request_id: AtomicI64,
+    handshake: watch::Sender<bool>,
 }
 
 impl Session {
@@ -42,7 +48,28 @@ impl Session {
             outgoing: Mutex::new(Some(outgoing)),
             pending: Mutex::new(HashMap::new()),
             invocations: Mutex::new(HashMap::new()),
+            subscriptions: Mutex::new(HashMap::new()),
             next_request_id: AtomicI64::new(1),
+            handshake: watch::Sender::new(false),
+        }
+    }
+
+    fn settle_handshake(&self) {
+        self.handshake.send_replace(true);
+    }
+
+    /// Waits until the handshake task has applied the welcome, or given up.
+    ///
+    /// The welcome arrives as a response through the read loop, and the task
+    /// awaiting it is woken rather than run. An invocation the gateway wrote
+    /// straight after the welcome reaches the read loop first, so without this
+    /// it would negotiate against capabilities nothing had recorded yet.
+    async fn handshake_settled(&self) {
+        let mut settled = self.handshake.subscribe();
+        while !*settled.borrow_and_update() {
+            if settled.changed().await.is_err() {
+                return;
+            }
         }
     }
 
@@ -90,6 +117,10 @@ impl Session {
             }
         }
 
+        let _slot = PendingRequest {
+            session: self,
+            id: id.clone(),
+        };
         self.send_envelope(&envelope);
         receiver.await.unwrap_or_else(|_| {
             Err(ProtocolError::new(
@@ -159,6 +190,79 @@ impl Session {
             cancellation.cancel();
         }
     }
+
+    fn register_subscription(&self, subscription_id: &str, subscription: Subscription) {
+        let replaced = match self.subscriptions.lock() {
+            Ok(mut subscriptions) => subscriptions.insert(subscription_id.to_owned(), subscription),
+            // A subscription nothing can ever stop is worse than no
+            // subscription: tear it down instead of leaving it emitting.
+            Err(_) => Some(subscription),
+        };
+        if let Some(replaced) = replaced {
+            replaced.stop();
+        }
+    }
+
+    fn drop_subscription(&self, subscription_id: &str) {
+        let subscription = self
+            .subscriptions
+            .lock()
+            .ok()
+            .and_then(|mut subscriptions| subscriptions.remove(subscription_id));
+        if let Some(subscription) = subscription {
+            subscription.stop();
+        }
+    }
+
+    /// Tears down every subscription. The agent that registered them is gone,
+    /// and a subscriber still holding a listener would emit into a closed
+    /// socket for as long as the application runs.
+    fn drop_all_subscriptions(&self) {
+        let registered = match self.subscriptions.lock() {
+            Ok(mut subscriptions) => subscriptions.drain().collect::<Vec<_>>(),
+            Err(_) => Vec::new(),
+        };
+        for (_subscription_id, subscription) in registered {
+            subscription.stop();
+        }
+    }
+}
+
+impl GatewayChannel for Session {
+    fn notify(&self, method: &str, params: Value) {
+        match jsonrpc::notification(method, params) {
+            Ok(envelope) => self.send_envelope(&envelope),
+            Err(problem) => {
+                eprintln!("tesseron: could not encode a {method} notification: {problem}")
+            }
+        }
+    }
+
+    fn call<'a>(
+        &'a self,
+        method: &'a str,
+        params: Value,
+    ) -> Pin<Box<dyn Future<Output = Result<Value, ProtocolError>> + Send + 'a>> {
+        Box::pin(Self::call(self, method, params))
+    }
+}
+
+/// Removes a pending entry when the caller stops waiting.
+///
+/// A cancelled invocation drops the future that was awaiting an elicitation or
+/// a sampling answer; without this the slot would sit in the map for the life
+/// of the connection.
+struct PendingRequest<'a> {
+    session: &'a Session,
+    id: RequestId,
+}
+
+impl Drop for PendingRequest<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut pending) = self.session.pending.lock() {
+            pending.remove(&self.id);
+        }
+    }
 }
 
 /// Serves one gateway connection until the socket closes.
@@ -176,6 +280,7 @@ pub(crate) async fn serve_connection(socket: WebSocketStream<TcpStream>, host: A
     read_until_closed(incoming, &session, &host).await;
 
     session.cancel_all_invocations();
+    session.drop_all_subscriptions();
     session.fail_all_pending();
     session.stop_sending();
     let _ = handshake.await;
@@ -248,6 +353,8 @@ fn handle_request(
     match method {
         methods::INVOKE => start_invocation(id, params, session, host),
         methods::READ => start_resource_read(id, params, session, host),
+        methods::SUBSCRIBE => subscribe_to_resource(id, params, session, host),
+        methods::UNSUBSCRIBE => unsubscribe_from_resource(id, params, session),
         _ => session.send_envelope(&jsonrpc::failure(
             &id,
             &ProtocolError::new(
@@ -281,7 +388,7 @@ fn handle_notification(
 }
 
 fn start_invocation(id: RequestId, params: Value, session: &Arc<Session>, host: &Arc<SharedHost>) {
-    let invoke = match serde_json::from_value::<InvokeParams>(params) {
+    let mut invoke = match serde_json::from_value::<InvokeParams>(params) {
         Ok(invoke) => invoke,
         Err(problem) => {
             session.send_envelope(&jsonrpc::failure(
@@ -318,18 +425,26 @@ fn start_invocation(id: RequestId, params: Value, session: &Arc<Session>, host: 
     }
 
     let cancellation = session.register_invocation(&invoke.invocation_id);
-    let context = ActionContext::new(
-        invoke.name.clone(),
-        invoke.invocation_id.clone(),
-        cancellation.clone(),
-    );
+    let route = invoke.client.take().and_then(|client| client.route);
     let timeout = action
         .descriptor
         .timeout_ms
         .map_or(DEFAULT_INVOCATION_TIMEOUT, Duration::from_millis);
     let session = Arc::clone(session);
+    let host = Arc::clone(host);
 
     tokio::spawn(async move {
+        session.handshake_settled().await;
+        let context = ActionContext::new(InvocationEnvironment {
+            action_name: invoke.name.clone(),
+            invocation_id: invoke.invocation_id.clone(),
+            cancellation: cancellation.clone(),
+            channel: Arc::clone(&session) as Arc<dyn GatewayChannel>,
+            agent_capabilities: host.negotiated_capabilities(),
+            agent: host.agent_identity(),
+            origin: host.origin().to_owned(),
+            route,
+        });
         let running = action.handler.invoke(invoke.input, context);
         let outcome = tokio::select! {
             biased;
@@ -424,6 +539,89 @@ fn start_resource_read(
     });
 }
 
+/// Registers a subscriber for one resource.
+///
+/// The acknowledgement goes out before the subscriber runs, so a value the
+/// subscriber emits immediately cannot overtake the response the agent is still
+/// waiting on. Both halves happen inside the read loop, so an unsubscribe that
+/// follows straight after always finds the subscription to tear down.
+fn subscribe_to_resource(
+    id: RequestId,
+    params: Value,
+    session: &Arc<Session>,
+    host: &Arc<SharedHost>,
+) {
+    let subscribe = match serde_json::from_value::<SubscribeResourceParams>(params) {
+        Ok(subscribe) => subscribe,
+        Err(problem) => {
+            session.send_envelope(&jsonrpc::failure(
+                &id,
+                &ProtocolError::new(
+                    TesseronErrorCode::InvalidParams,
+                    format!("Invalid resources/subscribe params: {problem}"),
+                ),
+            ));
+            return;
+        }
+    };
+
+    let subscriber = host
+        .registry
+        .resources
+        .get(&subscribe.name)
+        .and_then(|resource| resource.subscriber.clone());
+    let Some(subscriber) = subscriber else {
+        session.send_envelope(&jsonrpc::failure(
+            &id,
+            &ProtocolError::new(
+                TesseronErrorCode::ActionNotFound,
+                format!("Resource not subscribable: {}", subscribe.name),
+            ),
+        ));
+        return;
+    };
+
+    session.send_envelope(&acknowledgement(&id));
+    let emitter = ResourceEmitter::new(
+        Arc::clone(session) as Arc<dyn GatewayChannel>,
+        subscribe.subscription_id.clone(),
+    );
+    session.register_subscription(&subscribe.subscription_id, subscriber.subscribe(emitter));
+}
+
+/// Drops a subscription. An id nobody registered is not an error: the agent and
+/// the transport can race, and there is nothing left to tear down either way.
+fn unsubscribe_from_resource(id: RequestId, params: Value, session: &Arc<Session>) {
+    let unsubscribe = match serde_json::from_value::<UnsubscribeResourceParams>(params) {
+        Ok(unsubscribe) => unsubscribe,
+        Err(problem) => {
+            session.send_envelope(&jsonrpc::failure(
+                &id,
+                &ProtocolError::new(
+                    TesseronErrorCode::InvalidParams,
+                    format!("Invalid resources/unsubscribe params: {problem}"),
+                ),
+            ));
+            return;
+        }
+    };
+    session.drop_subscription(&unsubscribe.subscription_id);
+    session.send_envelope(&acknowledgement(&id));
+}
+
+/// The empty success both subscription methods answer with.
+fn acknowledgement(id: &RequestId) -> Value {
+    jsonrpc::success(id, Value::Null).unwrap_or_else(|_| {
+        jsonrpc::failure(
+            id,
+            &ProtocolError::new(
+                TesseronErrorCode::InternalError,
+                "could not encode the acknowledgement",
+            ),
+        )
+    })
+}
+
 /// Turns a handler failure into its wire payload, reporting the cause that
 /// [`ActionError::internal`] deliberately keeps off the socket.
 fn wire_error(failure: ActionError) -> ProtocolError {
@@ -439,6 +637,11 @@ fn wire_error(failure: ActionError) -> ProtocolError {
 /// A refused resume falls back to a fresh hello on the same socket: the
 /// credentials are stale, not the connection.
 async fn open_session(session: Arc<Session>, host: Arc<SharedHost>) {
+    run_handshake(&session, &host).await;
+    session.settle_handshake();
+}
+
+async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) {
     if let Some((session_id, resume_token)) = host.resume_credentials() {
         match session
             .call(
@@ -448,12 +651,12 @@ async fn open_session(session: Arc<Session>, host: Arc<SharedHost>) {
             .await
         {
             Ok(result) => {
-                accept_welcome(&session, &host, result);
+                accept_welcome(session, host, result);
                 return;
             }
             Err(refusal) => {
                 if refusal.named_code() == Some(TesseronErrorCode::ProtocolMismatch) {
-                    reject_handshake(&session, &host, refusal);
+                    reject_handshake(session, host, refusal);
                     return;
                 }
                 host.forget_resume_credentials();
@@ -463,8 +666,8 @@ async fn open_session(session: Arc<Session>, host: Arc<SharedHost>) {
     }
 
     match session.call(methods::HELLO, host.hello_params()).await {
-        Ok(result) => accept_welcome(&session, &host, result),
-        Err(refusal) => reject_handshake(&session, &host, refusal),
+        Ok(result) => accept_welcome(session, host, result),
+        Err(refusal) => reject_handshake(session, host, refusal),
     }
 }
 

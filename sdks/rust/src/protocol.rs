@@ -29,8 +29,22 @@ pub mod methods {
     pub const INVOKE: &str = "actions/invoke";
     /// Aborts an in-flight invocation. A notification, so it carries no id.
     pub const CANCEL: &str = "actions/cancel";
+    /// Streams a progress update during an invocation. A notification.
+    pub const PROGRESS: &str = "actions/progress";
     /// Reads one resource's current value.
     pub const READ: &str = "resources/read";
+    /// Registers a subscriber for one resource's future values.
+    pub const SUBSCRIBE: &str = "resources/subscribe";
+    /// Drops a subscription registered by [`SUBSCRIBE`].
+    pub const UNSUBSCRIBE: &str = "resources/unsubscribe";
+    /// Pushes a new value to one subscriber. A notification.
+    pub const UPDATED: &str = "resources/updated";
+    /// Asks the agent's model for a completion.
+    pub const SAMPLE: &str = "sampling/request";
+    /// Asks the user a question through the agent.
+    pub const ELICIT: &str = "elicitation/request";
+    /// Forwards a structured log entry to the agent. A notification.
+    pub const LOG: &str = "log";
 }
 
 /// What the application itself can do, sent in the handshake.
@@ -51,13 +65,26 @@ pub struct Capabilities {
 }
 
 impl Capabilities {
-    /// The set this crate can honestly declare today: everything off.
+    /// The set this crate can honestly declare: everything.
     ///
     /// Declaring a capability the SDK cannot serve makes the gateway route work
-    /// that will never be answered, so each flag flips to `true` only in the
-    /// release that implements it.
+    /// that will never be answered, so each flag flipped to `true` only in the
+    /// release that implemented it. As of protocol 1.2.0 support that is all
+    /// four.
     #[must_use]
     pub const fn implemented() -> Self {
+        Self {
+            streaming: true,
+            subscriptions: true,
+            sampling: true,
+            elicitation: true,
+        }
+    }
+
+    /// Nothing negotiated. The starting point before a welcome arrives, and the
+    /// answer a handler gets when the gateway sent no capability block at all.
+    #[must_use]
+    pub const fn none() -> Self {
         Self {
             streaming: false,
             subscriptions: false,
@@ -183,7 +210,12 @@ pub struct WelcomeResult {
     /// The protocol version the gateway speaks.
     pub protocol_version: String,
     /// The intersection of the application's and the agent's capabilities.
-    #[serde(default = "Capabilities::implemented")]
+    ///
+    /// A gateway that omits the block has negotiated nothing, so the default is
+    /// the empty set rather than what this host declared: assuming the agent
+    /// can sample or elicit would make handlers wait on requests nobody
+    /// answers.
+    #[serde(default = "Capabilities::none")]
     pub capabilities: Capabilities,
     /// The claiming agent, or the pending placeholder until a claim happens.
     #[serde(default = "pending_agent")]
@@ -218,6 +250,15 @@ pub struct ClaimedParams {
     pub agent_capabilities: Option<Value>,
 }
 
+/// Where in the application the agent was when it invoked, when the gateway
+/// knows.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InvokeClientContext {
+    #[serde(default)]
+    pub route: Option<String>,
+}
+
 /// `actions/invoke` parameters.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -226,6 +267,8 @@ pub(crate) struct InvokeParams {
     #[serde(default)]
     pub input: Value,
     pub invocation_id: String,
+    #[serde(default)]
+    pub client: Option<InvokeClientContext>,
 }
 
 /// `actions/invoke` result.
@@ -253,6 +296,114 @@ pub(crate) struct ReadResourceParams {
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct ReadResourceResult {
     pub value: Value,
+}
+
+/// `resources/subscribe` parameters.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SubscribeResourceParams {
+    pub name: String,
+    pub subscription_id: String,
+}
+
+/// `resources/unsubscribe` parameters.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UnsubscribeResourceParams {
+    pub subscription_id: String,
+}
+
+/// `resources/updated` parameters.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ResourceUpdatedParams {
+    pub subscription_id: String,
+    pub value: Value,
+}
+
+/// `actions/progress` parameters. Every payload field is optional; the
+/// invocation id is what correlates the notification with the running request.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ActionProgressParams {
+    pub invocation_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percent: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+}
+
+/// `sampling/request` parameters.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SamplingRequestParams {
+    pub invocation_id: String,
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+}
+
+/// `sampling/request` result.
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct SamplingResult {
+    #[serde(default)]
+    pub content: Value,
+}
+
+/// `elicitation/request` parameters.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ElicitationRequestParams {
+    pub invocation_id: String,
+    pub question: String,
+    pub schema: Value,
+}
+
+/// What the user did with an elicitation prompt.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ElicitationAction {
+    Accept,
+    Decline,
+    Cancel,
+}
+
+/// `elicitation/request` result. `value` arrives only with `accept`.
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct ElicitationResult {
+    pub action: ElicitationAction,
+    #[serde(default)]
+    pub value: Value,
+}
+
+/// Severity of a `log` notification, matching the MCP logging levels the
+/// gateway forwards to.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    /// Detail only useful while debugging the application.
+    Debug,
+    /// Ordinary progress worth recording.
+    Info,
+    /// Something unexpected that did not stop the invocation.
+    Warn,
+    /// A failure the user or the agent should know about.
+    Error,
+}
+
+/// `log` parameters.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LogParams {
+    pub invocation_id: String,
+    pub level: LogLevel,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<serde_json::Map<String, Value>>,
 }
 
 const RESERVED_APPLICATION_IDS: [&str; 3] = ["tesseron", "mcp", "system"];
@@ -340,7 +491,31 @@ mod tests {
         assert_eq!(encoded["protocolVersion"], "1.2.0");
         assert_eq!(encoded["actions"][0]["inputSchema"], serde_json::json!({}));
         assert_eq!(encoded["actions"][0]["description"], "");
-        assert_eq!(encoded["capabilities"]["streaming"], false);
+        assert_eq!(encoded["capabilities"]["streaming"], true);
         assert!(encoded["app"].get("description").is_none());
+    }
+
+    #[test]
+    fn a_welcome_without_capabilities_negotiates_nothing() {
+        let welcome: WelcomeResult = serde_json::from_value(serde_json::json!({
+            "sessionId": "s-1",
+            "protocolVersion": "1.2.0"
+        }))
+        .unwrap();
+        assert_eq!(welcome.capabilities, Capabilities::none());
+    }
+
+    #[test]
+    fn progress_omits_the_payload_fields_that_were_not_set() {
+        let encoded = serde_json::to_value(ActionProgressParams {
+            invocation_id: "i-1".to_owned(),
+            message: None,
+            percent: Some(10.0),
+            data: None,
+        })
+        .unwrap();
+        assert_eq!(encoded["percent"], 10.0);
+        assert!(encoded.get("message").is_none());
+        assert!(encoded.get("data").is_none());
     }
 }

@@ -15,11 +15,11 @@ use crate::action::{Action, ActionHandler, InputValidator};
 use crate::error::{HostError, ProtocolError};
 use crate::manifest::{self, InstanceManifest, ManifestPublication};
 use crate::protocol::{
-    ActionDescriptor, ApplicationDescriptor, Capabilities, ClaimedParams, GATEWAY_SUBPROTOCOL,
-    HelloParams, PROTOCOL_VERSION, ResourceDescriptor, ResumeParams, WelcomeResult,
-    is_valid_application_id,
+    ActionDescriptor, AgentIdentity, ApplicationDescriptor, Capabilities, ClaimedParams,
+    GATEWAY_SUBPROTOCOL, HelloParams, PROTOCOL_VERSION, ResourceDescriptor, ResumeParams,
+    WelcomeResult, is_valid_application_id,
 };
-use crate::resource::{Resource, ResourceReader};
+use crate::resource::{Resource, ResourceReader, ResourceSubscriber};
 use crate::session;
 
 /// How many events the host buffers for each subscriber before the slowest one
@@ -64,6 +64,7 @@ pub(crate) struct RegisteredAction {
 pub(crate) struct RegisteredResource {
     pub descriptor: ResourceDescriptor,
     pub reader: ResourceReader,
+    pub subscriber: Option<ResourceSubscriber>,
 }
 
 pub(crate) struct Registry {
@@ -101,6 +102,7 @@ pub(crate) struct SharedHost {
     pub registry: Registry,
     events: broadcast::Sender<HostEvent>,
     welcome: Mutex<Option<WelcomeResult>>,
+    claim: Mutex<Option<ClaimedParams>>,
     resume: Mutex<Option<(String, String)>>,
 }
 
@@ -161,17 +163,63 @@ impl SharedHost {
                 .clone()
                 .map(|token| (welcome.session_id.clone(), token));
         }
+        // The welcome is applied by the handshake task while the read loop
+        // keeps running, so a claim that arrived right behind it can land
+        // first. Re-applying it here is what makes the two orders agree.
+        if let Some(claimed) = self.claim.lock().ok().and_then(|claim| claim.clone()) {
+            self.apply_claim(&claimed);
+        }
     }
 
     /// Applies `tesseron/claimed` to the stored welcome: the agent is known now
     /// and the claim code has been spent, so anything rendering it has to stop.
+    ///
+    /// A claim that carries the gateway's own capability block replaces the
+    /// welcome's, because on the host-minted path the welcome the host answered
+    /// itself never saw the real agent.
     pub(crate) fn record_claim(&self, claimed: &ClaimedParams) {
+        if let Ok(mut stored) = self.claim.lock() {
+            *stored = Some(claimed.clone());
+        }
+        self.apply_claim(claimed);
+    }
+
+    fn apply_claim(&self, claimed: &ClaimedParams) {
+        let negotiated = claimed
+            .agent_capabilities
+            .clone()
+            .and_then(|capabilities| serde_json::from_value::<Capabilities>(capabilities).ok());
         if let Ok(mut stored) = self.welcome.lock() {
             if let Some(welcome) = stored.as_mut() {
                 welcome.agent = claimed.agent.clone();
                 welcome.claim_code = None;
+                if let Some(negotiated) = negotiated {
+                    welcome.capabilities = negotiated;
+                }
             }
         }
+    }
+
+    /// What the last welcome negotiated. Nothing, until one arrives: a handler
+    /// must not sample or elicit at an agent that never agreed to it.
+    pub(crate) fn negotiated_capabilities(&self) -> Capabilities {
+        self.welcome_snapshot()
+            .map_or_else(Capabilities::none, |welcome| welcome.capabilities)
+    }
+
+    /// Who is on the other end, or the pending placeholder before a claim.
+    pub(crate) fn agent_identity(&self) -> AgentIdentity {
+        self.welcome_snapshot().map_or_else(
+            || AgentIdentity {
+                id: "pending".to_owned(),
+                name: "Awaiting agent".to_owned(),
+            },
+            |welcome| welcome.agent,
+        )
+    }
+
+    pub(crate) fn origin(&self) -> &str {
+        &self.application.origin
     }
 
     fn welcome_snapshot(&self) -> Option<WelcomeResult> {
@@ -304,6 +352,7 @@ impl TesseronHostBuilder {
             registry,
             events: self.events.clone(),
             welcome: Mutex::new(None),
+            claim: Mutex::new(None),
             resume: Mutex::new(None),
         });
         let accept_loop = tokio::spawn(accept_gateway_connections(listener, Arc::clone(&shared)));
@@ -340,13 +389,20 @@ impl TesseronHostBuilder {
         let mut resources = HashMap::new();
         let mut resource_order = Vec::new();
         for resource in self.resources.drain(..) {
-            let (descriptor, reader) = resource.into_parts();
+            let (descriptor, reader, subscriber) = resource.into_parts();
             let name = descriptor.name.clone();
             if resources.contains_key(&name) {
                 return Err(HostError::DuplicateName(name));
             }
             resource_order.push(name.clone());
-            resources.insert(name, RegisteredResource { descriptor, reader });
+            resources.insert(
+                name,
+                RegisteredResource {
+                    descriptor,
+                    reader,
+                    subscriber,
+                },
+            );
         }
 
         Ok(Registry {

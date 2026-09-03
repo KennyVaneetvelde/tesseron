@@ -19,12 +19,25 @@ exits 1.
 
 ## Status
 
-Work in progress, tracking protocol 1.2.0. This first release covers the
-handshake, claiming, session resume with token rotation, action invocation with
-input validation and cancellation, and resource reads. Streaming progress,
-resource subscriptions, sampling, and elicitation are not implemented, so
-`Capabilities` reports them as `false` and the gateway never routes them here.
-Nothing is published to crates.io yet.
+Work in progress, tracking protocol 1.2.0. The whole host half of the protocol
+is here: the handshake, claiming, session resume with token rotation, action
+invocation with input validation and cancellation, streaming progress, resource
+reads and subscriptions, and the `ActionContext` round trips back into the
+agent for sampling, confirmation, elicitation, and logging. All four
+`Capabilities` flags are declared.
+
+Host-minted claim codes are the one thing left out. The gateway mints the code,
+and a restarted process is a new session. Nothing is published to crates.io yet.
+
+Two details worth knowing before you write a handler:
+
+- `progress` clamps percent into 0 to 100 and never lets it fall below a value
+  already sent for this invocation. An agent drawing a progress bar reads a
+  backwards jump as a restart, and the message and data are worth keeping.
+- `elicit` checks the JSON Schema against what MCP elicitation can render
+  before anything reaches the wire. A schema with a top-level `oneOf`, or a
+  property typed `object` or `array`, fails with `-32602` and the agent is
+  never asked.
 
 ## Using it
 
@@ -92,10 +105,12 @@ Conformance, from the repo root, against the language-neutral corpus in
 ```bash
 cargo build --manifest-path sdks/rust/Cargo.toml --workspace
 pnpm -r --filter @tesseron/conformance build
-TESSERON_CONFORMANCE_UNSUPPORTED=elicitation,host-minted-claim,sampling,streaming,subscriptions,uds \
-  node conformance/runner/dist/tesseron-conformance.cjs \
-  --host "sdks/rust/target/debug/tesseron-conformance-host"
+pnpm conformance:run:rust
 ```
+
+Every fixture passes. The skips are the `bind/*` fixtures, which need a
+host-minted claim, plus `uds` on Windows; `conformance/run-reference.mjs` owns
+both lists and CI runs the same script.
 
 That works on Windows too, but only since the runner started resolving a
 `--host` that is nothing but a path. Before that, cmd.exe ended the command

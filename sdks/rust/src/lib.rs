@@ -37,17 +37,21 @@
 //!
 //! ## What this version covers
 //!
-//! Handshake, claiming, session resume with token rotation, action invocation
-//! with input validation and cancellation, and resource reads. Streaming
-//! progress, resource subscriptions, sampling, and elicitation are not
-//! implemented yet, so [`Capabilities`] reports them as `false` and the gateway
-//! never routes them here.
+//! The whole host half of protocol 1.2.0: handshake, claiming, session resume
+//! with token rotation, action invocation with input validation, cancellation
+//! and streaming progress, resource reads and subscriptions, and the
+//! [`ActionContext`] round trips back into the agent for sampling, confirmation,
+//! elicitation, and logging. All four [`Capabilities`] flags are declared.
+//!
+//! Host-minted claim codes are the one thing left out. The gateway mints the
+//! code, and a restarted process is a new session.
 
 #![deny(missing_docs)]
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 
 mod action;
 mod context;
+mod elicit_schema;
 mod error;
 mod host;
 mod jsonrpc;
@@ -57,17 +61,19 @@ mod resource;
 mod session;
 
 pub use action::{Action, ActionHandler, InputValidator, ValidationIssue};
-pub use context::{ActionContext, Cancellation};
+pub use context::{
+    ActionContext, Cancellation, ElicitRequest, LogEntry, ProgressUpdate, SampleRequest,
+};
 pub use error::{ActionError, HostError, ProtocolError, TesseronErrorCode};
 pub use host::{HostEvent, TesseronHost, TesseronHostBuilder};
 pub use jsonrpc::RequestId;
 pub use manifest::{InstanceManifest, ManifestPublication, TransportSpecification};
 pub use protocol::{
     ActionDescriptor, AgentIdentity, ApplicationDescriptor, Capabilities, ClaimedParams,
-    HelloParams, ResourceDescriptor, ResumeParams, WelcomeResult, methods,
+    HelloParams, LogLevel, ResourceDescriptor, ResumeParams, WelcomeResult, methods,
 };
 pub use protocol::{GATEWAY_SUBPROTOCOL, JSONRPC_VERSION, PROTOCOL_VERSION};
-pub use resource::{Resource, ResourceReader};
+pub use resource::{Resource, ResourceEmitter, ResourceReader, ResourceSubscriber, Subscription};
 
 /// Entry point for building an application host.
 ///

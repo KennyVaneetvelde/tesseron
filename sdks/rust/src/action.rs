@@ -250,7 +250,7 @@ pub(crate) fn issues_payload(issues: &[ValidationIssue]) -> Value {
 }
 
 /// Generates the JSON Schema 2020-12 document schemars derives for a type.
-fn json_schema_for<T: JsonSchema>() -> Value {
+pub(crate) fn json_schema_for<T: JsonSchema>() -> Value {
     SchemaSettings::draft2020_12()
         .into_generator()
         .into_root_schema_for::<T>()
@@ -291,11 +291,7 @@ mod tests {
         let (descriptor, validator, handler) = action.into_parts();
         assert_eq!(descriptor.input_schema, serde_json::json!({}));
         assert!(validator.is_none());
-        let context = ActionContext::new(
-            "passthrough".to_owned(),
-            "i-1".to_owned(),
-            crate::context::Cancellation::new(),
-        );
+        let context = ActionContext::detached("passthrough", "i-1");
         let output = handler
             .invoke(serde_json::json!({ "kept": true }), context)
             .await
@@ -310,11 +306,7 @@ mod tests {
             |input: AddInput, _context: ActionContext| async move { Ok(input.first + input.second) },
         );
         let (_descriptor, _validator, handler) = action.into_parts();
-        let context = ActionContext::new(
-            "add".to_owned(),
-            "i-1".to_owned(),
-            crate::context::Cancellation::new(),
-        );
+        let context = ActionContext::detached("add", "i-1");
         let error = handler
             .invoke(serde_json::json!({ "first": "one", "second": 2 }), context)
             .await

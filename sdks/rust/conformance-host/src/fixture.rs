@@ -6,12 +6,24 @@
 //! shows up as a failed launch instead of a fixture that quietly passed.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde::Deserialize;
-use serde_json::Value;
-use tesseron::{Action, ActionContext, ActionError, Resource, TesseronHostBuilder};
+use serde_json::{Map, Value, json};
+use tesseron::{
+    Action, ActionContext, ActionError, ElicitRequest, ProgressUpdate, Resource, ResourceEmitter,
+    Subscription, TesseronHostBuilder,
+};
 
 use crate::schema_subset;
+
+/// How far apart queued resource updates are pushed.
+///
+/// The runner stamps a frame's arrival and compares it with the moment the
+/// labeled step finished, so an update written into the same socket flush as
+/// the subscription acknowledgement can land too early to satisfy `notBefore`.
+/// Spacing the updates out is what a fixture's `afterStep` is asking for.
+const UPDATE_SPACING: Duration = Duration::from_millis(25);
 
 /// The whole fixture file. Only the adapter's half is read; `steps` is the
 /// runner's script and never reaches the host.
@@ -47,14 +59,25 @@ struct FixtureAction {
     assert_handler_not_called: bool,
     #[serde(default)]
     blocks_until_cancelled: bool,
+    /// Progress updates kept as raw objects so an entry carrying an explicit
+    /// `"data": null` stays distinguishable from one that omits the key.
     #[serde(default)]
-    progress: Option<Value>,
+    progress: Vec<Map<String, Value>>,
     #[serde(default)]
-    confirms: Option<Value>,
+    confirms: Option<String>,
     #[serde(default)]
-    returns_confirm_result: Option<Value>,
+    returns_confirm_result: bool,
     #[serde(default)]
-    elicits: Option<Value>,
+    elicits: Option<FixtureElicitation>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FixtureElicitation {
+    question: String,
+    /// Handed to the SDK exactly as written, including the shapes the protocol
+    /// rejects: these fixtures exist to prove the SDK does the rejecting.
+    json_schema: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,8 +90,22 @@ struct FixtureResource {
     value: Value,
     #[serde(default)]
     subscribable: bool,
+    /// Each entry is `{ afterStep, value }`. `afterStep` names the runner step
+    /// the update has to land behind, which the runner checks on its own side.
     #[serde(default)]
-    emits: Option<Value>,
+    emits: Vec<Map<String, Value>>,
+}
+
+/// Everything one action's handler needs, shared across every invocation of it.
+struct ActionScript {
+    name: String,
+    returns: Value,
+    assert_handler_not_called: bool,
+    blocks_until_cancelled: bool,
+    progress: Vec<Map<String, Value>>,
+    confirms: Option<String>,
+    returns_confirm_result: bool,
+    elicits: Option<FixtureElicitation>,
 }
 
 /// Reads a fixture document and registers everything it declares.
@@ -109,54 +146,22 @@ pub fn register(
 }
 
 fn build_action(fixture: FixtureAction) -> Result<Action, String> {
-    reject_unimplemented(
-        &fixture.name,
-        "progress",
-        fixture.progress.as_ref(),
-        "streaming",
-    )?;
-    reject_unimplemented(
-        &fixture.name,
-        "confirms",
-        fixture.confirms.as_ref(),
-        "elicitation",
-    )?;
-    reject_unimplemented(
-        &fixture.name,
-        "returnsConfirmResult",
-        fixture.returns_confirm_result.as_ref(),
-        "elicitation",
-    )?;
-    reject_unimplemented(
-        &fixture.name,
-        "elicits",
-        fixture.elicits.as_ref(),
-        "elicitation",
-    )?;
-
-    let name = fixture.name.clone();
-    let returns = Arc::new(fixture.returns);
-    let assert_handler_not_called = fixture.assert_handler_not_called;
-    let blocks_until_cancelled = fixture.blocks_until_cancelled;
+    let script = Arc::new(ActionScript {
+        name: fixture.name.clone(),
+        returns: fixture.returns,
+        assert_handler_not_called: fixture.assert_handler_not_called,
+        blocks_until_cancelled: fixture.blocks_until_cancelled,
+        progress: fixture.progress,
+        confirms: fixture.confirms,
+        returns_confirm_result: fixture.returns_confirm_result,
+        elicits: fixture.elicits,
+    });
 
     let mut action = Action::json(
         fixture.name,
-        move |_input: Value, _context: ActionContext| {
-            let returns = Arc::clone(&returns);
-            let name = name.clone();
-            async move {
-                if assert_handler_not_called {
-                    return Err(ActionError::handler(format!(
-                        "the handler for {name} ran, but the fixture says it must not"
-                    )));
-                }
-                if blocks_until_cancelled {
-                    // The session answers -32001 when the cancellation arrives and
-                    // drops this future; anything returned here would race it.
-                    return std::future::pending::<Result<Value, ActionError>>().await;
-                }
-                Ok(returns.as_ref().clone())
-            }
+        move |_input: Value, context: ActionContext| {
+            let script = Arc::clone(&script);
+            async move { run_action(&script, context).await }
         },
     )
     .description(fixture.description);
@@ -172,32 +177,105 @@ fn build_action(fixture: FixtureAction) -> Result<Action, String> {
     Ok(action)
 }
 
-fn build_resource(fixture: FixtureResource) -> Result<Resource, String> {
-    if fixture.emits.is_some() {
-        return Err(format!(
-            "resource {:?} needs pushed updates; declare subscriptions in TESSERON_CONFORMANCE_UNSUPPORTED",
-            fixture.name
-        ));
+/// Applies the fixture's behaviours in the order `conformance/README.md` fixes:
+/// refuse an unexpected call, wait to be cancelled, stream progress, confirm,
+/// elicit, then answer with the canned value.
+async fn run_action(script: &ActionScript, context: ActionContext) -> Result<Value, ActionError> {
+    if script.assert_handler_not_called {
+        return Err(ActionError::handler(format!(
+            "the handler for {} ran, but the fixture says it must not",
+            script.name
+        )));
     }
+    if script.blocks_until_cancelled {
+        // The session answers -32001 when the cancellation arrives and drops
+        // this future; anything returned here would race it.
+        return std::future::pending::<Result<Value, ActionError>>().await;
+    }
+
+    for entry in &script.progress {
+        context.progress(progress_update(entry));
+    }
+
+    if let Some(question) = &script.confirms {
+        let confirmed = context.confirm(question.as_str()).await?;
+        if script.returns_confirm_result {
+            return Ok(json!({ "confirmed": confirmed }));
+        }
+    }
+
+    if let Some(elicitation) = &script.elicits {
+        context
+            .elicit(
+                ElicitRequest::new(elicitation.question.as_str())
+                    .json_schema(elicitation.json_schema.clone()),
+            )
+            .await?;
+    }
+
+    Ok(script.returns.clone())
+}
+
+fn progress_update(entry: &Map<String, Value>) -> ProgressUpdate {
+    let mut update = ProgressUpdate::new();
+    if let Some(percent) = entry.get("percent").and_then(Value::as_f64) {
+        update = update.percent(percent);
+    }
+    if let Some(message) = entry.get("message").and_then(Value::as_str) {
+        update = update.message(message);
+    }
+    if let Some(data) = entry.get("data") {
+        update = update.data(data.clone());
+    }
+    update
+}
+
+fn build_resource(fixture: FixtureResource) -> Result<Resource, String> {
+    let updates = Arc::new(queued_updates(&fixture)?);
     let value = Arc::new(fixture.value);
-    Ok(Resource::new(fixture.name, move || {
+    let mut resource = Resource::new(fixture.name, move || {
         let value = Arc::clone(&value);
         async move { Ok(value.as_ref().clone()) }
     })
-    .description(fixture.description)
-    .subscribable(fixture.subscribable))
+    .description(fixture.description);
+
+    if fixture.subscribable {
+        resource = resource.subscribe(move |emitter| start_updates(&updates, emitter));
+    }
+    Ok(resource)
 }
 
-fn reject_unimplemented(
-    action: &str,
-    field: &str,
-    present: Option<&Value>,
-    capability: &str,
-) -> Result<(), String> {
-    if present.is_some() {
-        return Err(format!(
-            "action {action:?} needs {field}; declare {capability} in TESSERON_CONFORMANCE_UNSUPPORTED"
-        ));
+fn queued_updates(fixture: &FixtureResource) -> Result<Vec<Value>, String> {
+    fixture
+        .emits
+        .iter()
+        .enumerate()
+        .map(|(index, update)| {
+            update.get("value").cloned().ok_or_else(|| {
+                format!(
+                    "resource {:?}: emits[{index}] has no value",
+                    fixture.name.as_str()
+                )
+            })
+        })
+        .collect()
+}
+
+fn start_updates(updates: &Arc<Vec<Value>>, emitter: ResourceEmitter) -> Subscription {
+    let mut pushing = Vec::with_capacity(updates.len());
+    for (index, value) in updates.iter().enumerate() {
+        let emitter = emitter.clone();
+        let value = value.clone();
+        let position = u32::try_from(index).unwrap_or(u32::MAX);
+        let delay = UPDATE_SPACING * (position + 1);
+        pushing.push(tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            emitter.emit(value);
+        }));
     }
-    Ok(())
+    Subscription::new(move || {
+        for update in pushing {
+            update.abort();
+        }
+    })
 }
