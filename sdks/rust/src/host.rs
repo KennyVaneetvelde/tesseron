@@ -143,7 +143,13 @@ impl SharedHost {
         self.resume.lock().ok().and_then(|resume| resume.clone())
     }
 
-    pub(crate) fn forget_resume_credentials(&self) {
+    pub(crate) fn reset_session_state(&self) {
+        if let Ok(mut welcome) = self.welcome.lock() {
+            *welcome = None;
+        }
+        if let Ok(mut claim) = self.claim.lock() {
+            *claim = None;
+        }
         if let Ok(mut resume) = self.resume.lock() {
             *resume = None;
         }
@@ -162,12 +168,6 @@ impl SharedHost {
                 .resume_token
                 .clone()
                 .map(|token| (welcome.session_id.clone(), token));
-        }
-        // The welcome is applied by the handshake task while the read loop
-        // keeps running, so a claim that arrived right behind it can land
-        // first. Re-applying it here is what makes the two orders agree.
-        if let Some(claimed) = self.claim.lock().ok().and_then(|claim| claim.clone()) {
-            self.apply_claim(&claimed);
         }
     }
 
@@ -334,6 +334,10 @@ impl TesseronHostBuilder {
             .ok_or(HostError::MissingApplication)?;
         if !is_valid_application_id(&application.id) {
             return Err(HostError::InvalidApplicationId(application.id));
+        }
+
+        if !self.bind_address.ip().is_loopback() {
+            return Err(HostError::NonLoopbackBindAddress(self.bind_address));
         }
 
         let registry = self.build_registry()?;

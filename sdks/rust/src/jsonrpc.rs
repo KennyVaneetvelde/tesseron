@@ -1,18 +1,20 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Number, Value};
 
 use crate::error::ProtocolError;
 use crate::protocol::JSONRPC_VERSION;
 
 /// The `id` member correlating a JSON-RPC request with its response.
 ///
-/// JSON-RPC allows a string or a number and Tesseron peers use both, so the id
-/// is echoed back in whichever shape it arrived rather than normalised.
+/// JSON-RPC allows a string, any JSON number, or null. The id is echoed back in
+/// whichever shape it arrived rather than normalised.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum RequestId {
-    /// A numeric id, the shape this crate mints for its own requests.
-    Number(i64),
+    /// A null id still identifies a request and must receive a null response.
+    Null,
+    /// A numeric id, including unsigned and fractional JSON numbers.
+    Number(Number),
     /// A string id, the shape the gateway uses for invocations.
     Text(String),
 }
@@ -37,27 +39,42 @@ pub(crate) enum IncomingFrame {
         id: RequestId,
         error: ProtocolError,
     },
-    /// Valid JSON that is not a JSON-RPC 2.0 message this peer can act on.
+    InvalidRequest {
+        id: RequestId,
+        problem: String,
+    },
+    /// Valid JSON that is not an envelope this peer can act on.
     Malformed(String),
 }
 
 /// Sorts a decoded JSON value into its JSON-RPC shape.
 ///
 /// Presence, not nullness, decides: a success response carrying `"result": null`
-/// is a success, and `Option<Value>` deserialisation would have collapsed it
-/// into "absent".
+/// is a success, and a request carrying `"id": null` still expects a response.
 pub(crate) fn classify(frame: Value) -> IncomingFrame {
     let Value::Object(mut members) = frame else {
         return IncomingFrame::Malformed("envelope is not a JSON object".to_owned());
     };
-    let id = members.remove("id").and_then(parse_request_id);
+    let jsonrpc = members.remove("jsonrpc");
+    let raw_id = members.remove("id");
+    let id = raw_id.as_ref().and_then(parse_request_id);
+    if jsonrpc != Some(Value::String(JSONRPC_VERSION.to_owned())) {
+        return IncomingFrame::InvalidRequest {
+            id: id.unwrap_or(RequestId::Null),
+            problem: "envelope is missing jsonrpc: \"2.0\"".to_owned(),
+        };
+    }
+
     let method = members.remove("method");
     let params = members.remove("params").unwrap_or(Value::Null);
-
     if let Some(Value::String(method)) = method {
-        return match id {
-            Some(id) => IncomingFrame::Request { id, method, params },
-            None => IncomingFrame::Notification { method, params },
+        return match (raw_id.is_some(), id) {
+            (false, _) => IncomingFrame::Notification { method, params },
+            (true, Some(id)) => IncomingFrame::Request { id, method, params },
+            (true, None) => IncomingFrame::InvalidRequest {
+                id: RequestId::Null,
+                problem: "request id is not a string, number, or null".to_owned(),
+            },
         };
     }
 
@@ -77,10 +94,11 @@ pub(crate) fn classify(frame: Value) -> IncomingFrame {
     IncomingFrame::Malformed("response has neither a result nor an error".to_owned())
 }
 
-fn parse_request_id(value: Value) -> Option<RequestId> {
+fn parse_request_id(value: &Value) -> Option<RequestId> {
     match value {
-        Value::String(text) => Some(RequestId::Text(text)),
-        Value::Number(number) => number.as_i64().map(RequestId::Number),
+        Value::Null => Some(RequestId::Null),
+        Value::String(text) => Some(RequestId::Text(text.clone())),
+        Value::Number(number) => Some(RequestId::Number(number.clone())),
         _ => None,
     }
 }
@@ -142,7 +160,8 @@ fn envelope_with_id(id: &RequestId) -> Map<String, Value> {
     envelope.insert(
         "id".to_owned(),
         match id {
-            RequestId::Number(number) => Value::from(*number),
+            RequestId::Null => Value::Null,
+            RequestId::Number(number) => Value::Number(number.clone()),
             RequestId::Text(text) => Value::String(text.clone()),
         },
     );
@@ -158,7 +177,7 @@ mod tests {
         let frame = classify(serde_json::json!({ "jsonrpc": "2.0", "id": 1, "result": null }));
         match frame {
             IncomingFrame::Success { id, result } => {
-                assert_eq!(id, RequestId::Number(1));
+                assert_eq!(id, RequestId::Number(Number::from(1)));
                 assert_eq!(result, Value::Null);
             }
             other => panic!("expected a success, got {other:?}"),
@@ -176,20 +195,48 @@ mod tests {
     }
 
     #[test]
-    fn a_method_with_an_id_is_a_request() {
+    fn a_method_with_a_null_id_is_a_request() {
         let frame = classify(serde_json::json!({
             "jsonrpc": "2.0",
-            "id": "inv-1",
+            "id": null,
             "method": "actions/invoke",
             "params": {}
         }));
-        match frame {
-            IncomingFrame::Request { id, method, .. } => {
-                assert_eq!(id, RequestId::Text("inv-1".to_owned()));
-                assert_eq!(method, "actions/invoke");
+        assert!(matches!(
+            frame,
+            IncomingFrame::Request {
+                id: RequestId::Null,
+                ..
             }
-            other => panic!("expected a request, got {other:?}"),
+        ));
+    }
+
+    #[test]
+    fn ids_keep_their_original_json_number() {
+        for id in [
+            serde_json::json!(u64::MAX),
+            serde_json::json!(-1),
+            serde_json::json!(1.5),
+        ] {
+            let frame = classify(serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "actions/invoke",
+                "params": {}
+            }));
+            match frame {
+                IncomingFrame::Request { id: request_id, .. } => {
+                    assert_eq!(envelope_with_id(&request_id)["id"], id);
+                }
+                other => panic!("expected a request, got {other:?}"),
+            }
         }
+    }
+
+    #[test]
+    fn a_missing_jsonrpc_member_is_an_invalid_request() {
+        let frame = classify(serde_json::json!({ "id": "inv-1", "method": "actions/invoke" }));
+        assert!(matches!(frame, IncomingFrame::InvalidRequest { .. }));
     }
 
     #[test]
