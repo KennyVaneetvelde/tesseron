@@ -25,6 +25,7 @@ const FILTERS: readonly Filter[] = ['all', 'active', 'completed'];
 // --- Pub/sub for subscribable resources ---------------------------------
 const filterSubs = new Set<(v: Filter) => void>();
 const statsSubs = new Set<(v: ReturnType<typeof readStats>) => void>();
+const todoSubscribers = new Set<(v: Todo[]) => void>();
 
 function readStats(): { total: number; completed: number; pending: number } {
   return {
@@ -41,6 +42,10 @@ function notifyFilter(): void {
 function notifyStats(): void {
   const v = readStats();
   statsSubs.forEach((fn) => fn(v));
+}
+function notifyTodos(): void {
+  const todoSnapshot = state.todos;
+  todoSubscribers.forEach((subscriber) => subscriber(todoSnapshot));
 }
 
 tesseron.app({
@@ -60,6 +65,7 @@ tesseron
     state.todos = [...state.todos, todo];
     render();
     notifyStats();
+    notifyTodos();
     return todo;
   });
 
@@ -79,6 +85,7 @@ tesseron
     if (!updated) throw new Error(`No todo with id "${id}"`);
     render();
     notifyStats();
+    notifyTodos();
     return updated;
   });
 
@@ -93,6 +100,7 @@ tesseron
     if (state.todos.length === before) throw new Error(`No todo with id "${id}"`);
     render();
     notifyStats();
+    notifyTodos();
     return { id, removed: true };
   });
 
@@ -143,6 +151,7 @@ tesseron
     state.lastLog = `clearCompleted removed ${removable} todo${removable === 1 ? '' : 's'}`;
     render();
     notifyStats();
+    notifyTodos();
     return { removed: removable };
   });
 
@@ -175,6 +184,7 @@ tesseron
     state.lastLog = `renameTodo ${id}: "${todo.text}" → "${answer.newName}"`;
     render();
     notifyStats();
+    notifyTodos();
     return { id, renamed: true, newName: answer.newName };
   });
 
@@ -207,6 +217,7 @@ tesseron
       });
       render();
       notifyStats();
+      notifyTodos();
     }
     return { added: added.length, ids: added.map((t) => t.id) };
   });
@@ -248,6 +259,7 @@ tesseron
     });
     render();
     notifyStats();
+    notifyTodos();
     return { theme, added: added.length, ids: added.map((t) => t.id) };
   });
 
@@ -269,6 +281,15 @@ tesseron
   .subscribe((emit) => {
     statsSubs.add(emit);
     return () => statsSubs.delete(emit);
+  });
+
+tesseron
+  .resource<Todo[]>('todos://all')
+  .describe('The complete todo list. Pushed on every mutation.')
+  .read(() => state.todos)
+  .subscribe((emit) => {
+    todoSubscribers.add(emit);
+    return () => todoSubscribers.delete(emit);
   });
 
 const root = document.getElementById('root');
@@ -361,7 +382,8 @@ function render(): void {
         <p>
           Resources (subscribable):
           <code>tesseron://vanilla_todo/currentFilter</code>,
-          <code>tesseron://vanilla_todo/todoStats</code>.
+          <code>tesseron://vanilla_todo/todoStats</code>,
+          <code>tesseron://vanilla_todo/todos://all</code>.
         </p>
       </footer>
     </main>
@@ -395,6 +417,7 @@ function render(): void {
       state.todos = state.todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t));
       render();
       notifyStats();
+      notifyTodos();
     });
   });
 
@@ -404,6 +427,7 @@ function render(): void {
       state.todos = state.todos.filter((t) => t.id !== id);
       render();
       notifyStats();
+      notifyTodos();
     });
   });
 }
@@ -415,6 +439,7 @@ function addFromInput(): void {
   state.input = '';
   render();
   notifyStats();
+  notifyTodos();
 }
 
 render();

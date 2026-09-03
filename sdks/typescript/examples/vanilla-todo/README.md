@@ -47,7 +47,9 @@ Open <http://localhost:5173>.
 | `vanilla_todo__listTodos` | `{ filter?: 'all'\|'active'\|'completed' }` | Read-only snapshot. |
 | `vanilla_todo__setFilter` | `{ filter: 'all'\|'active'\|'completed' }` | Changes the visible filter. |
 
-Subscribable resources: `tesseron://vanilla_todo/currentFilter`, `tesseron://vanilla_todo/todoStats`.
+The `todos://all` resource returns the complete todo list and pushes every todo mutation to subscribers.
+
+Subscribable resources: `tesseron://vanilla_todo/currentFilter`, `tesseron://vanilla_todo/todoStats`, `tesseron://vanilla_todo/todos://all`.
 
 ## How it works
 

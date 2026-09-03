@@ -39,6 +39,7 @@ export function App(): JSX.Element {
   // Subscriber registries — pushed when state changes.
   const filterSubs = useRef(new Set<(v: Filter) => void>());
   const statsSubs = useRef(new Set<(v: Stats) => void>());
+  const todoSubscribers = useRef(new Set<(v: Todo[]) => void>());
 
   const stats: Stats = {
     total: todos.length,
@@ -52,6 +53,7 @@ export function App(): JSX.Element {
   }, [filter]);
   useEffect(() => {
     statsSubs.current.forEach((fn) => fn(stats));
+    todoSubscribers.current.forEach((subscriber) => subscriber(todos));
     // Stats is derived from todos; depending on `todos` is the correct trigger.
   }, [todos]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -272,6 +274,15 @@ export function App(): JSX.Element {
     },
   });
 
+  useTesseronResource<Todo[]>('todos://all', {
+    description: 'The complete todo list. Pushed on every mutation.',
+    read: () => todosRef.current,
+    subscribe: (emit) => {
+      todoSubscribers.current.add(emit);
+      return () => todoSubscribers.current.delete(emit);
+    },
+  });
+
   const visibleTodos = todos.filter((t) => {
     if (filter === 'active') return !t.done;
     if (filter === 'completed') return t.done;
@@ -387,7 +398,8 @@ export function App(): JSX.Element {
         </p>
         <p>
           Resources (subscribable): <code>tesseron://todos/currentFilter</code>,{' '}
-          <code>tesseron://todos/todoStats</code>.
+          <code>tesseron://todos/todoStats</code>,{' '}
+          <code>tesseron://todos/todos://all</code>.
         </p>
       </footer>
     </main>

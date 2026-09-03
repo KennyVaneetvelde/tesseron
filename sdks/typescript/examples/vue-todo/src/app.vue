@@ -38,8 +38,10 @@ const stats = computed(() => ({
 // --- Pub/sub for subscribable resources ---------------------------
 const filterSubs = new Set<(v: Filter) => void>();
 const statsSubs = new Set<(v: typeof stats.value) => void>();
+const todoSubscribers = new Set<(v: Todo[]) => void>();
 watch(filter, (v) => filterSubs.forEach((fn) => fn(v)));
 watch(stats, (v) => statsSubs.forEach((fn) => fn(v)), { deep: true });
+watch(todos, (value) => todoSubscribers.forEach((subscriber) => subscriber(value)), { deep: true });
 
 tesseron.app({
   id: 'vue_todo',
@@ -251,6 +253,15 @@ tesseron
     return () => statsSubs.delete(emit);
   });
 
+tesseron
+  .resource<Todo[]>('todos://all')
+  .describe('The complete todo list. Pushed on every mutation.')
+  .read(() => todos.value)
+  .subscribe((emit) => {
+    todoSubscribers.add(emit);
+    return () => todoSubscribers.delete(emit);
+  });
+
 function addInput(): void {
   const trimmed = input.value.trim();
   if (!trimmed) return;
@@ -358,7 +369,8 @@ const connection = tesseronConnection();
       <p>
         Resources (subscribable):
         <code>tesseron://vue_todo/currentFilter</code>,
-        <code>tesseron://vue_todo/todoStats</code>.
+        <code>tesseron://vue_todo/todoStats</code>,
+        <code>tesseron://vue_todo/todos://all</code>.
       </p>
     </footer>
   </main>

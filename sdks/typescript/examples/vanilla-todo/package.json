@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate:e2e": "node scripts/validate-e2e.mjs"
   },
   "dependencies": {
     "@tesseron/web": "workspace:*",
