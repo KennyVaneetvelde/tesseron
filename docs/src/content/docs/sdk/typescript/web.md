@@ -94,6 +94,18 @@ await tesseron.connect(undefined, { resume: keychain });
 
 Throws inside `load`/`save`/`clear` are non-fatal: the SDK treats a thrown `load()` as no saved creds, and thrown `save()` / `clear()` as silent best-effort. Storage misbehaviour can't fail-close the connection.
 
+### WebMCP bridge (opt-in)
+
+Pass one flag when you want browser-native agents to see the same actions:
+
+```ts
+await tesseron.connect(undefined, { webmcp: true });
+```
+
+The client registers every Tesseron action as a WebMCP tool, using the same description and input JSON Schema sent in the Tesseron hello manifest. Actions added later show up too. Removing an action or calling `disconnect()` unregisters it.
+
+It's off by default because WebMCP calls the page directly and skips Tesseron's click-to-connect claim flow. Turn it on only when that direct browser-agent access is what you want. The SDK checks `document.modelContext` first, then `navigator.modelContext`. Browsers without either API keep connecting normally and log one debug message.
+
 ### Re-entry safety
 
 `tesseron.connect()` is idempotent against re-entry. Two concurrent calls to the URL form with the same URL and the same `resume` credentials share a single in-flight promise (and a single WebSocket); the second caller does not open a parallel socket. This matters under React 18 StrictMode (mount → cleanup → remount), Vite HMR re-running module-scope `connect()`, and any flow that flips a connection-gating boolean rapidly. Without de-dup, the gateway would receive two `tesseron/resume` requests carrying the same single-shot token; the first would consume the zombie session and rotate, and the second would invariably fail with `ResumeFailed`. Connect-after-connect (a fresh call against an already-open transport) eagerly closes the prior socket, waits for its close handler to drain, and only then starts the new handshake — so dispatcher state never overlaps between the dying and the new transport.
