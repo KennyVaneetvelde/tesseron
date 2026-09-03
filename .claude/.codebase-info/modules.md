@@ -1,6 +1,6 @@
 # Modules
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 Nine published packages, all at **2.10.1**. Eight are in one changesets `fixed` group;
 `@tesseron/docs-mcp` releases on its own. See [release-and-plugin.md](release-and-plugin.md).
@@ -144,10 +144,14 @@ The application half of the protocol in Rust, written from the spec pages with t
 as reference only where the spec is silent. `Tesseron::builder().application(..).action(..)
 .listen().await` binds a loopback WebSocket on port 0, writes the v2 instance manifest (`0600` in a
 `0700` dir, advisory on Windows), and the gateway dials in; `HostEvent::Welcome` carries the
-gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. Part 1 (SQ-15)
-covers handshake, claiming, resume with in-memory token rotation, invoke with validation and
-cancel, and resource reads; streaming, subscriptions, sampling, and elicitation report `false`
-until part 2. `conformance-host/` is the fixture adapter the runner drives.
+gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. Covers handshake,
+claiming, resume with in-memory token rotation, invoke with validation and cancel, `ActionContext`
+with `progress` (percent clamped to 0..=100 and never below the ceiling already sent), `confirm`,
+`elicit`/`elicit_as` (schema rejection matrix in `elicit_schema.rs`, checked before the wire),
+`sample`/`sample_as`, `log`, and resources with subscribe/unsubscribe and `resources/updated`
+pushes. Only host-minted claims are missing, by design. A per-connection handshake gate in
+`session.rs` holds invocations and claims that arrive before the welcome is applied.
+`conformance-host/` is the fixture adapter the runner drives.
 
 ## Not packages
 

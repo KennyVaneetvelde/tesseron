@@ -1,6 +1,6 @@
 # Directory structure
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 Monorepo laid out as a **hub**: the language-neutral pieces (spec, gateway, conformance, docs, plugin)
 sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript and Rust
@@ -34,7 +34,7 @@ tesseron/
 │           └── node-prompts/     @tesseron/server, headless, has validate:e2e
 │   └── rust/                 cargo workspace: crate `tesseron` 0.1.0 is the ROOT package (not a
 │       │                     virtual manifest, so `cargo fmt --manifest-path` has a target)
-│       ├── src/              protocol, jsonrpc, error, manifest, host, session, action, resource, context
+│       ├── src/              protocol, jsonrpc, error, manifest, host, session, action, resource, context, elicit_schema
 │       ├── tests/            gateway_session.rs: 9 WebSocket integration tests playing the gateway
 │       └── conformance-host/ member crate, private bin tesseron-conformance-host
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
@@ -44,7 +44,7 @@ tesseron/
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
 │   ├── fixtures/             34 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
-│   ├── run-reference.mjs     `pnpm conformance:run`: runner against the TS reference host
+│   ├── run-reference.mjs     `pnpm conformance:run` (TS host) / `conformance:run:rust`; takes --host, --unsupported
 │   └── runner/               @tesseron/conformance 1.2.x, bin tesseron-conformance, depends on ws only
 ├── plugin/                   the Claude Code plugin (also accepted by Codex)
 │   ├── skills/

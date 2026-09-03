@@ -1,6 +1,6 @@
 # Testing and verification
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 Vitest 2.x everywhere. Every `test` script is literally `vitest run`. No Jest, no `node:test`.
 
@@ -87,9 +87,11 @@ runner error. Fixtures whose `requires` the host lacks (declared via
 `TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped. On Windows the six `uds` fixtures skip because
 `run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check.
 
-The Rust host runs the same corpus: `node conformance/runner/dist/tesseron-conformance.cjs --host
-"sdks/rust/target/debug/tesseron-conformance-host"` with `TESSERON_CONFORMANCE_UNSUPPORTED` set
-as in `ci.yml:120`. A `--host` that is only a path is resolved to its absolute native form
+The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
+"sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim` (the script
+takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). Expected
+on Windows: 24 passed, 10 skipped (9 `bind/*` plus `uds/file-mode`), 0 failed; on Linux only the
+9 `bind/*` skip. A `--host` that is only a path is resolved to its absolute native form
 (`conformance/runner/src/runner.ts` `resolveHostCommand`, 7 tests in `test/host-command.test.ts`),
 because cmd.exe otherwise splits a relative forward-slash path at the first slash. Every `bind/*`
 fixture requires `host-minted-claim`, which the Rust SDK skips by design (gateway-minted claims
@@ -105,5 +107,6 @@ pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 20 unit + 9 integration + 3 host + 1 doctest
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 40 unit + 19 integration + 3 host + 1 doctest
+pnpm conformance:run:rust          # the corpus against the Rust host
 ```

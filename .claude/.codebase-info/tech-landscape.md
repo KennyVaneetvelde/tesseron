@@ -1,6 +1,6 @@
 # Tech landscape
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 | Concern | Choice | Source of truth |
 |---|---|---|
@@ -76,8 +76,8 @@ Four workflows in `.github/workflows/`:
   ships that prose.
 - **`ci.yml` `rust` job** (`:64-121`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
   with `-D warnings`, `cargo test --workspace`, build, then the conformance runner against the Rust
-  host with `TESSERON_CONFORMANCE_UNSUPPORTED` naming every capability the host lacks. The runner
-  cross-checks that list against the hello flags, so the list must shrink as capabilities land.
+  host through `pnpm conformance:run:rust` (`--unsupported host-minted-claim`). The runner
+  cross-checks that list against the hello flags, so a capability declared true while listed fails.
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.
   `pnpm sync-labels` pushes that file to GitHub.
