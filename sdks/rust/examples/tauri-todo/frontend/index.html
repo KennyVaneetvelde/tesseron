@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tesseron Todo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1a1d29;
+        background: #f4f5f8;
+        font-synthesis: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(101, 76, 255, 0.12), transparent 34rem),
+          #f4f5f8;
+      }
+
+      main {
+        width: min(100% - 2rem, 680px);
+        margin: 0 auto;
+        padding: 2.5rem 0 3rem;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .mark {
+        display: grid;
+        width: 2.75rem;
+        height: 2.75rem;
+        place-items: center;
+        border-radius: 0.9rem;
+        color: white;
+        background: #5a45e8;
+        box-shadow: 0 0.75rem 1.75rem rgba(90, 69, 232, 0.22);
+        font-size: 1.25rem;
+        font-weight: 750;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 1.55rem;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+      }
+
+      .subtitle {
+        margin-top: 0.2rem;
+        color: #64697a;
+        font-size: 0.9rem;
+      }
+
+      .connection {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.85rem;
+        align-items: start;
+        margin-bottom: 1.25rem;
+        padding: 1rem 1.1rem;
+        border: 1px solid #dfdcec;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 0.35rem 1.5rem rgba(27, 26, 47, 0.06);
+      }
+
+      .status-dot {
+        width: 0.7rem;
+        height: 0.7rem;
+        margin-top: 0.35rem;
+        border-radius: 999px;
+        background: #9a9eac;
+        box-shadow: 0 0 0 0.28rem rgba(154, 158, 172, 0.14);
+      }
+
+      .connection[data-state="readyToClaim"] .status-dot {
+        background: #df8a16;
+        box-shadow: 0 0 0 0.28rem rgba(223, 138, 22, 0.14);
+      }
+
+      .connection[data-state="claimed"] .status-dot {
+        background: #259f6b;
+        box-shadow: 0 0 0 0.28rem rgba(37, 159, 107, 0.14);
+      }
+
+      .connection[data-state="failed"] .status-dot {
+        background: #ce4559;
+        box-shadow: 0 0 0 0.28rem rgba(206, 69, 89, 0.14);
+      }
+
+      .connection-title {
+        font-size: 0.93rem;
+        font-weight: 700;
+      }
+
+      .connection-copy {
+        margin-top: 0.2rem;
+        color: #676b7a;
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+
+      .claim-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: center;
+        margin-top: 0.65rem;
+      }
+
+      .claim-label {
+        color: #777b89;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      #claim-code {
+        padding: 0.35rem 0.55rem;
+        border-radius: 0.45rem;
+        color: #3f2dc4;
+        background: #eeebff;
+        font: 700 0.95rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+        letter-spacing: 0.08em;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid #e1e2e8;
+        border-radius: 1rem;
+        background: #fff;
+        box-shadow: 0 0.35rem 1.5rem rgba(27, 26, 47, 0.06);
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.45fr) auto;
+        gap: 0.6rem;
+        padding: 1rem;
+        border-bottom: 1px solid #ebecef;
+      }
+
+      input,
+      button {
+        min-height: 2.75rem;
+        border-radius: 0.65rem;
+        font: inherit;
+      }
+
+      input {
+        min-width: 0;
+        border: 1px solid #d9dbe3;
+        padding: 0 0.8rem;
+        color: #1a1d29;
+        background: #fbfbfd;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: #705ceb;
+        box-shadow: 0 0 0 0.2rem rgba(112, 92, 235, 0.14);
+      }
+
+      button {
+        border: 0;
+        padding: 0 1rem;
+        color: #fff;
+        background: #5a45e8;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button:hover {
+        background: #4935d4;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.58;
+      }
+
+      .list-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.1rem 0.7rem;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.01em;
+      }
+
+      #todo-count {
+        color: #737786;
+        font-size: 0.8rem;
+      }
+
+      #todo-list {
+        margin: 0;
+        padding: 0 0.65rem 0.65rem;
+        list-style: none;
+      }
+
+      .todo {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+        min-height: 3.65rem;
+        padding: 0.65rem 0.5rem;
+        border-top: 1px solid #f0f0f3;
+      }
+
+      .todo input[type="checkbox"] {
+        width: 1.15rem;
+        height: 1.15rem;
+        min-height: auto;
+        accent-color: #5a45e8;
+        cursor: pointer;
+      }
+
+      .todo-copy {
+        min-width: 0;
+      }
+
+      .todo-text {
+        overflow: hidden;
+        color: #272a35;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .todo.done .todo-text {
+        color: #898d99;
+        text-decoration: line-through;
+      }
+
+      .todo-tag {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.16rem 0.42rem;
+        border-radius: 999px;
+        color: #6252bd;
+        background: #f0edff;
+        font-size: 0.7rem;
+        font-weight: 700;
+      }
+
+      .delete {
+        width: 2.35rem;
+        min-height: 2.35rem;
+        padding: 0;
+        color: #8d5360;
+        background: transparent;
+        font-size: 1.2rem;
+      }
+
+      .delete:hover {
+        color: #b52f49;
+        background: #fff0f3;
+      }
+
+      .empty {
+        padding: 3.25rem 1.25rem 3.5rem;
+        color: #858996;
+        text-align: center;
+      }
+
+      .empty strong {
+        display: block;
+        margin-bottom: 0.3rem;
+        color: #555967;
+      }
+
+      #error {
+        margin-top: 0.8rem;
+        color: #b52f49;
+        font-size: 0.85rem;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 620px) {
+        main {
+          width: min(100% - 1rem, 680px);
+          padding-top: 1.25rem;
+        }
+
+        form {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark" aria-hidden="true">T</div>
+        <div>
+          <h1>Tesseron Todo</h1>
+          <p class="subtitle">The list lives in Rust. Claude Code can change it.</p>
+        </div>
+      </header>
+
+      <section class="connection" id="connection" data-state="waiting" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+          <p class="connection-title" id="connection-title">Waiting for the Tesseron gateway</p>
+          <p class="connection-copy" id="connection-copy">
+            Start the Tesseron MCP gateway, then claim this app from Claude Code.
+          </p>
+          <div class="claim-row" id="claim-row" hidden>
+            <span class="claim-label">Claim code</span>
+            <code id="claim-code"></code>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="todo-heading">
+        <form id="add-form">
+          <input id="todo-text" name="text" required minlength="1" autocomplete="off" placeholder="Add a todo" aria-label="Todo text" />
+          <input id="todo-tag" name="tag" autocomplete="off" placeholder="Tag (optional)" aria-label="Todo tag" />
+          <button type="submit">Add</button>
+        </form>
+
+        <div class="list-heading">
+          <h2 id="todo-heading">Todo list</h2>
+          <span id="todo-count">0 items</span>
+        </div>
+        <ul id="todo-list"></ul>
+        <div class="empty" id="empty-state">
+          <strong>No todos yet</strong>
+          Add one here, or ask Claude Code to call <code>addTodo</code>.
+        </div>
+      </section>
+      <p id="error" role="alert" hidden></p>
+    </main>
+
+    <script type="module">
+      const { invoke } = window.__TAURI__.core;
+      const { listen } = window.__TAURI__.event;
+
+      const addForm = document.querySelector("#add-form");
+      const todoTextInput = document.querySelector("#todo-text");
+      const todoTagInput = document.querySelector("#todo-tag");
+      const todoList = document.querySelector("#todo-list");
+      const todoCount = document.querySelector("#todo-count");
+      const emptyState = document.querySelector("#empty-state");
+      const errorMessage = document.querySelector("#error");
+      const connectionPanel = document.querySelector("#connection");
+      const connectionTitle = document.querySelector("#connection-title");
+      const connectionInstructions = document.querySelector("#connection-copy");
+      const claimRow = document.querySelector("#claim-row");
+      const claimCode = document.querySelector("#claim-code");
+
+      function showError(problem) {
+        errorMessage.textContent = String(problem);
+        errorMessage.hidden = false;
+      }
+
+      function clearError() {
+        errorMessage.hidden = true;
+        errorMessage.textContent = "";
+      }
+
+      function renderTodos(todos) {
+        todoList.replaceChildren();
+        emptyState.hidden = todos.length !== 0;
+        todoCount.textContent = `${todos.length} ${todos.length === 1 ? "item" : "items"}`;
+
+        for (const todo of todos) {
+          const item = document.createElement("li");
+          item.className = todo.done ? "todo done" : "todo";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = todo.done;
+          checkbox.setAttribute("aria-label", `Toggle ${todo.text}`);
+          checkbox.addEventListener("change", async () => {
+            clearError();
+            try {
+              await invoke("toggle_todo", { identifier: todo.id });
+            } catch (problem) {
+              showError(problem);
+              await refreshTodos();
+            }
+          });
+
+          const todoDetails = document.createElement("div");
+          todoDetails.className = "todo-copy";
+          const todoTextElement = document.createElement("p");
+          todoTextElement.className = "todo-text";
+          todoTextElement.textContent = todo.text;
+          todoDetails.append(todoTextElement);
+          if (todo.tag) {
+            const todoTagElement = document.createElement("span");
+            todoTagElement.className = "todo-tag";
+            todoTagElement.textContent = todo.tag;
+            todoDetails.append(todoTagElement);
+          }
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "delete";
+          deleteButton.textContent = "×";
+          deleteButton.setAttribute("aria-label", `Delete ${todo.text}`);
+          deleteButton.addEventListener("click", async () => {
+            clearError();
+            try {
+              await invoke("delete_todo", { identifier: todo.id });
+            } catch (problem) {
+              showError(problem);
+            }
+          });
+
+          item.append(checkbox, todoDetails, deleteButton);
+          todoList.append(item);
+        }
+      }
+
+      function renderConnection(status) {
+        connectionPanel.dataset.state = status.state;
+        connectionTitle.textContent = status.message;
+        claimRow.hidden = !status.claimCode;
+        claimCode.textContent = status.claimCode ?? "";
+
+        if (status.state === "readyToClaim") {
+          connectionInstructions.textContent = "In Claude Code, claim this session with the code below.";
+        } else if (status.state === "claimed") {
+          connectionInstructions.textContent = "Agent actions update this window as soon as they finish.";
+        } else if (status.state === "failed") {
+          connectionInstructions.textContent = "Check the gateway output, then restart the app.";
+        } else {
+          connectionInstructions.textContent = "Start the Tesseron MCP gateway, then claim this app from Claude Code.";
+        }
+      }
+
+      async function refreshTodos() {
+        renderTodos(await invoke("list_todos"));
+      }
+
+      addForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearError();
+        const submitButton = addForm.querySelector("button[type='submit']");
+        submitButton.disabled = true;
+        try {
+          await invoke("add_todo", {
+            text: todoTextInput.value.trim(),
+            tag: todoTagInput.value.trim() || null,
+          });
+          addForm.reset();
+          todoTextInput.focus();
+        } catch (problem) {
+          showError(problem);
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+
+      await listen("todos-updated", (event) => renderTodos(event.payload));
+      await listen("connection-updated", (event) => renderConnection(event.payload));
+
+      try {
+        await refreshTodos();
+        renderConnection(await invoke("connection_status"));
+      } catch (problem) {
+        showError(problem);
+      }
+    </script>
+  </body>
+</html>

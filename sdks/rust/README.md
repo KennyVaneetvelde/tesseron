@@ -90,6 +90,21 @@ Run `cargo run --manifest-path sdks/rust/examples/todo/Cargo.toml` for the headl
 Run `cargo run --manifest-path sdks/rust/examples/prompts/Cargo.toml` for the prompt library.
 Each prints a claim code after the gateway connects. In Claude Code with the Tesseron plugin loaded, tell Claude to claim that code, then call the actions.
 
+The Tauri 2 example puts the same todo list in a desktop window. Its Rust commands and its eight agent actions mutate one shared store, and the headless and desktop apps import the same action registrations, schemas, and `todos://all` resource from `examples/todo`. Agent mutations emit a Tauri event so the open window updates without a refresh.
+
+This is the exact Windows command sequence used to check and run it:
+
+```bash
+cargo install tauri-cli --locked
+cargo check --manifest-path sdks/rust/Cargo.toml -p tauri-todo
+cd sdks/rust/examples/tauri-todo
+cargo tauri dev
+```
+
+The window shows the claim code from the gateway. Claim it in Claude Code, then call `rust_tauri_todo__addTodo`; the new item appears in the list.
+
+CI passes `--exclude tauri-todo` to its workspace clippy, test, and build commands, then runs `cargo check -p tauri-todo` only on Windows. Tauri needs GTK and WebKit development packages on Linux, and installing that desktop stack would slow down the Ubuntu SDK job without adding protocol coverage. The Windows check compiles the example without bundling an installer.
+
 ## Working on it
 
 Edition 2024, MSRV 1.85. `Cargo.lock` is committed because the workspace holds a
