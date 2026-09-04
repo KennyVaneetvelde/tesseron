@@ -1,15 +1,16 @@
 # Tesseron codebase map
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 Tesseron exposes typed app actions to MCP-compatible AI agents over WebSocket. No browser
 automation, no scraping. pnpm + turbo monorepo in a **hub layout** since 2026-09-03: the TypeScript
 SDK (seven packages plus 6 example apps) under `sdks/typescript/`, the gateway at `gateway/`, the
 docs server at `docs-mcp/`, a Starlight docs site, a language-neutral conformance corpus with an executable runner
 (`@tesseron/conformance`), and a version-coupled Claude Code plugin. 9 published packages at 2.10.1 (eight in one changesets `fixed`
-group, docs-mcp released separately). A Rust SDK (`tesseron` 0.1.0, unpublished) lives at
-`sdks/rust/` and passes the handshake and resume fixtures; Python and C++ follow the same
-`sdks/<language>/` path, and each language later gets its own repo.
+group, docs-mcp released separately). A Rust SDK (`sdks/rust/`, crate `tesseron` 0.1.0) and a Python SDK
+(`sdks/python/`, PyPI `tesseron` 0.1.0), both unpublished, run the full corpus through their own
+conformance hosts; C++ follows the same `sdks/<language>/` path, and each language later gets its
+own repo.
 
 **The one thing to know:** the app listens and the gateway dials *out* to it. `@tesseron/mcp` has no
 port and no `start()`; it watches `~/.tesseron/instances/` for manifests the app wrote.
@@ -18,7 +19,7 @@ port and no `start()`; it watches `~/.tesseron/instances/` for manifests the app
 |---|---|
 | [architecture.md](architecture.md) | the three moving parts, one invocation end to end, claiming, sessions |
 | [protocol.md](protocol.md) | wire format, methods, notifications, error codes, handshake, resume |
-| [modules.md](modules.md) | what each package owns; core vs the consumer SDKs; the Rust crate |
+| [modules.md](modules.md) | what each package owns; core vs the consumer SDKs; the Rust crate; the Python package |
 | [gateway.md](gateway.md) | `@tesseron/mcp` internals, MCP projection, and the docs-mcp snapshot |
 | [entry-points.md](entry-points.md) | binaries, the five core entry points, where execution begins |
 | [directory-structure.md](directory-structure.md) | annotated tree, dependency fan, things that aren't where you'd guess |

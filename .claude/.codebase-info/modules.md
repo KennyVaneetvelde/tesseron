@@ -159,6 +159,17 @@ the action registrations, and the `todos://all` resource, and both binaries impo
 cannot drift. The Tauri app holds the host in `tauri::State` and emits a Tauri event from the action
 handlers so the window re-renders after an agent mutation.
 
+## `tesseron` (Python, `sdks/python/`)
+
+The same application half in asyncio Python. `TesseronApp(id, name)` with `@app.action(name)`
+decorators that read the input type from the handler annotation (a Pydantic model; the
+validation-mode JSON Schema is published unchanged, no adapter, or pass `input_schema=` raw),
+`app.resource(name, read=...)` for reads and subscriptions, `await app.listen()` returning a
+`TesseronHost` bound on loopback port 0 with the v2 manifest written, and an `ActionContext` with the same progress, confirm, elicit, sample, and log surface as
+Rust. `jsonrpc.py` classifies frames, `session.py` runs the handshake gate and dispatch, `errors.py`
+carries the 17 codes. `conformance_host/` sits beside `src/tesseron`, drives the fixture DSL, and
+stays out of the wheel. Docs live at `docs/src/content/docs/sdk/python/`.
+
 ## Not packages
 
 `packages/` and `examples/` no longer exist in git. If they are on disk they are untracked

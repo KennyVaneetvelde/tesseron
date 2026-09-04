@@ -3,9 +3,10 @@
 *Last Updated: 2026-09-04*
 
 Monorepo laid out as a **hub**: the language-neutral pieces (spec, gateway, conformance, docs, plugin)
-sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript and Rust
+sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript, Rust, and Python
 exist today. 56 tracked TypeScript source files under `sdks/typescript/*/src`, `gateway/src`, and
-`docs-mcp/src`, plus ~4k lines of Rust under `sdks/rust/`.
+`docs-mcp/src`, plus ~4k lines of Rust under `sdks/rust/` and ~2.5k lines of Python under
+`sdks/python/src/tesseron/`.
 The layout landed on 2026-09-03 (commit 4ca98ea); it is the in-place precursor to per-language
 repos, so nothing under `sdks/typescript/` should reach up to `gateway/` except through
 `@tesseron/core`.
@@ -40,8 +41,12 @@ tesseron/
 │       └── examples/         todo/ and prompts/ (headless daemons, canonical action set, workspace members)
 │           │                 validate-e2e.mjs drives both through the real gateway: `pnpm example:rust:e2e`
 │           └── tauri-todo/   Tauri 2 window over the same store; imports todo/src/lib.rs, CI checks it on Windows only
+│   └── python/               uv project: PyPI `tesseron` 0.1.0 (unpublished), Python >= 3.11, Hatchling
+│       ├── src/tesseron/     action, context, elicit_schema, errors, host, jsonrpc, manifest, protocol, resource, session
+│       ├── conformance_host/ fixture adapter the runner drives; beside the package, so it is NOT in the wheel
+│       └── tests/            pytest, 98 tests; mypy --strict and ruff gate the whole tree
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
-│   └── src/content/docs/     44 pages. docs-mcp bakes these in at build time.
+│   └── src/content/docs/     49 pages (six under sdk/python/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
@@ -97,7 +102,8 @@ The dependency shape is a fan, not a chain:
 - `sdks/typescript/vite/tsconfig.json` is the only one that does not extend `tsconfig.base.json`.
 - `sdks/typescript/examples/` is in the pnpm workspace but **excluded from Biome** (`biome.json:8`), so example code
   is neither linted nor formatted.
-- `sdks/rust/` must never reference a path above its own prefix; it is lifted into its own repo
-  at the split milestone. `conformance/` may reference `sdks/`, the reverse is forbidden.
+- `sdks/rust/` and `sdks/python/` must never reference a path above their own prefix; each is lifted
+  into its own repo at the split milestone. `conformance/` may reference `sdks/`, the reverse is forbidden.
+- `sdks/python/` is excluded from Biome (`biome.json`) and invisible to pnpm; ruff owns its formatting.
 - `packages/` and `examples/` may still exist on disk in an old checkout. They are untracked
   leftovers (`node_modules/`, `.turbo/`) from before the move; git holds nothing there. Delete them.

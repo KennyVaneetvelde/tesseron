@@ -1,6 +1,6 @@
 # Entry points
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 ## Binaries
 
@@ -11,6 +11,7 @@
 | `tesseron-conformance` | `@tesseron/conformance` | `conformance/runner/src/bin.ts` | `dist/tesseron-conformance.cjs` |
 | `tesseron-conformance-host` | `@tesseron/conformance-host` (private) | `sdks/typescript/conformance-host/src/bin.ts` | `dist/bin.js` |
 | `tesseron-conformance-host` (Rust) | `sdks/rust/conformance-host` crate (unpublished) | `sdks/rust/conformance-host/src/main.rs` | `sdks/rust/target/debug/tesseron-conformance-host` |
+| `python -m conformance_host` (Python) | `sdks/python/conformance_host` (not in the wheel) | `sdks/python/conformance_host/__main__.py` | run via `uv run --locked --directory sdks/python python -m conformance_host` |
 
 Both declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled CJS via
 `publishConfig` (`gateway/package.json:40` vs `:76`).

@@ -94,8 +94,15 @@ runner error. Fixtures whose `requires` the host lacks (declared via
 The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
 "sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim` (the script
 takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). Expected
-on Windows: TS host 30 passed / 6 skipped, Rust host 26 passed / 10 skipped (9 `bind/*` plus
+on Windows: TS host 31 passed / 6 skipped, Rust host 27 passed / 10 skipped (9 `bind/*` plus
 `uds/file-mode`), 0 failed; on Linux only the 9 `bind/*` skip for Rust and nothing for TS.
+
+The Python host is the third: `pnpm conformance:run:python` runs
+`uv run --locked --directory sdks/python python -m conformance_host` with
+`--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
+design). Its own suite is `uv run --locked pytest` (98 tests), `mypy --strict src conformance_host
+tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
+usual way a host goes red: rerun every host at HEAD after any corpus change.
 
 Trap: `conformance/runner/scripts/copy-fixtures.mjs` copies the corpus into `runner/dist/fixtures`
 at build time (that copy is what `npx @tesseron/conformance` ships), and turbo does not list
@@ -118,5 +125,7 @@ pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
 cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 44 unit + 25 integration + 3 host + 1 doctest
+cd sdks/python && uv run --locked pytest -q                   # Python: 98 tests; mypy --strict and ruff check alongside
+pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```
