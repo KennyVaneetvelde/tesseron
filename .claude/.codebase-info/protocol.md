@@ -1,6 +1,6 @@
 # Protocol
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-04*
 
 Source of truth: `sdks/typescript/core/src/protocol.ts`. `PROTOCOL_VERSION = '1.2.0'` (`:11`).
 
@@ -67,6 +67,14 @@ not `errors.ts`.
 Hello carries the full manifest. The gateway mints `sessionId`, `claimCode`, and `resumeToken`
 (`gateway.ts:1298`) and returns them in the welcome. On the host-minted path, identity comes *from
 the manifest* instead so both ledgers agree for a later resume (`gateway.ts:1195`).
+
+On the app side (every SDK, pinned by `conformance/fixtures/handshake/*`): requests that arrive
+before the welcome queue behind it; a welcome result the client cannot read (wrong shape, major
+version mismatch) ends that connection and nothing queued runs; a hello answered with a JSON-RPC
+error rejects `connect()` with the gateway's message while the listener and manifest stay up for the
+next dial. An envelope without `jsonrpc: "2.0"` is answered with -32600 (id carried through, or
+null); a request with `id: null` is a request, answered with `id: null`, only an absent `id` makes a
+notification.
 
 `tesseron/resume` validation order (`gateway.ts:1356-1518`): not already attached → shape →
 protocol major/minor → app id → zombie exists → same app id (no cross-app hijack) → zombie was

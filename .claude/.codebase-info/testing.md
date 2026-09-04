@@ -72,7 +72,7 @@ update on delete, `not_found`, the sampling and confirm responders).
 
 ## The conformance corpus is not part of `pnpm test`
 
-`conformance/fixtures/` holds 37 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 4 handshake,
+`conformance/fixtures/` holds 39 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 6 handshake,
 3 resources, 1 resume, 1 uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
 every `pnpm-workspace.yaml` glob so a port can vendor the directory.
 
@@ -94,7 +94,7 @@ runner error. Fixtures whose `requires` the host lacks (declared via
 The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
 "sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim` (the script
 takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). Expected
-on Windows: TS host 31 passed / 6 skipped, Rust host 27 passed / 10 skipped (9 `bind/*` plus
+on Windows: TS host 33 passed / 6 skipped, Rust host 29 passed / 10 skipped (9 `bind/*` plus
 `uds/file-mode`), 0 failed; on Linux only the 9 `bind/*` skip for Rust and nothing for TS.
 
 The Python host is the third: `pnpm conformance:run:python` runs
@@ -102,7 +102,13 @@ The Python host is the third: `pnpm conformance:run:python` runs
 `--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
 design). Its own suite is `uv run --locked pytest` (104 tests), `mypy --strict src conformance_host
 tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
-usual way a host goes red: rerun every host at HEAD after any corpus change.
+usual way a host goes red: rerun every host at HEAD after any corpus change. `pnpm example:python:e2e`
+(`sdks/python/examples/validate-e2e.mjs`) is the Python twin of the Rust e2e: 15 PASS lines through
+the real gateway.
+
+A `send` step may carry `raw: true` to write a deliberately malformed envelope verbatim (no
+`jsonrpc` member, say); `validate.mjs` and the runner otherwise refuse a send without
+`jsonrpc: "2.0"`. `conformance/README.md` documents the step DSL.
 
 Trap: `conformance/runner/scripts/copy-fixtures.mjs` copies the corpus into `runner/dist/fixtures`
 at build time (that copy is what `npx @tesseron/conformance` ships), and turbo does not list

@@ -44,13 +44,15 @@ tesseron/
 │   └── python/               uv project: PyPI `tesseron` 0.1.0 (unpublished), Python >= 3.11, Hatchling
 │       ├── src/tesseron/     action, context, elicit_schema, errors, host, jsonrpc, manifest, protocol, resource, session
 │       ├── conformance_host/ fixture adapter the runner drives; beside the package, so it is NOT in the wheel
+│       ├── examples/         todo/ and prompts/ (`python -m examples.todo`), same action set as the Rust pair;
+│       │                     validate-e2e.mjs drives both through the real gateway: `pnpm example:python:e2e`
 │       └── tests/            pytest, 104 tests; mypy --strict and ruff gate the whole tree
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
 │   └── src/content/docs/     49 pages (six under sdk/python/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
-│   ├── fixtures/             37 scripted JSON exchanges. no deps on this workspace.
+│   ├── fixtures/             39 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
 │   ├── run-reference.mjs     `pnpm conformance:run` (TS host) / `conformance:run:rust`; takes --host, --unsupported,
 │   │                         always passes --fixtures so the live corpus runs, never the copy in runner/dist

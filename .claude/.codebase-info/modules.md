@@ -172,7 +172,9 @@ validation-mode JSON Schema is published unchanged, no adapter, or pass `input_s
 `TesseronHost` bound on loopback port 0 with the v2 manifest written, and an `ActionContext` with the same progress, confirm, elicit, sample, and log surface as
 Rust. `jsonrpc.py` classifies frames, `session.py` runs the handshake gate and dispatch, `errors.py`
 carries the 17 codes. `conformance_host/` sits beside `src/tesseron`, drives the fixture DSL, and
-stays out of the wheel. Docs live at `docs/src/content/docs/sdk/python/`.
+stays out of the wheel. `examples/todo` and `examples/prompts` are the canonical pair with the same
+action names and schemas as the Rust and TypeScript examples; `examples/validate-e2e.mjs` proves them
+through the real gateway. Docs live at `docs/src/content/docs/sdk/python/`.
 
 ## Not packages
 
