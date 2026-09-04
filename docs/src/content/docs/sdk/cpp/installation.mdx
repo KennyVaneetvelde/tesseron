@@ -4,6 +4,8 @@ description: Consuming the C++ SDK through CMake FetchContent, the toolchains it
 related:
   - sdk/cpp/index
   - sdk/cpp/actions
+  - sdk/cpp/errors
+  - sdk/cpp/threading
   - sdk/cpp/conformance
 ---
 
@@ -46,6 +48,7 @@ If your project already has its own Boost, declare it before `FetchContent_MakeA
 |---|---|---|
 | `TESSERON_BUILD_TESTS` | `OFF` | builds the Catch2 suite and registers it with CTest |
 | `TESSERON_BUILD_CONFORMANCE_HOST` | `OFF` | builds the fixture adapter the conformance runner drives |
+| `TESSERON_BUILD_EXAMPLES` | `OFF` | builds the canonical headless todo and prompts examples |
 | `TESSERON_INSTALL` | on when top-level | generates install and export rules |
 
 ## Building the SDK itself

@@ -4,6 +4,8 @@ description: What the C++ host passes against the language-neutral fixture corpu
 related:
   - sdk/cpp/index
   - sdk/cpp/installation
+  - sdk/cpp/errors
+  - sdk/cpp/threading
   - sdk/porting
   - protocol/compatibility
 ---
@@ -26,17 +28,18 @@ That list is not cosmetic. The runner cross-checks it against the four capabilit
 ## Running it
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON -DTESSERON_BUILD_EXAMPLES=ON
 cmake --build sdks/cpp/build
 pnpm -r --filter @tesseron/conformance build
 pnpm conformance:run:cpp
+pnpm example:cpp:e2e
 ```
 
-CI runs exactly that on both platforms.
+CI runs exactly that on both platforms. The example check prints 15 `PASS` lines while driving the todo and prompts executables through the real gateway.
 
 ## The adapter
 
-`TESSERON_BUILD_CONFORMANCE_HOST=ON` builds `tesseron-conformance-host`. It is deliberately never installed and never exported: it exists to be launched from the repository, and shipping it would put a test harness in a consumer's package.
+`TESSERON_BUILD_CONFORMANCE_HOST=ON` builds `tesseron-conformance-host`. It is deliberately never installed and never exported: it exists to be launched from the repository, and shipping it would put a test adapter in a consumer's package.
 
 The runner starts one process per fixture with `TESSERON_CONFORMANCE_FIXTURE` pointing at the fixture document, waits for a single readiness line on stdout, then plays the gateway against the endpoint that line names.
 
