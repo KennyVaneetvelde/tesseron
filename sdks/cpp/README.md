@@ -161,7 +161,7 @@ From the repository root, use the runner published from the Tesseron hub:
 ```bash
 cmake -S . -B build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON
 cmake --build build
-npx -y @tesseron/conformance@1.2.0 --host build/conformance-host/tesseron-conformance-host --unsupported host-minted-claim,uds
+TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds npx -y @tesseron/conformance@1.2.0 --host build/conformance-host/tesseron-conformance-host
 ```
 
 Every fixture passes except the ten that need something this host does not

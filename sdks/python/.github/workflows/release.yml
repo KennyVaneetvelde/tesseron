@@ -46,7 +46,9 @@ jobs:
           node-version: "20"
 
       - name: Run the conformance suite
-        run: npx -y @tesseron/conformance@1.2.0 --host "uv run --locked python -m conformance_host" --unsupported host-minted-claim,uds
+        env:
+          TESSERON_CONFORMANCE_UNSUPPORTED: host-minted-claim,uds
+        run: npx -y @tesseron/conformance@1.2.0 --host "uv run --locked python -m conformance_host"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

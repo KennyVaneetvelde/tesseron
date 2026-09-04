@@ -65,9 +65,8 @@ jobs:
 
       # The runner is published from the hub and pinned to the protocol version.
       - name: Run conformance suite
-        run: >
-          npx -y @tesseron/conformance@1.2.0
-          --host ${{ matrix.conformance_host }}
-          --unsupported host-minted-claim,uds
+        env:
+          TESSERON_CONFORMANCE_UNSUPPORTED: host-minted-claim,uds
+        run: npx -y @tesseron/conformance@1.2.0 --host ${{ matrix.conformance_host }}
 
       # examples/validate-e2e.mjs needs the hub gateway, so standalone CI omits it.
