@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": ["./custom-changelog.cjs", { "repo": "eigenwise/tesseron-typescript" }],
+  "commit": false,
+  "fixed": [
+    [
+      "@tesseron/core",
+      "@tesseron/web",
+      "@tesseron/server",
+      "@tesseron/react",
+      "@tesseron/svelte",
+      "@tesseron/vue",
+      "@tesseron/vite"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "vanilla-todo",
+    "react-todo",
+    "svelte-todo",
+    "vue-todo",
+    "express-prompts",
+    "node-prompts"
+  ]
+}

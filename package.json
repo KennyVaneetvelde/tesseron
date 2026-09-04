@@ -20,6 +20,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
+    "split:sdk": "node scripts/split-sdk.mjs",
     "sync-plugin-version": "node scripts/sync-plugin-version.mjs",
     "check-docs-changeset": "node scripts/check-docs-changeset.mjs",
     "sync-labels": "node scripts/sync-labels.mjs",
