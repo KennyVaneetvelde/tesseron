@@ -1,0 +1,31 @@
+---
+title: Threading (C++)
+description: The C++ host I/O thread, coroutine handlers, and handing UI work to an application's own thread.
+related:
+  - sdk/cpp/index
+  - sdk/cpp/actions
+  - sdk/cpp/context
+  - sdk/cpp/installation
+---
+
+A `Host` owns one `boost::asio::io_context` and one thread that runs it. `HostBuilder::listen()` starts accepting the gateway on that thread. The host's socket reads, JSON-RPC dispatch, `HostBuilder::on_event` callback, action handlers, resource readers, and subscription callbacks all run there.
+
+Handlers return `boost::asio::awaitable<Result<Json>>`. `co_await` yields the host thread while a sampling or elicitation request is in flight. Blocking that thread blocks the session and every other handler on the host.
+
+`ResourceEmitter::emit` is the exception to the caller's thread rule. It is safe to call from any thread and posts the update onto the host's `io_context`; values emitted after unsubscribe or transport close are dropped.
+
+## Application dispatcher
+
+`HostOptions::application_dispatcher` is optional and has one job: it receives a `std::function<void()>` that the SDK wants to run on the application's own thread.
+
+```cpp
+tesseron::HostOptions options;
+options.application_dispatcher = [](std::function<void()> work) {
+  your_toolkit::post_to_main_loop(std::move(work));
+};
+builder.options(std::move(options));
+```
+
+The handler calls `co_await context.on_application_thread(...)`. The dispatcher runs the callback on the UI toolkit's thread, then the handler resumes on the host's I/O thread. Keep the callback small and copy the value the handler needs back into state it owns.
+
+When the dispatcher is unset, `on_application_thread(...)` runs the callback inline on the host's I/O thread. That is the right default for a headless app with no second thread.

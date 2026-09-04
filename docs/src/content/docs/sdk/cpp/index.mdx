@@ -4,6 +4,8 @@ description: What the C++ implementation of the Tesseron host covers, and the sh
 related:
   - sdk/cpp/installation
   - sdk/cpp/actions
+  - sdk/cpp/errors
+  - sdk/cpp/threading
   - sdk/index
   - protocol/compatibility
 ---
@@ -19,68 +21,74 @@ The whole host half of protocol 1.2.0:
 - The handshake, claiming, and session resume with token rotation.
 - Action invocation with input validation, cancellation, and a per-action timeout.
 - Streaming progress, clamped and monotonic.
-- Resource reads and subscriptions, with a teardown that runs on unsubscribe *and* on a closing transport.
-- `ActionContext` round trips back into the agent: `sample`, `confirm`, `elicit`, `log`.
+- Resource reads and subscriptions, with a teardown that runs on unsubscribe and on a closing transport.
+- `ActionContext` round trips back into the agent: `sample`, `confirm`, `elicit`, and `log`.
 - The v2 instance manifest, written after the URL is known and removed on shutdown, `0700` on its directory and `0600` on the file where the platform has them.
 
 All four `Capabilities` flags are declared. [Host-minted claim codes](/protocol/handshake/) are the one thing left out: the gateway mints the code, and a restarted process is a new session.
 
 ## A host, end to end
 
+The shipped todo example registers the same camelCase action names used by the other SDK examples:
+
 ```cpp
-#include <iostream>
-#include <tesseron/tesseron.hpp>
-
-using tesseron::ActionContext;
-using tesseron::Json;
-using tesseron::Result;
-
-boost::asio::awaitable<Result<Json>> add_todo(Json input, ActionContext context) {
-  const auto title = input.at("title").get<std::string>();
-  context.log(tesseron::LogEntry::info("adding " + title));
-
-  Json added = Json::object();
-  added["id"] = store_todo(title);
-  co_return added;
-}
-
-int main() {
-  auto builder = tesseron::Host::builder();
-  builder.application("todo", "Todo");
-  builder.on_event([](const tesseron::HostEvent& event) {
-    if (event.kind == tesseron::HostEvent::Kind::Welcome && event.welcome->claim_code) {
-      std::cout << "Claim this session with " << *event.welcome->claim_code << "\n";
-    }
-  });
-  builder.action("add_todo")
-      .description("Adds one todo")
+void register_actions(tesseron::HostBuilder& builder, const std::shared_ptr<TodoState>& state) {
+  builder.action("addTodo")
+      .description("Add one todo")
       .input(tesseron::schema::object({
-          tesseron::schema::required("title", tesseron::schema::string()),
+          tesseron::schema::required("text", tesseron::schema::string().min_length(1)),
+          tesseron::schema::optional("tag", tesseron::schema::string()),
       }))
-      .handler(add_todo);
-
-  auto listening = builder.listen();
-  if (!listening.ok()) {
-    std::cerr << listening.error().message() << "\n";
-    return 1;
-  }
-  auto host = std::move(listening).value();
-  wait_until_the_application_quits();
-  host.shutdown();
+      .output_schema(todo_output_schema())
+      .handler([state](Json input, ActionContext) -> boost::asio::awaitable<Result<Json>> {
+        const auto tag = optional_string(input, "tag");
+        if (!tag.ok()) co_return tag.error();
+        Todo todo = state->create(input.at("text").get<std::string>(), tag.value());
+        state->publish();
+        co_return todo_payload(todo);
+      });
 }
 ```
 
-Register the event listener *before* `listen()`. The gateway can dial and finish the handshake before `listen()` returns, and a listener installed afterwards misses the welcome that carries the claim code.
+A complete app creates a `HostBuilder`, registers the actions and resources, then calls `listen()`:
+
+```cpp
+auto state = std::make_shared<TodoState>();
+auto builder = tesseron::Host::builder();
+builder.application("cpp_todo", "C++ Todo");
+builder.on_event([](const tesseron::HostEvent& event) {
+  if (event.kind == tesseron::HostEvent::Kind::Welcome && event.welcome.has_value() &&
+      event.welcome->claim_code.has_value()) {
+    std::cout << "Claim code: " << *event.welcome->claim_code << std::endl;
+  }
+});
+register_actions(builder, state);
+register_resource(builder, state);
+
+auto listening = builder.listen();
+if (!listening.ok()) {
+  std::cerr << "tesseron-example-todo: " << listening.error().message() << "\n";
+  return 1;
+}
+auto host = std::move(listening).value();
+```
+
+Register the event listener before `listen()`. The gateway can dial and finish the handshake before `listen()` returns, and a listener installed afterwards misses the welcome that carries the claim code.
 
 ## Run the examples
 
-From the repository root, configure with `-DTESSERON_BUILD_EXAMPLES=ON`, then build `tesseron-example-todo` and `tesseron-example-prompts` under `sdks/cpp/build/examples/`.
+From the repository root, configure and build the two shipped apps:
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
+cmake --build sdks/cpp/build --target tesseron-example-todo tesseron-example-prompts
+```
 
 After building the gateway, run `pnpm example:cpp:e2e` to claim both headless apps and check their canonical actions through the real gateway.
 
 ## Three things that will surprise you
 
-**Boost.Asio is a public dependency.** A handler is a C++20 coroutine returning `boost::asio::awaitable<tesseron::Result<tesseron::Json>>`, so anything linking this library sees Asio's headers. That is deliberate: a hand-rolled coroutine type would have to be re-taught every executor, timer and cancellation trick Asio already knows, and would not compose with the Asio code a real application already has. Boost.Beast, which implements the WebSocket listener, stays private.
+**Boost.Asio is a public dependency.** A handler is a C++20 coroutine returning `boost::asio::awaitable<tesseron::Result<tesseron::Json>>`, so anything that links this library sees Asio's headers. That is deliberate: a hand-rolled coroutine type would have to be re-taught every executor, timer, and cancellation trick Asio already knows, and would not compose with the Asio code a real application already has. Boost.Beast, which implements the WebSocket listener, stays private.
 
 **Nothing throws across a handler boundary.** Every fallible call answers `Result<T>` or `Result<T, HostError>`, so the error type is part of the signature instead of something a caller has to guess at. A handler that throws anyway is caught and answered as `-32603` with the cause logged locally, never sent.
 
@@ -88,9 +96,6 @@ After building the gateway, run `pnpm example:cpp:e2e` to claim both headless ap
 
 ## Threading
 
-One host owns one `boost::asio::io_context` and one thread to run it. Every handler, reader and subscriber runs on that thread, so a `co_await` yields rather than blocking the read loop, and none of the session state needs a lock.
+One host owns one `boost::asio::io_context` and one thread to run it. Every handler, reader, and subscriber runs on that thread, so a `co_await` yields rather than blocking the read loop. See [Threading](/sdk/cpp/threading/) for the application dispatcher and UI handoff.
 
-Two things cross the boundary safely from any thread:
-
-- `ResourceEmitter::emit`, which hops onto the host's thread before touching the subscription.
-- `ActionContext::on_application_thread`, which hands work to whatever `HostOptions::application_dispatcher` names. A UI toolkit that owns the main loop installs its own "post to the main loop" there; left unset, that work runs inline.
+`ResourceEmitter::emit` is safe from any thread and hops onto the host's thread before touching the subscription. `ActionContext::on_application_thread` hands work to the application dispatcher and resumes the handler on the host's thread.

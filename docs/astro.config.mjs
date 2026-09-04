@@ -193,6 +193,8 @@ export default defineConfig({
                 { label: 'Actions', link: '/sdk/cpp/actions/' },
                 { label: 'Resources', link: '/sdk/cpp/resources/' },
                 { label: 'ActionContext', link: '/sdk/cpp/context/' },
+                { label: 'Errors', link: '/sdk/cpp/errors/' },
+                { label: 'Threading', link: '/sdk/cpp/threading/' },
                 { label: 'Conformance', link: '/sdk/cpp/conformance/' },
               ],
             },
