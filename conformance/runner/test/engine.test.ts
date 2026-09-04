@@ -66,6 +66,7 @@ describe('runFixtureSteps', () => {
         },
         { recv: { method: 'host/ready' }, notBefore: 'welcomed' },
         { expectSilence: { method: 'host/forbidden' }, timeoutMs: 20 },
+        { send: { id: 'raw-frame', method: 'host/raw' }, raw: true },
         { dropTransport: true },
         { reconnect: true },
         { recv: { id: '~capture:secondHelloId', method: 'tesseron/hello' } },
@@ -79,6 +80,7 @@ describe('runFixtureSteps', () => {
       expect(connectionNumber).toBe(2);
       expect(received).toEqual([
         { jsonrpc: '2.0', id: 'hello-1', result: { ok: true } },
+        { id: 'raw-frame', method: 'host/raw' },
         { jsonrpc: '2.0', id: 'hello-2', result: { ok: true } },
       ]);
     } finally {
@@ -141,6 +143,7 @@ describe('runFixtureSteps', () => {
 });
 
 function serveConnection(socket: WebSocket, connectionNumber: number, received: unknown[]): void {
+  let receivedFrames = 0;
   setTimeout(() => {
     socket.send(
       JSON.stringify({
@@ -159,9 +162,10 @@ function serveConnection(socket: WebSocket, connectionNumber: number, received: 
     );
   }, 0);
   socket.on('message', (data) => {
+    receivedFrames += 1;
     const message: unknown = JSON.parse(rawDataToText(data));
     received.push(message);
-    if (connectionNumber === 1) {
+    if (connectionNumber === 1 && receivedFrames === 1) {
       setTimeout(() => socket.send(JSON.stringify({ jsonrpc: '2.0', method: 'host/ready' })), 0);
     } else {
       socket.close(1000, 'fake host complete');

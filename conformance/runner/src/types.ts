@@ -33,6 +33,7 @@ export interface FileModeExpectation {
 export interface FixtureStep {
   recv?: { [key: string]: unknown };
   send?: { [key: string]: unknown };
+  raw?: true;
   connect?: ConnectInstruction;
   reconnect?: boolean | ConnectInstruction;
   dropTransport?: true;

@@ -320,6 +320,9 @@ function validateStep(fixtureId, step, index, captured, labels) {
     }
   }
   if (validLabel) labels.add(validLabel);
+  if (step.raw !== undefined && (kind !== 'send' || step.raw !== true)) {
+    report(fixtureId, `step ${index} raw is valid only as true on send`);
+  }
   if (step.timeoutMs !== undefined) {
     const acceptsTimeout = [
       'recv',
@@ -347,7 +350,7 @@ function validateStep(fixtureId, step, index, captured, labels) {
       report(fixtureId, `step ${index} ${kind} must be a JSON-RPC frame object`);
       return;
     }
-    if (kind === 'send' && body.jsonrpc !== '2.0') {
+    if (kind === 'send' && !step.raw && body.jsonrpc !== '2.0') {
       report(fixtureId, `step ${index} send frame must carry "jsonrpc": "2.0"`);
     }
     for (const token of matcherTokens(body)) checkMatcher(fixtureId, token, captured, kind);

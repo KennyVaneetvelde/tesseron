@@ -157,7 +157,7 @@ A step contains exactly one kind. Waits default to 2000 ms. `timeoutMs` override
 | Step | Meaning |
 |---|---|
 | `recv: <matcher>` | Consume the next host envelope and partially match it. |
-| `send: <envelope>` | Resolve `~ref` values and write one literal JSON-RPC 2.0 envelope. Other matchers are invalid here. |
+| `send: <envelope>` | Resolve `~ref` values and write one literal JSON-RPC 2.0 envelope. Other matchers are invalid here. Set `raw: true` on the same step to write an intentionally malformed envelope verbatim. |
 | `connect: { bindCode?, expect? }` | Dial the ready endpoint. Fixtures without an explicit initial connect use an implicit plain WebSocket connection. |
 | `reconnect: true | { bindCode?, expect? }` | Dial the same endpoint after a drop. `true` reuses the prior bind code and expects an open connection. |
 | `dropTransport: true` | Close WS with code 1001 and reason `conformance drop`, or destroy UDS, then forget the connection. |

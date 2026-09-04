@@ -1,0 +1,59 @@
+{
+  "id": "handshake/invoke-before-refused-welcome",
+  "title": "A refused welcome closes before an invocation can run",
+  "spec": "/protocol/handshake/#protocol-version-mismatch",
+  "requires": [],
+  "fixture": {
+    "actions": [
+      {
+        "name": "mustNotRun",
+        "assertHandlerNotCalled": true
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_0001",
+          "protocolVersion": "2.0.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "pending",
+            "name": "Awaiting agent"
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "invoke-after-refusal",
+        "method": "actions/invoke",
+        "params": {
+          "name": "mustNotRun",
+          "input": {},
+          "invocationId": "after-refusal"
+        }
+      }
+    },
+    {
+      "expectClosed": true,
+      "timeoutMs": 2000
+    }
+  ]
+}

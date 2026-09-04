@@ -60,4 +60,25 @@ describe('JsonRpcDispatcher', () => {
     d.notify('hello', { x: 1 });
     expect(sent).toEqual([{ jsonrpc: JSONRPC_VERSION, method: 'hello', params: { x: 1 } }]);
   });
+
+  it('answers malformed JSON-RPC versions with InvalidRequest', () => {
+    const sent: unknown[] = [];
+    const dispatcher = new JsonRpcDispatcher((message) => sent.push(message));
+
+    dispatcher.receive({ id: 'missing-version', method: 'actions/invoke' });
+    dispatcher.receive({ jsonrpc: '1.0', id: { unusable: true }, method: 'actions/invoke' });
+
+    expect(sent).toEqual([
+      {
+        jsonrpc: JSONRPC_VERSION,
+        id: 'missing-version',
+        error: { code: -32600, message: 'envelope is missing jsonrpc: "2.0"' },
+      },
+      {
+        jsonrpc: JSONRPC_VERSION,
+        id: null,
+        error: { code: -32600, message: 'envelope is missing jsonrpc: "2.0"' },
+      },
+    ]);
+  });
 });

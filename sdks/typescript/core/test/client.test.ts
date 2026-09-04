@@ -78,6 +78,82 @@ describe('TesseronClient end-to-end', () => {
     expect(welcome.claimCode).toBe('TEST-CD');
   });
 
+  it('closes after an unreadable welcome and never runs a queued invocation', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    let handlerCalls = 0;
+    client.action('mustNotRun').handler(() => {
+      handlerCalls += 1;
+      return { invoked: true };
+    });
+
+    let clientMessageHandler: ((message: unknown) => void) | undefined;
+    let clientCloseHandler: ((reason?: string) => void) | undefined;
+    let sentWelcome = false;
+    let closed = false;
+    const transport: Transport = {
+      send: () => {
+        if (sentWelcome) return;
+        sentWelcome = true;
+        queueMicrotask(() => {
+          clientMessageHandler?.({ jsonrpc: '2.0', id: 1, result: {} });
+          clientMessageHandler?.({
+            jsonrpc: '2.0',
+            id: 'invoke-after-refusal',
+            method: 'actions/invoke',
+            params: { name: 'mustNotRun', input: {}, invocationId: 'after-refusal' },
+          });
+        });
+      },
+      onMessage: (handler) => {
+        clientMessageHandler = handler;
+      },
+      onClose: (handler) => {
+        clientCloseHandler = handler;
+      },
+      close: () => {
+        closed = true;
+        clientCloseHandler?.('invalid welcome');
+      },
+    };
+
+    await expect(client.connect(transport)).rejects.toMatchObject({
+      code: TesseronErrorCode.InvalidParams,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(closed).toBe(true);
+    expect(handlerCalls).toBe(0);
+  });
+
+  it('keeps the transport open when the gateway rejects hello', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+
+    let clientMessageHandler: ((message: unknown) => void) | undefined;
+    let closed = false;
+    const gateway = new JsonRpcDispatcher((message) => {
+      queueMicrotask(() => clientMessageHandler?.(message));
+    });
+    gateway.on('tesseron/hello', () => {
+      throw new Error('app id is reserved');
+    });
+    const transport: Transport = {
+      send: (message) => queueMicrotask(() => gateway.receive(message)),
+      onMessage: (handler) => {
+        clientMessageHandler = handler;
+      },
+      onClose: () => {},
+      close: () => {
+        closed = true;
+      },
+    };
+
+    await expect(client.connect(transport)).rejects.toThrow('app id is reserved');
+
+    expect(closed).toBe(false);
+  });
+
   it('routes actions/invoke to the registered handler and returns the result', async () => {
     const client = new TesseronClient();
     client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
