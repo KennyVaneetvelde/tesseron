@@ -10,6 +10,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(TESSERON_BUILD_TESTS "Build the Catch2 test suite" OFF)
 option(TESSERON_BUILD_CONFORMANCE_HOST "Build the private conformance host adapter" OFF)
+option(TESSERON_BUILD_EXAMPLES "Build the canonical headless examples" OFF)
 option(TESSERON_INSTALL "Generate install and export rules" ${PROJECT_IS_TOP_LEVEL})
 
 include(TesseronDependencies)
@@ -69,6 +70,10 @@ endif()
 
 if(TESSERON_BUILD_CONFORMANCE_HOST)
   add_subdirectory(conformance-host)
+endif()
+
+if(TESSERON_BUILD_EXAMPLES)
+  add_subdirectory(examples)
 endif()
 
 if(TESSERON_INSTALL)

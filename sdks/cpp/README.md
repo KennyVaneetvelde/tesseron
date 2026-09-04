@@ -106,6 +106,20 @@ ctest --test-dir sdks/cpp/build --output-on-failure
 Run those from the repository root. `-S` and `-B` are what make that work; there
 is no reason to change directory first.
 
+## Examples
+
+Build the headless todo app and prompt library with:
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
+cmake --build sdks/cpp/build --target tesseron-example-todo tesseron-example-prompts
+```
+
+`tesseron-example-todo` and `tesseron-example-prompts` print a claim code after
+the gateway connects. Claim it in Claude Code, then call the actions. After the
+gateway is built, `pnpm example:cpp:e2e` drives both executables and checks the
+canonical action contracts through the real gateway.
+
 Consuming it from another project:
 
 ```cmake
