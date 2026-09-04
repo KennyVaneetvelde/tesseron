@@ -76,4 +76,6 @@ Real examples: `sdks/typescript/examples/vanilla-todo/src/main.ts:46` (app) and 
 
 Root (`package.json:18-26`): `build`, `test`, `typecheck` all go through turbo. **`lint` does not** —
 it is `biome check .` directly. Plus `format`, `sync-plugin-version`, `version-packages`, `docs:dev`,
-`docs:build`.
+`docs:build`, and `split:sdk <language>` (`scripts/split-sdk.mjs`: refuses a dirty tree, runs
+`git subtree split --prefix=sdks/<language> -b split/<language>`, gates the result in a temp worktree,
+and for TypeScript commits the `.split-root/` scaffold plus a regenerated lockfile onto the branch).

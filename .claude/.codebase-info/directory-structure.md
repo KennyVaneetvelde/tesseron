@@ -17,6 +17,8 @@ tesseron/
 ├── docs-mcp/                 @tesseron/docs-mcp — docs server, bin tesseron-docs-mcp
 ├── sdks/
 │   └── typescript/           the TypeScript SDK; the seven packages below share one version
+│       ├── .split-root/      the future root of tesseron-typescript (package.json, workspace, turbo, biome, changesets,
+│       │                     workflows); excluded from pnpm and Biome, moved into place by scripts/split-sdk.mjs
 │       ├── core/             @tesseron/core  — the whole protocol (19 src files, 8 tests)
 │       │   └── src/node/     Node-only: claim minting, bind gating, fs hygiene
 │       ├── web/              @tesseron/web — browser SDK + reactive-core.ts (the shared payload)
@@ -72,7 +74,8 @@ tesseron/
 ├── .claude-plugin/           Claude Code marketplace listing
 ├── .agents/plugins/          Codex marketplace listing, same plugin source
 ├── scripts/                  sync-plugin-version.mjs (8 version surfaces), check-docs-changeset.mjs,
-│                             sync-labels.mjs (pushes .github/labels.json to GitHub)
+│                             sync-labels.mjs (pushes .github/labels.json to GitHub), split-sdk.mjs
+│                             (`pnpm split:sdk <language>`: subtree split + standalone gate, TS scaffold commit)
 ├── .changeset/               config.json holds the 8-package fixed group (docs-mcp is out)
 ├── .github/workflows/        ci.yml, docs.yml, release.yml, label-by-area.yml
 │   └── labels.json           the `area: *` label set the issue templates and label workflow use
@@ -114,6 +117,15 @@ The dependency shape is a fan, not a chain:
   is neither linted nor formatted.
 - `sdks/rust/` and `sdks/python/` must never reference a path above their own prefix; each is lifted
   into its own repo at the split milestone. `conformance/` may reference `sdks/`, the reverse is forbidden.
+- Every `sdks/<language>/` root already carries what its standalone repo needs: `LICENSE` (a copy of the
+  root BUSL-1.1 text), `CONTRIBUTING.md`, `.gitignore`, and a nested `.github/` with `workflows/{ci,release}.yml`
+  and an `ISSUE_TEMPLATE/config.yml` that routes issues back to the hub with `area: sdk-<language>`. GitHub
+  ignores nested `.github/`, so they are inert here. Those split CIs run the published runner with
+  `TESSERON_CONFORMANCE_UNSUPPORTED` (the runner has no `--unsupported` flag; that belongs to
+  `run-reference.mjs`). TypeScript's root files are not inert (pnpm matches dot-directories under
+  `sdks/typescript/*` and Turbo loads a nested `turbo.json`), so they sit in `sdks/typescript/.split-root/`,
+  negated in `pnpm-workspace.yaml` and ignored in `biome.json`, and `scripts/split-sdk.mjs` moves them into
+  place on the `split/typescript` branch.
 - `sdks/python/` is excluded from Biome (`biome.json`) and invisible to pnpm; ruff owns its formatting.
 - `sdks/cpp/` is excluded from Biome too and is never entered with `cd`: configure with `cmake -S sdks/cpp -B
   sdks/cpp/build` from the repo root, the way `ci.yml` does. Dependencies come only through FetchContent at

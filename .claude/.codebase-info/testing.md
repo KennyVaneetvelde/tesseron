@@ -92,10 +92,12 @@ runner error. Fixtures whose `requires` the host lacks (declared via
 `run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check.
 
 The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
-"sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim` (the script
-takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). Expected
+"sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim,uds` (the script
+takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). The Rust
+host is WS-only, so `uds` is declared on every platform (until 895fefe it was only added on Windows
+by the helper, which would have failed `uds/file-mode` on the Linux leg). Expected
 on Windows: TS host 33 passed / 6 skipped, Rust host 29 passed / 10 skipped (9 `bind/*` plus
-`uds/file-mode`), 0 failed; on Linux only the 9 `bind/*` skip for Rust and nothing for TS.
+`uds/file-mode`), 0 failed; on Linux Rust still skips 10 and TS skips nothing.
 
 The Python host is the third: `pnpm conformance:run:python` runs
 `uv run --locked --directory sdks/python python -m conformance_host` with

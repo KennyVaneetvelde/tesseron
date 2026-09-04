@@ -17,7 +17,7 @@
 | Release | Changesets | `.changeset/config.json` |
 | Docs site | Astro + Starlight | `docs/astro.config.mjs` |
 | Validation | Standard Schema (peer contract) | `@standard-schema/spec` |
-| License | BUSL-1.1 | `package.json:7` |
+| License | BUSL-1.1; every SDK root and every publishing package dir ships a copy of the root `LICENSE` | `package.json:7`, `LICENSE` |
 
 There is **no ESLint and no Prettier** in this repo. Do not add either. `pnpm lint` is Biome.
 
@@ -92,7 +92,7 @@ Four workflows in `.github/workflows/`:
   with `-D warnings`, `cargo test --workspace`, build (all three `--exclude tauri-todo`, then
   `cargo check -p tauri-todo` on Windows only because Tauri needs GTK and WebKit on Linux), then the
   conformance runner against the Rust host through `pnpm conformance:run:rust`
-  (`--unsupported host-minted-claim`). The runner
+  (`--unsupported host-minted-claim,uds`; the Rust host is WS-only like the other ports). The runner
   cross-checks that list against the hello flags, so a capability declared true while listed fails.
 - **`ci.yml` `python` job** (`:126-188`) — ubuntu + windows matrix: `uv sync --locked`, `ruff check`,
   `ruff format --check`, `mypy --strict src tests`, `pytest`, `uv build`, then pnpm build and
