@@ -232,6 +232,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DTESSERON_BUILD_TESTS=ON
           -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+          -DTESSERON_BUILD_EXAMPLES=ON
           ${{ matrix.compiler }}
 
       - name: Build

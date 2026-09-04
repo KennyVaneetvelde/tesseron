@@ -30,6 +30,7 @@
     "conformance:run:python": "node conformance/run-reference.mjs --host \"uv run --locked --directory sdks/python python -m conformance_host\" --unsupported host-minted-claim,uds",
     "example:rust:e2e": "node sdks/rust/examples/validate-e2e.mjs",
     "example:python:e2e": "node sdks/python/examples/validate-e2e.mjs",
+    "example:cpp:e2e": "node sdks/cpp/examples/validate-e2e.mjs",
     "version-packages": "changeset version && pnpm sync-plugin-version && biome format --write .",
     "docs:dev": "pnpm --filter @tesseron/docs start",
     "docs:build": "pnpm --filter @tesseron/docs build"

@@ -72,6 +72,12 @@ int main() {
 
 Register the event listener *before* `listen()`. The gateway can dial and finish the handshake before `listen()` returns, and a listener installed afterwards misses the welcome that carries the claim code.
 
+## Run the examples
+
+From the repository root, configure with `-DTESSERON_BUILD_EXAMPLES=ON`, then build `tesseron-example-todo` and `tesseron-example-prompts` under `sdks/cpp/build/examples/`.
+
+After building the gateway, run `pnpm example:cpp:e2e` to claim both headless apps and check their canonical actions through the real gateway.
+
 ## Three things that will surprise you
 
 **Boost.Asio is a public dependency.** A handler is a C++20 coroutine returning `boost::asio::awaitable<tesseron::Result<tesseron::Json>>`, so anything linking this library sees Asio's headers. That is deliberate: a hand-rolled coroutine type would have to be re-taught every executor, timer and cancellation trick Asio already knows, and would not compose with the Asio code a real application already has. Boost.Beast, which implements the WebSocket listener, stays private.
