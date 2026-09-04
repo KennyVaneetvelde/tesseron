@@ -8,6 +8,7 @@ from pydantic import JsonValue
 from tesseron import ProtocolError
 from tesseron.jsonrpc import (
     Failure,
+    InvalidRequest,
     Malformed,
     Notification,
     Request,
@@ -30,6 +31,14 @@ def test_a_method_without_an_id_is_a_notification() -> None:
     frame: JsonValue = {"jsonrpc": "2.0", "method": "actions/cancel", "params": {"a": 1}}
 
     assert classify(frame) == Notification("actions/cancel", {"a": 1})
+
+
+def test_a_method_without_jsonrpc_carries_its_id_to_an_invalid_request() -> None:
+    frame: JsonValue = {"id": "missing-jsonrpc", "method": "actions/invoke", "params": {}}
+
+    assert classify(frame) == InvalidRequest(
+        "missing-jsonrpc", 'envelope is missing jsonrpc: "2.0"'
+    )
 
 
 def test_a_method_with_a_null_id_is_a_request() -> None:
@@ -61,10 +70,12 @@ def test_a_boolean_is_not_a_correlatable_id() -> None:
 
 
 @pytest.mark.parametrize("identifier", [True, {}, []])
-def test_an_invalid_request_id_is_malformed(identifier: JsonValue) -> None:
+def test_an_invalid_request_id_answers_invalid_request_with_a_null_id(
+    identifier: JsonValue,
+) -> None:
     frame: JsonValue = {"jsonrpc": "2.0", "id": identifier, "method": "actions/invoke"}
 
-    assert classify(frame) == Malformed("a request id must be a string, number, or null")
+    assert classify(frame) == InvalidRequest(None, "request id is not a string, number, or null")
 
 
 def test_a_frame_that_is_not_json_rpc_two_is_refused() -> None:

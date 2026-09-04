@@ -12,6 +12,7 @@ from .protocol import JSONRPC_VERSION
 __all__ = [
     "Failure",
     "IncomingFrame",
+    "InvalidRequest",
     "Malformed",
     "Notification",
     "Request",
@@ -82,23 +83,35 @@ class Notification:
 
 
 @dataclass(frozen=True)
+class InvalidRequest:
+    """A malformed request-shaped envelope that must receive an error response."""
+
+    id: RequestId
+    reason: str
+
+
+@dataclass(frozen=True)
 class Malformed:
     """A frame that is not a JSON-RPC 2.0 message this host can act on."""
 
     reason: str
 
 
-IncomingFrame: TypeAlias = "Success | Failure | Request | Notification | Malformed"
+IncomingFrame: TypeAlias = "Success | Failure | Request | Notification | InvalidRequest | Malformed"
 
 
 def classify(frame: JsonValue) -> IncomingFrame:
-    """Sorts one decoded frame into the four shapes the session knows how to handle."""
+    """Sorts one decoded frame into the shapes the session knows how to handle."""
     if not isinstance(frame, dict):
         return Malformed("a JSON-RPC envelope must be an object")
-    if frame.get("jsonrpc") != JSONRPC_VERSION:
-        return Malformed(f"jsonrpc must be {JSONRPC_VERSION!r}")
 
     method = frame.get("method")
+    if frame.get("jsonrpc") != JSONRPC_VERSION:
+        if not isinstance(method, str):
+            return Malformed(f"jsonrpc must be {JSONRPC_VERSION!r}")
+        identifier = _read_id(frame["id"]) if "id" in frame else None
+        request_id = None if isinstance(identifier, _InvalidRequestId) else identifier
+        return InvalidRequest(request_id, 'envelope is missing jsonrpc: "2.0"')
 
     if isinstance(method, str):
         params = frame.get("params")
@@ -106,7 +119,7 @@ def classify(frame: JsonValue) -> IncomingFrame:
             return Notification(method, params)
         identifier = _read_id(frame["id"])
         if isinstance(identifier, _InvalidRequestId):
-            return Malformed("a request id must be a string, number, or null")
+            return InvalidRequest(None, "request id is not a string, number, or null")
         return Request(identifier, method, params)
 
     if "id" not in frame:
