@@ -171,3 +171,9 @@ If you are pinned to `@tesseron/conformance` 1.2.0 or older, spell the path
 - `#![deny(missing_docs)]` on the library. A doc comment states the contract, not
   what the line does.
 - No abbreviations in names.
+
+## License
+
+Tesseron is licensed under the [Business Source License 1.1](./LICENSE). Each
+release auto-converts to Apache-2.0, the Change License, four years after
+publication.

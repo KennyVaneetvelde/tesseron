@@ -4,6 +4,7 @@ project(
   tesseron
   VERSION 0.1.0
   DESCRIPTION "C++ SDK for the Tesseron protocol"
+  HOMEPAGE_URL "https://eigenwise.github.io/tesseron/"
   LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -87,6 +88,7 @@ if(TESSERON_INSTALL)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   install(DIRECTORY include/tesseron DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/licenses/tesseron)
   install(
     EXPORT tesseron-targets
     NAMESPACE tesseron::

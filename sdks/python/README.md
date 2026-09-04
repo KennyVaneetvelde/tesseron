@@ -104,3 +104,9 @@ the runner drives it.
 
 - [Python SDK](https://eigenwise.github.io/tesseron/sdk/python/)
 - [Protocol specification](https://eigenwise.github.io/tesseron/protocol/)
+
+## License
+
+Tesseron is licensed under the [Business Source License 1.1](./LICENSE). Each
+release auto-converts to Apache-2.0, the Change License, four years after
+publication.
