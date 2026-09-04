@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from pydantic import JsonValue
 
 from tesseron import ProtocolError
@@ -25,10 +26,16 @@ def test_a_request_is_a_method_with_an_id() -> None:
     assert classify(frame) == Request(7, "actions/invoke", {})
 
 
-def test_a_notification_is_a_method_without_one() -> None:
+def test_a_method_without_an_id_is_a_notification() -> None:
     frame: JsonValue = {"jsonrpc": "2.0", "method": "actions/cancel", "params": {"a": 1}}
 
     assert classify(frame) == Notification("actions/cancel", {"a": 1})
+
+
+def test_a_method_with_a_null_id_is_a_request() -> None:
+    frame: JsonValue = {"jsonrpc": "2.0", "id": None, "method": "actions/invoke", "params": {}}
+
+    assert classify(frame) == Request(None, "actions/invoke", {})
 
 
 def test_a_response_carries_either_a_result_or_an_error() -> None:
@@ -40,11 +47,24 @@ def test_a_response_carries_either_a_result_or_an_error() -> None:
     assert refused.error.message == "no"
 
 
+def test_a_response_with_a_null_id_is_not_correlated() -> None:
+    frame: JsonValue = {"jsonrpc": "2.0", "id": None, "result": {"ok": True}}
+
+    assert classify(frame) == Success(None, {"ok": True})
+
+
 def test_a_boolean_is_not_a_correlatable_id() -> None:
     # bool is a subclass of int in Python, so this has to be excluded on purpose.
     frame: JsonValue = {"jsonrpc": "2.0", "id": True, "result": None}
 
     assert classify(frame) == Malformed("a response must carry a correlatable id")
+
+
+@pytest.mark.parametrize("identifier", [True, {}, []])
+def test_an_invalid_request_id_is_malformed(identifier: JsonValue) -> None:
+    frame: JsonValue = {"jsonrpc": "2.0", "id": identifier, "method": "actions/invoke"}
+
+    assert classify(frame) == Malformed("a request id must be a string, number, or null")
 
 
 def test_a_frame_that_is_not_json_rpc_two_is_refused() -> None:
