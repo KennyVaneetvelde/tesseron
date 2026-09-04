@@ -109,8 +109,8 @@ the real gateway.
 
 The C++ host is the fourth: `pnpm conformance:run:cpp` runs
 `sdks/cpp/build/conformance-host/tesseron-conformance-host` with the same `--unsupported
-host-minted-claim,uds`, so it also skips 10 everywhere. Its own suite is Catch2 (`ctest --test-dir
-sdks/cpp/build`, 34 cases, `gateway_double.cpp` plays the gateway over a real WebSocket), built with
+host-minted-claim,uds`, so it also skips 10 everywhere (29 passed on the 39-fixture corpus). Its own suite is Catch2 (`ctest --test-dir
+sdks/cpp/build`, 36 cases, `gateway_double.cpp` plays the gateway over a real WebSocket), built with
 `-DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON`. There is no C++ example e2e yet
 (SQ-25).
 
@@ -141,7 +141,7 @@ pnpm conformance:run               # runs them against the TS reference host (bu
 cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 49 unit + 25 integration + 3 host + 2 doctests (README blocks)
 cd sdks/python && uv run --locked pytest -q                   # Python: 106 tests; mypy --strict and ruff check alongside
 pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON && cmake --build sdks/cpp/build && ctest --test-dir sdks/cpp/build   # C++: 34 Catch2 cases
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON && cmake --build sdks/cpp/build && ctest --test-dir sdks/cpp/build   # C++: 36 Catch2 cases
 pnpm conformance:run:cpp           # the C++ host against the corpus (build first)
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```

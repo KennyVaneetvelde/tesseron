@@ -51,7 +51,7 @@ tesseron/
 │       ├── include/tesseron/ action, context, error, host, json, manifest, protocol, resource, schema, tesseron (umbrella)
 │       ├── src/              one .cpp per header plus session, jsonrpc, elicit_schema, and private *_state.hpp
 │       ├── cmake/            TesseronDependencies.cmake: FetchContent pins (Boost 1.89.0, nlohmann/json 3.12.0) by URL hash
-│       ├── tests/            Catch2 3.8.1 via FetchContent, 34 cases, gateway_double.cpp plays the gateway
+│       ├── tests/            Catch2 3.8.1 via FetchContent, 36 cases, gateway_double.cpp plays the gateway
 │       └── conformance-host/ private target tesseron-conformance-host (no C++ example yet: SQ-25)
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
 │   └── src/content/docs/     62 pages (seven under sdk/rust/, six each under sdk/python/ and sdk/cpp/). docs-mcp bakes these in at build time.
