@@ -198,6 +198,8 @@ A Rust SDK is in progress under [`sdks/rust/`](./sdks/rust): handshake, claiming
 
 A Python SDK is in progress under [`sdks/python/`](./sdks/python): the whole host surface, and it passes every conformance fixture that doesn't need a Unix socket or a host-minted claim. Nothing is on PyPI.
 
+A C++ SDK is in progress under [`sdks/cpp/`](./sdks/cpp): same story, same two exclusions. CMake 3.24 with `FetchContent` at pinned hashes, C++20 coroutines on Boost.Asio, no package manager involved. Nothing is packaged for distribution yet.
+
 On the roadmap: a Streamable HTTP transport and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
 ## Development

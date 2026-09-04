@@ -1,0 +1,78 @@
+---
+title: Install & build (C++)
+description: Consuming the C++ SDK through CMake FetchContent, the toolchains it is checked on, and the compiler flags it sets for you.
+related:
+  - sdk/cpp/index
+  - sdk/cpp/actions
+  - sdk/cpp/conformance
+---
+
+CMake 3.24 or newer, and a compiler with C++20 coroutines. Everything else the SDK needs it fetches itself.
+
+## Adding it to your project
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  tesseron
+  GIT_REPOSITORY https://github.com/Eigenwise/tesseron.git
+  GIT_TAG main
+  SOURCE_SUBDIR sdks/cpp)
+FetchContent_MakeAvailable(tesseron)
+
+target_link_libraries(your_app PRIVATE tesseron::tesseron)
+```
+
+`SOURCE_SUBDIR` is the part that matters: the repository is a monorepo, and the C++ project is the `sdks/cpp` subtree. Nothing under that subtree refers to a path above it, so the same declaration keeps working when the SDK moves to its own repository.
+
+## What it pulls in
+
+| Dependency | Visibility | Why |
+|---|---|---|
+| Boost.Asio (>= 1.85) | public | handlers return `boost::asio::awaitable<...>` |
+| nlohmann/json | public | `tesseron::Json` is `nlohmann::json` |
+| Boost.Beast | private | the WebSocket listener |
+| Catch2 v3 | tests only | fetched only when `TESSERON_BUILD_TESTS=ON` |
+
+Every one arrives through `FetchContent` at a pinned version *and* a pinned SHA-256. No vcpkg, no Conan, no system packages: a clean checkout builds with nothing but a compiler, CMake, and a network connection.
+
+`BOOST_INCLUDE_LIBRARIES` is limited to `asio` and `beast`, so this is not a full Boost build. The first configure still compiles Boost.Context, Boost.Container and Boost.Date_Time from source, which takes a couple of minutes; everything after that is incremental.
+
+If your project already has its own Boost, declare it before `FetchContent_MakeAvailable(tesseron)` and the SDK will use yours.
+
+## Options
+
+| Option | Default | What it does |
+|---|---|---|
+| `TESSERON_BUILD_TESTS` | `OFF` | builds the Catch2 suite and registers it with CTest |
+| `TESSERON_BUILD_CONFORMANCE_HOST` | `OFF` | builds the fixture adapter the conformance runner drives |
+| `TESSERON_INSTALL` | on when top-level | generates install and export rules |
+
+## Building the SDK itself
+
+From the repository root. Never change directory into `sdks/cpp` first; `-S` and `-B` are what keep the build runnable from anywhere.
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON
+cmake --build sdks/cpp/build
+ctest --test-dir sdks/cpp/build --output-on-failure
+```
+
+## Toolchains
+
+CI builds ubuntu-latest with clang and windows-latest with MSVC (through `ilammy/msvc-dev-cmd`), both on Ninja, and runs the full conformance suite on each. Local development of this SDK was done on Windows 11 with clang 22.1.0 targeting `x86_64-pc-windows-msvc`, CMake 4.2.1 and Ninja 1.13.2.
+
+Three compiler settings are attached to the library target rather than left to you, because they have to hold in every consumer too:
+
+- **`_WIN32_WINNT=0x0A00`** on Windows. Asio reads it to pick its I/O completion API, and it has to be defined before any Asio header is included, in your translation units as well as the SDK's.
+- **`/bigobj`** on MSVC. Beast's templates blow past the default object-section limit.
+- **`/Zc:__cplusplus`** on MSVC. Without it the compiler reports C++98 in `__cplusplus`, and header feature checks quietly fall back to pre-C++20 paths.
+
+## Installing it
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -DCMAKE_INSTALL_PREFIX=/your/prefix
+cmake --build sdks/cpp/build --target install
+```
+
+That writes a `tesseron-config.cmake`, so a consumer can `find_package(tesseron)` instead of fetching sources. An installed `tesseron` does not carry Boost or nlohmann/json with it: the config file resolves those through `find_dependency`, the way it would for any other shared dependency. The conformance host is deliberately neither installed nor exported.

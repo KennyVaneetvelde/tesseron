@@ -1,0 +1,22 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# An installed tesseron does not carry Boost or nlohmann/json with it. A
+# consumer of the installed package brings its own, the way it would for any
+# other shared dependency; FetchContent is how this SDK builds from source.
+find_dependency(Boost 1.85 COMPONENTS asio)
+find_dependency(nlohmann_json 3.11)
+find_dependency(Threads)
+
+include("${CMAKE_CURRENT_LIST_DIR}/tesseron-targets.cmake")
+
+# The build tree names these two behind BUILD_INTERFACE so the export set never
+# has to own FetchContent targets, which means the imported target arrives with
+# no link interface for them. Reattach the ones find_dependency just imported.
+set_property(
+  TARGET tesseron::tesseron
+  APPEND
+  PROPERTY INTERFACE_LINK_LIBRARIES Boost::asio nlohmann_json::nlohmann_json)
+
+check_required_components(tesseron)

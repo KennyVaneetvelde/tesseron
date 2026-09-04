@@ -1,0 +1,81 @@
+---
+title: Resources (C++)
+description: Readers, subscribers, the emitter, and the teardown that has to run twice.
+related:
+  - sdk/cpp/index
+  - sdk/cpp/actions
+  - protocol/resources
+---
+
+A resource is a named value the agent can read, and optionally subscribe to. `reader` is the terminal step of the builder, so `description` and `subscribe` come before it.
+
+```cpp
+builder.resource("todos")
+    .description("Every todo, newest first")
+    .subscribe(watch_todos)
+    .reader(read_todos);
+```
+
+## The reader
+
+```cpp
+using tesseron::ResourceReader;
+// std::function<boost::asio::awaitable<Result<Json>>()>
+```
+
+It runs on every `resources/read`, on the host's I/O thread, and answers the current value:
+
+```cpp
+boost::asio::awaitable<Result<Json>> read_todos() {
+  co_return serialise(store.all());
+}
+```
+
+A reader that fails answers an `ActionError` the same way a handler does. A reader that throws is caught and answered as `-32603`.
+
+## Subscribing
+
+Registering a subscriber is also what declares the resource `subscribable: true` in the manifest. Leave it off and a `resources/subscribe` for that name is answered `-32003`, the same answer an undeclared resource gets: from the agent's side there is nothing to distinguish "no such resource" from "not subscribable", and neither one is going to start working.
+
+```cpp
+using tesseron::ResourceSubscriber;
+// std::function<Subscription(ResourceEmitter)>
+```
+
+The subscriber starts pushing and hands back the thing that stops it:
+
+```cpp
+tesseron::Subscription watch_todos(tesseron::ResourceEmitter emitter) {
+  const auto registration = store.on_change([emitter](const Todos& todos) {
+    emitter.emit(serialise(todos));
+  });
+  return tesseron::Subscription::with_teardown(
+      [registration] { store.remove_listener(registration); });
+}
+```
+
+`Subscription::without_teardown()` is for a subscriber that registered nothing needing cleanup.
+
+The acknowledgement goes out *before* the subscriber runs, so a value the subscriber emits immediately cannot overtake the response the agent is still waiting on. The acknowledgement is `result: null`, both for subscribe and unsubscribe.
+
+## The emitter
+
+One emitter belongs to one `resources/subscribe`, so the subscription id is already baked in. Copying is cheap and every copy pushes to the same subscriber, which is what lets a subscriber hand one to another thread.
+
+`emit` is safe from any thread. It hops onto the host's own thread before touching the subscription, which is also where the subscription's liveness can be read without racing an unsubscribe. It is fire-and-forget: a value emitted after the agent unsubscribed, or after the transport closed, is dropped rather than queued.
+
+## The teardown runs twice as often as you think
+
+It runs on `resources/unsubscribe` **and** when the transport closes, whichever comes first. That second case is the one that bites: a subscriber that leaks its listener keeps a reference to an emitter for a session the agent already left, and every value your application produces from then on walks a dead path.
+
+Write the teardown so it is safe to run when nothing is listening any more, and let it own everything the subscriber registered.
+
+## Reading it back
+
+```json
+// resources/read
+{ "result": { "value": { "todos": [] } } }
+
+// resources/updated, a notification
+{ "params": { "subscriptionId": "sub-1", "value": { "todos": [] } } }
+```

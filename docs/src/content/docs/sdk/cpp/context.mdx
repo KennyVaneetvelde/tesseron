@@ -1,0 +1,109 @@
+---
+title: ActionContext (C++)
+description: Progress, sampling, confirmation, elicitation, logging, and the application dispatcher.
+related:
+  - sdk/cpp/actions
+  - protocol/progress-cancellation
+  - protocol/elicitation
+  - protocol/sampling
+---
+
+Every handler is called with `(Json input, ActionContext context)`. The context is where the protocol's round trips back into the agent live. It is cheap to copy and every copy talks to the same invocation, including the shared progress ceiling, so a handler can hand one to a helper without losing anything.
+
+## What it knows
+
+```cpp
+context.action_name();        // "add_todo"
+context.invocation_id();      // the gateway's id for this call
+context.agent();              // { id, name }; "pending" until the session is claimed
+context.origin();             // the application's origin
+context.route();              // where in the application the agent was, if the gateway said
+context.agent_capabilities(); // what the other end negotiated
+```
+
+Check `agent_capabilities()` before `sample` or `elicit` whenever the handler has a useful non-interactive fallback. It saves a round trip that was always going to fail.
+
+## progress
+
+```cpp
+context.progress(tesseron::ProgressUpdate()
+                     .percent(40)
+                     .message("importing rows")
+                     .data(counters));
+```
+
+Every field is optional; send whichever the handler actually knows. Fire-and-forget, like every notification.
+
+Percent is clamped into 0 to 100, and never allowed to fall below a value already sent for this invocation. An agent rendering a progress bar reads a backwards jump as a restart, so a lower value is raised to the ceiling rather than dropped: the message and the data attached to it are still worth delivering. Two copies of the context handed to two helpers share one ceiling.
+
+## log
+
+```cpp
+context.log(tesseron::LogEntry::warn("row 41 had no sku").meta(row));
+```
+
+Four levels, matching the MCP logging levels the gateway forwards to. Fire-and-forget.
+
+## sample
+
+Asks the agent's model to answer a prompt.
+
+```cpp
+auto answered = co_await context.sample(
+    tesseron::SampleRequest("Summarise this changelog:\n" + text).max_tokens(400));
+if (!answered.ok()) co_return std::move(answered).error();
+```
+
+Sampling depth is not a field in any Tesseron frame. The gateway owns `maxSamplingDepth` and answers `-32008` itself, so the host forwards the request without counting.
+
+## confirm
+
+A yes-or-no gate in front of something destructive.
+
+```cpp
+auto confirmed = co_await context.confirm("Delete all 412 archived todos?");
+if (!confirmed.ok()) co_return std::move(confirmed).error();
+if (!confirmed.value()) co_return ActionError::handler("cancelled at confirmation");
+```
+
+`true` only on an explicit accept. A decline, a cancel, and an agent that never negotiated elicitation all answer `false`, which is the safe reading for the gate this exists for.
+
+## elicit
+
+Asks the user for structured content.
+
+```cpp
+tesseron::ElicitRequest request("Which project should this go in?");
+request.json_schema(project_form_schema());
+auto answered = co_await context.elicit(std::move(request));
+if (!answered.ok()) co_return std::move(answered).error();
+if (!answered.value().has_value()) co_return ActionError::handler("no project chosen");
+```
+
+An empty optional means a decline or a cancel. Unlike `confirm`, a missing capability is an error rather than a default, because structured content has no safe default and the handler has to branch on it.
+
+The schema is checked against the [elicitation rules](/protocol/elicitation/) before the frame leaves. MCP renders an elicit prompt as a flat form, so the protocol constrains the schema to a single object of primitive leaves. A top-level `oneOf`, `anyOf`, `allOf` or `not`, a top-level type other than `object`, or a property typed `object` or `array` all fail with `-32602` at the `elicit` call site, instead of surfacing as a gateway rejection three hops later.
+
+## on_application_thread
+
+The handler runs on the host's I/O thread. When your application state belongs to another thread, this is the bridge:
+
+```cpp
+std::string title;
+co_await context.on_application_thread([&] { title = window->title_field().text(); });
+```
+
+The work runs on whatever `HostOptions::application_dispatcher` names, and the handler resumes back on the host's thread. A UI toolkit that owns the main loop installs its own "post to the main loop" there:
+
+```cpp
+tesseron::HostOptions options;
+options.application_dispatcher = [](std::function<void()> work) {
+  your_toolkit::post_to_main_loop(std::move(work));
+};
+```
+
+Left unset, the work runs inline, which is correct for a headless application that has no other thread.
+
+## Cancellation
+
+`stop_token()`, `cancelled()`, and `co_await wait_for_cancellation()`. All three fire on the same three events: the agent cancelled, the invocation timed out, or the transport closed under it. See [Actions](/sdk/cpp/actions/#cancellation).

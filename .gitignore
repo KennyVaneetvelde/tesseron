@@ -5,6 +5,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 sdks/rust/target
+sdks/cpp/build/
 
 # Tool caches
 .turbo/
