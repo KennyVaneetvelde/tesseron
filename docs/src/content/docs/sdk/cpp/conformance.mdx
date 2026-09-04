@@ -1,0 +1,68 @@
+---
+title: Conformance (C++)
+description: What the C++ host passes against the language-neutral fixture corpus, and how to run it yourself.
+related:
+  - sdk/cpp/index
+  - sdk/cpp/installation
+  - sdk/porting
+  - protocol/compatibility
+---
+
+The [conformance corpus](https://github.com/Eigenwise/tesseron/tree/main/conformance) is language-neutral: a set of JSON fixtures and a Node runner that plays the gateway against whatever host you point it at. The C++ SDK ships a private adapter so it can be pointed at.
+
+## Where it stands
+
+**24 fixtures pass, 10 skip, 0 fail**, on Linux with clang and on Windows with MSVC.
+
+The 10 skips are the nine `bind/*` fixtures, which need a host-minted claim code, plus `uds/file-mode`, which needs a unix domain socket. The C++ host speaks WebSocket only and takes gateway-minted claims only, and it says so:
+
+```bash
+pnpm conformance:run:cpp
+# --unsupported host-minted-claim,uds
+```
+
+That list is not cosmetic. The runner cross-checks it against the four capability flags in the host's `tesseron/hello`: for each known capability, the flag has to equal "not in the unsupported list". Declaring `streaming: true` while naming `streaming` unsupported fails the run, and so does the reverse. All four flags this SDK declares are `true`, and neither of the two things it leaves out is one of them.
+
+## Running it
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+cmake --build sdks/cpp/build
+pnpm -r --filter @tesseron/conformance build
+pnpm conformance:run:cpp
+```
+
+CI runs exactly that on both platforms.
+
+## The adapter
+
+`TESSERON_BUILD_CONFORMANCE_HOST=ON` builds `tesseron-conformance-host`. It is deliberately never installed and never exported: it exists to be launched from the repository, and shipping it would put a test harness in a consumer's package.
+
+The runner starts one process per fixture with `TESSERON_CONFORMANCE_FIXTURE` pointing at the fixture document, waits for a single readiness line on stdout, then plays the gateway against the endpoint that line names.
+
+```
+tesseron-conformance-url=ws://127.0.0.1:52344/
+```
+
+One line, flushed. Every diagnostic goes to stderr, because a second stdout line fails the fixture. Closing stdin is how the runner asks the process to shut down.
+
+The adapter reads the fixture's `actions` and `resources` and registers them, applying each action's behaviours in the order the corpus fixes: refuse a call that was not meant to happen, wait to be cancelled, stream progress, confirm, elicit, then answer with the canned value.
+
+Two things it refuses at launch rather than ignoring:
+
+- a fixture requiring `uds`, or declaring a `hostMintedClaim`, because this host has neither;
+- an `inputSchema` using a JSON Schema keyword the adapter cannot enforce.
+
+That second one matters more than it looks. The adapter covers the keywords the corpus actually uses instead of pulling a full JSON Schema implementation into a test binary, and a fixture that would otherwise pass *because* a keyword was silently ignored fails the launch instead.
+
+## The unit suite
+
+Separate from conformance, and cheaper to run while you work:
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON
+cmake --build sdks/cpp/build
+ctest --test-dir sdks/cpp/build --output-on-failure
+```
+
+Catch2 v3, registered with CTest through `catch_discover_tests`. It covers JSON-RPC framing, the handshake state machine, the progress clamp, resource subscription teardown, and error mapping. The handshake and resource tests talk to a real host over a real loopback socket, because those behaviours only exist in terms of what crosses the wire.

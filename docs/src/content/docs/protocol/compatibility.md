@@ -21,7 +21,17 @@ A host speaking protocol `1.x` works with a gateway speaking protocol `1.y`, as 
 
 The table starts at `1.2.0`. The history checked for this page does not prove package boundaries for earlier protocol versions.
 
-Future Rust, Python, and C++ SDKs will get rows here. Their package versions are independent.
+## Other implementations
+
+These are not published packages. You build them from source, and their versions move independently of the TypeScript group.
+
+| Implementation | Protocol | What it leaves out |
+| --- | --- | --- |
+| `tesseron::tesseron` (C++, [`sdks/cpp/`](https://github.com/Eigenwise/tesseron/tree/main/sdks/cpp)) | `1.2.0` | host-minted claim codes, unix domain sockets |
+
+The C++ host declares all four handshake capabilities and passes 24 of the 34 conformance fixtures; the 10 it skips are the nine `bind/*` fixtures and `uds/file-mode`, which are exactly the two things in that last column. See [Conformance](/sdk/cpp/conformance/).
+
+Rust and Python SDKs get rows here when they ship.
 
 ## TypeScript package versions
 

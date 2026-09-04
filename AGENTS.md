@@ -34,6 +34,9 @@ repo; do not introduce one.
 - `sdks/rust/`: the Rust SDK (`tesseron`) and `tesseron-conformance-host`. Its own
   cargo workspace, invisible to pnpm and to Biome. In progress; see
   [`sdks/rust/README.md`](./sdks/rust/README.md) for what it covers.
+- `sdks/cpp/`: the C++ SDK (`tesseron::tesseron`) and `tesseron-conformance-host`.
+  Its own CMake project, invisible to pnpm and to Biome. In progress; see
+  [`sdks/cpp/README.md`](./sdks/cpp/README.md) for what it covers.
 - `plugin/` — the Claude Code plugin (also accepted by Codex). Skills live in
   `plugin/skills/`, the MCP wiring in `plugin/.mcp.json`, the manifest in
   `plugin/.claude-plugin/plugin.json`.
@@ -55,6 +58,23 @@ cargo build --manifest-path sdks/rust/Cargo.toml --workspace
 House rules there: no `unwrap()` outside tests (`unwrap_used` is denied),
 `#![deny(missing_docs)]` on the library, no abbreviations in names. `Cargo.lock`
 is committed.
+
+`sdks/cpp/` is the same story with CMake. Never change directory into it; point
+`-S` and `-B` at it from the repo root, the way CI does:
+
+```bash
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON \
+      -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+cmake --build sdks/cpp/build
+ctest --test-dir sdks/cpp/build --output-on-failure
+pnpm conformance:run:cpp
+```
+
+House rules there: no abbreviations in names, nothing throws across a handler
+boundary (`Result<T>` is in every signature), and nothing under `sdks/cpp/`
+refers to a path above it, because the directory has to move to its own
+repository unchanged. Dependencies arrive through `FetchContent` at pinned
+hashes only: no vcpkg, no Conan, no system packages.
 
 ## Plugin manifest is version-coupled
 

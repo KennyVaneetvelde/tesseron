@@ -118,3 +118,78 @@ jobs:
       # Host-minted claims are the only thing the Rust host leaves out.
       - name: Run the conformance suite
         run: pnpm conformance:run:rust
+
+  cpp:
+    name: C++ SDK
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          - os: windows-latest
+            compiler: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja --no-progress -y
+
+      # Puts cl.exe and the Windows SDK on PATH so the Ninja generator finds a
+      # compiler. Skipped on Linux, where clang is already there.
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Boost and nlohmann/json are fetched and built from source on a cold
+      # cache, which is minutes. The key carries the pinned versions, so a
+      # dependency bump invalidates it on its own.
+      - name: Cache the fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: sdks/cpp/build/_deps
+          key: cpp-deps-${{ matrix.os }}-${{ hashFiles('sdks/cpp/cmake/TesseronDependencies.cmake', 'sdks/cpp/tests/CMakeLists.txt') }}
+
+      # Never change directory into sdks/cpp: -S and -B are what keep the build
+      # runnable from the repo root, the same way cargo is pointed at a manifest.
+      - name: Configure
+        run: >
+          cmake -S sdks/cpp -B sdks/cpp/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DTESSERON_BUILD_TESTS=ON
+          -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+          ${{ matrix.compiler }}
+
+      - name: Build
+        run: cmake --build sdks/cpp/build
+
+      - name: Test
+        run: ctest --test-dir sdks/cpp/build --output-on-failure
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the conformance runner
+        run: pnpm -r --filter @tesseron/conformance build
+
+      # host-minted-claim and uds are the two capabilities this host leaves out,
+      # and the runner cross-checks that list against the four hello capability
+      # flags: a capability declared true in the SDK and named here fails the
+      # run. 24 fixtures pass, 10 skip, on both platforms.
+      - name: Run the conformance suite
+        run: pnpm conformance:run:cpp

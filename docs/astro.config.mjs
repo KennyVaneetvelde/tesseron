@@ -173,6 +173,18 @@ export default defineConfig({
               ],
             },
             {
+              label: 'C++ SDK',
+              collapsed: true,
+              items: [
+                { label: 'Overview', link: '/sdk/cpp/' },
+                { label: 'Install & build', link: '/sdk/cpp/installation/' },
+                { label: 'Actions', link: '/sdk/cpp/actions/' },
+                { label: 'Resources', link: '/sdk/cpp/resources/' },
+                { label: 'ActionContext', link: '/sdk/cpp/context/' },
+                { label: 'Conformance', link: '/sdk/cpp/conformance/' },
+              ],
+            },
+            {
               label: 'Other SDKs',
               collapsed: false,
               items: [

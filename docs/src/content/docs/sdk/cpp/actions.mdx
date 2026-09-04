@@ -1,0 +1,122 @@
+---
+title: Actions (C++)
+description: Declaring actions, the Schema builder, the raw JSON Schema escape hatch, and how a handler fails.
+related:
+  - sdk/cpp/index
+  - sdk/cpp/context
+  - sdk/cpp/resources
+  - protocol/actions
+---
+
+An action is a name, a declared input shape, and a coroutine. The builder chains from the host builder and `handler` is the terminal step, which hands the host builder back so the next action follows.
+
+```cpp
+builder.action("add_todo")
+    .description("Adds one todo")
+    .input(tesseron::schema::object({
+        tesseron::schema::required("title", tesseron::schema::string().min_length(1)),
+        tesseron::schema::optional("dueAt", tesseron::schema::string()),
+    }))
+    .timeout(std::chrono::seconds(10))
+    .handler(add_todo);
+```
+
+`description` is what the agent reads when it decides whether to call this at all, so write it for a reader who has never seen your application. `timeout` overrides the gateway's 60-second default for this action only.
+
+## The handler
+
+```cpp
+using tesseron::ActionHandler;
+// std::function<boost::asio::awaitable<Result<Json>>(Json, ActionContext)>
+```
+
+A handler is a C++20 coroutine. It runs on the host's I/O thread, so a `co_await` on a sample or an elicitation yields instead of blocking the read loop, and a handler that blocks that thread stalls the whole session. Push real work onto your own executor and `co_await` the result.
+
+```cpp
+boost::asio::awaitable<Result<Json>> add_todo(Json input, ActionContext context) {
+  if (context.cancelled()) co_return ActionError::protocol(TesseronErrorCode::Cancelled, "cancelled");
+
+  Json added = Json::object();
+  added["id"] = store_todo(input.at("title").get<std::string>());
+  co_return added;
+}
+```
+
+## Declaring input
+
+`Schema` answers both questions with one object: it emits the JSON Schema that goes in the manifest, and it validates the input at dispatch. The contract the agent reads is the contract the handler is protected by, so the two cannot drift apart.
+
+```cpp
+namespace schema = tesseron::schema;
+
+schema::object({
+    schema::required("quantity", schema::integer().minimum(1).maximum(99)),
+    schema::required("sku", schema::string().min_length(1)),
+    schema::optional("tags", schema::array(schema::string()).max_items(8)),
+    schema::optional("size", schema::string().allowed_values({"small", "large"})),
+})
+```
+
+`min_length` and `max_length` count UTF-8 code points, not bytes, so a schema written for a human-visible field means what it looks like it means.
+
+Input that fails the schema never reaches the handler. The agent gets `-32004` with every issue at once, each carrying the path into the input:
+
+```json
+{
+  "code": -32004,
+  "message": "Invalid input",
+  "data": [
+    { "message": "required property is missing", "path": ["sku"] },
+    { "message": "expected type \"integer\", got string", "path": ["quantity"] }
+  ]
+}
+```
+
+### The raw escape hatch
+
+For a shape the builder cannot express, hand over the JSON Schema document *and* the check:
+
+```cpp
+builder.action("query")
+    .input_schema(load_schema_document(), [](const Json& input) {
+      return your_validator.check(input);
+    })
+    .handler(run_query);
+```
+
+The validator is not optional. A schema nothing enforces is a promise to the agent that the handler does not keep, and the failure surfaces as a crash inside your handler instead of a `-32004` the agent can act on.
+
+## Failing
+
+`ActionError` has three constructors and the difference between them is what reaches the agent.
+
+```cpp
+// -32005, message and data both sent. A domain failure the agent should read.
+co_return ActionError::handler("cart 91 is already checked out");
+
+// The code you name, with structured data the agent can branch on.
+co_return ActionError::protocol(TesseronErrorCode::Unauthorized, "sign in first", detail);
+
+// -32603 with a fixed message. The cause stays on this side of the socket.
+co_return ActionError::internal(problem);
+```
+
+`internal` is the one to reach for when the failure is a bug rather than a domain outcome. An exception's text in a handler error is a leak, so it is kept locally and reported through `internal_source()` instead. A handler that throws is treated the same way.
+
+## Cancellation
+
+The gateway sends `actions/cancel`, and the host answers `-32001` immediately: it does not wait for the handler to notice. What the stop token buys you is the chance to stop *doing* the work.
+
+```cpp
+boost::asio::awaitable<Result<Json>> import_rows(Json input, ActionContext context) {
+  for (const auto& row : rows) {
+    if (context.cancelled()) co_return ActionError::handler("import cancelled");
+    co_await write_row(row);
+  }
+  co_return summary();
+}
+```
+
+`context.stop_token()` hands the same signal to anything that already speaks `std::stop_token`, and `co_await context.wait_for_cancellation()` parks until it fires, for a handler whose whole job is to wait.
+
+Settlement is first-wins between the handler returning, the cancellation arriving, and the timeout firing, so those three can never answer one request twice.
