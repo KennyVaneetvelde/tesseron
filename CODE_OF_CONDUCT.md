@@ -20,7 +20,7 @@ constructively. What we ask in return:
 
 Enforcement decisions are made by the project maintainers and are final.
 If you think a decision was applied unfairly, email
-`kenny.vaneetvelde@gmail.com` with the subject prefix
+`kenny@eigenwise.io` with the subject prefix
 `[tesseron-coc]` and the case will be re-reviewed.
 
 This document is intentionally short. Its spirit is captured in the first

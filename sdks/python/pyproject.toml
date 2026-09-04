@@ -5,7 +5,7 @@ description = "Expose typed application actions to MCP-compatible AI agents over
 readme = "README.md"
 requires-python = ">=3.11"
 license = "BUSL-1.1"
-authors = [{ name = "Kenny Vaneetvelde", email = "kenny.vaneetvelde@gmail.com" }]
+authors = [{ name = "Kenny Vaneetvelde", email = "kenny@eigenwise.io" }]
 keywords = ["tesseron", "mcp", "agents", "websocket", "json-rpc"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,7 +21,7 @@ dependencies = ["pydantic>=2.7", "websockets>=14"]
 [project.urls]
 Homepage = "https://eigenwise.github.io/tesseron/"
 Documentation = "https://eigenwise.github.io/tesseron/sdk/python/"
-Repository = "https://github.com/eigenwise/tesseron"
+Repository = "https://github.com/Eigenwise/tesseron"
 
 [build-system]
 requires = ["hatchling"]

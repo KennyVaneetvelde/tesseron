@@ -9,7 +9,7 @@ is pre-2.0. Pin to `^1.0.0` and we'll keep you covered.
 
 **Do not open a public GitHub issue for security reports.**
 
-Instead, email `kenny.vaneetvelde@gmail.com` with the subject prefix
+Instead, email `kenny@eigenwise.io` with the subject prefix
 `[tesseron-security]` and a description of:
 
 - The affected package(s) and version(s).

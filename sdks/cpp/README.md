@@ -175,3 +175,9 @@ runs the same script.
   signature. `Result<T>` or `Result<T, HostError>`, never an exception.
 - Nothing under `sdks/cpp/` refers to a path above `sdks/cpp/`. The directory
   moves to its own repository unchanged.
+
+## License
+
+Tesseron is licensed under the [Business Source License 1.1](./LICENSE). Each
+release auto-converts to Apache-2.0, the Change License, four years after
+publication.

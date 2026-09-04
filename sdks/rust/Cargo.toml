@@ -8,6 +8,9 @@ categories = ["network-programming", "api-bindings"]
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 repository.workspace = true
 
 [dependencies]
@@ -38,8 +41,11 @@ members = [
 [workspace.package]
 edition = "2024"
 rust-version = "1.85"
-license = "Apache-2.0"
-repository = "https://github.com/eigenwise/tesseron"
+license = "BUSL-1.1"
+authors = ["Kenny Vaneetvelde <kenny@eigenwise.io>"]
+homepage = "https://eigenwise.github.io/tesseron/"
+documentation = "https://eigenwise.github.io/tesseron/sdk/rust/"
+repository = "https://github.com/Eigenwise/tesseron"
 
 [workspace.dependencies]
 futures-util = "0.3"
