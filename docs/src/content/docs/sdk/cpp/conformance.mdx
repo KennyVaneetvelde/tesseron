@@ -12,7 +12,7 @@ The [conformance corpus](https://github.com/Eigenwise/tesseron/tree/main/conform
 
 ## Where it stands
 
-**Every fixture passes except the ten it declares it cannot serve**, on Linux with clang and on Windows with MSVC. At the corpus this was last run against, that is 27 passed, 10 skipped, 0 failed.
+**Every fixture passes except the ten it declares it cannot serve**, on Linux with clang and on Windows with MSVC. At the corpus this was last run against, that is 29 passed, 10 skipped, 0 failed.
 
 Those 10 are the nine `bind/*` fixtures, which need a host-minted claim code, plus `uds/file-mode`, which needs a unix domain socket. The C++ host speaks WebSocket only and takes gateway-minted claims only, and it says so:
 

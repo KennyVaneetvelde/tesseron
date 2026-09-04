@@ -253,9 +253,13 @@ void Session::dispatch(IncomingFrame frame) {
     case IncomingFrame::Kind::Notification:
       handle_notification(frame.method, frame.params);
       return;
-    case IncomingFrame::Kind::Malformed:
-      std::cerr << "tesseron: dropping a frame that is not JSON-RPC 2.0: " << frame.problem << '\n';
+    case IncomingFrame::Kind::Malformed: {
+      const auto response_id = frame.id.value_or(RequestId::null());
+      send_envelope(failure(
+          response_id,
+          ProtocolError(TesseronErrorCode::InvalidRequest, std::move(frame.problem))));
       return;
+    }
   }
 }
 
