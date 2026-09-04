@@ -176,6 +176,18 @@ stays out of the wheel. `examples/todo` and `examples/prompts` are the canonical
 action names and schemas as the Rust and TypeScript examples; `examples/validate-e2e.mjs` proves them
 through the real gateway. Docs live at `docs/src/content/docs/sdk/python/`.
 
+## `tesseron::tesseron` (C++, `sdks/cpp/`)
+
+The same application half in C++20 on Boost.Asio coroutines. `tesseron::Host::builder()` takes the
+application id and name, actions and resources, then `listen()` binds loopback port 0 on one owned
+`io_context` thread and writes the v2 manifest; handlers are `boost::asio::awaitable<Result<Json>>`
+and every failure is a `Result`, never an exception across the boundary. `include/tesseron/` is the
+public surface (one header per concern plus `tesseron.hpp` as the umbrella), `src/session.cpp` runs
+the handshake gate and dispatch, `src/jsonrpc.cpp` classifies frames, `error.cpp` maps the 17 codes.
+The `schema.hpp` builder covers the common JSON Schema shapes with a raw-JSON escape hatch.
+`conformance-host/` is the private fixture adapter the runner drives. Docs live at
+`docs/src/content/docs/sdk/cpp/`. Canonical examples are SQ-25.
+
 ## Not packages
 
 `packages/` and `examples/` no longer exist in git. If they are on disk they are untracked

@@ -3,7 +3,7 @@
   "tool": "codebase-mapper",
   "version": "2.15.7",
   "mappedAt": "2026-09-04",
-  "gitCommit": "a61b63bc4ea90cc05a05a37f26e95ad836cb4e40",
+  "gitCommit": "023b6c2d7d96960078bdc0244a68a6eafabee54b",
   "documents": [
     "architecture.md",
     "coding-style.md",
@@ -19,18 +19,18 @@
     "testing.md"
   ],
   "hashes": {
-    "INDEX.md": "059bdb4384f855aa9193e3144e3adb2cb2e5ebf247ace4df9706128640ffcd4c",
+    "INDEX.md": "ac72fb876588c4411c98ab32c2ed2f07ecf48ffe5faff11e3c0b10c8fe80b2c5",
     "architecture.md": "ca8f8f9f9c631c2e8f8bd09bc74cf3d3d85e3c98ca5bbbefbc40ffe213ff152c",
     "coding-style.md": "5dccb9489b85c3407fac5f720a4862354baf9a07fe5b0eebeae3fa4dd03c3e85",
-    "directory-structure.md": "355b93ec0db9ef69b2e04d606d06077b0806200a0d5f822634a20886c109c4e3",
-    "entry-points.md": "9c20a3c46f6479c8d28a78559a0f0c997bba248994937f7c0eadc6a0a8d38bb4",
+    "directory-structure.md": "5cd7630da486fd7fb07579dc5a39ffbffd791fde23faaf76095afb2956f5d9f5",
+    "entry-points.md": "40ddb21b596416a6d4d57eac640040b800a97f64a6dc4a66568218cd6aa88652",
     "gateway.md": "be95f58a54d66b0770d37f25026dfa4d44fe2928274ff71e7ef23a4657e377ae",
-    "modules.md": "ea6c7f700ca6993a878faf6ce807277e309ffb9dacd4bdad13b45ad9d3d4ccd6",
+    "modules.md": "6d51296049b68dd32f120fb68e80df3e81337cfe0900d756548e4cbe0d8b23a4",
     "onboarding.md": "707de69dd7fed36237a45c16c61a4d648a61f88f3e162f817a01a1211f209bf1",
     "patterns.md": "68a2a47a7986c8b6850ddccb0ce83c2a32b3be608eb6f81cfca1cfa1e6e27a7d",
     "protocol.md": "44178b06a69a5a49b400355bed5360597de3df5025ed9cf5bd390ab100e09fb8",
     "release-and-plugin.md": "4acc80b6dd047565cf1dd175346c538da9a04ab07e9ee2e2f9d98b6c47d259b4",
-    "tech-landscape.md": "1509059c66349b9b038c3a23f046255a7206fb2ba2637576ec53ff88822378a6",
-    "testing.md": "581374e1e939ad9686be800a89b17171ccb55d9b4ade1c2295cf3d3c3cf17659"
+    "tech-landscape.md": "8fa420a4b348cbb0b137c3f7dcae4f1671a5134e1c0fb5a8200da5a5ccea892e",
+    "testing.md": "aa7d8ca73c7c3b4a05083cf664cf454b5109be7430911b94e2571a1aab02a9b9"
   }
 }

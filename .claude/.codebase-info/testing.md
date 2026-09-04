@@ -102,9 +102,17 @@ The Python host is the third: `pnpm conformance:run:python` runs
 `--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
 design). Its own suite is `uv run --locked pytest` (104 tests), `mypy --strict src conformance_host
 tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
-usual way a host goes red: rerun every host at HEAD after any corpus change. `pnpm example:python:e2e`
+usual way a host goes red: rerun every host at HEAD after any corpus change (SQ-22, SQ-24, and SQ-43 each
+left a sibling host red that way). `pnpm example:python:e2e`
 (`sdks/python/examples/validate-e2e.mjs`) is the Python twin of the Rust e2e: 15 PASS lines through
 the real gateway.
+
+The C++ host is the fourth: `pnpm conformance:run:cpp` runs
+`sdks/cpp/build/conformance-host/tesseron-conformance-host` with the same `--unsupported
+host-minted-claim,uds`, so it also skips 10 everywhere. Its own suite is Catch2 (`ctest --test-dir
+sdks/cpp/build`, 34 cases, `gateway_double.cpp` plays the gateway over a real WebSocket), built with
+`-DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON`. There is no C++ example e2e yet
+(SQ-25).
 
 A `send` step may carry `raw: true` to write a deliberately malformed envelope verbatim (no
 `jsonrpc` member, say); `validate.mjs` and the runner otherwise refuse a send without
@@ -133,5 +141,7 @@ pnpm conformance:run               # runs them against the TS reference host (bu
 cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 49 unit + 25 integration + 3 host + 2 doctests (README blocks)
 cd sdks/python && uv run --locked pytest -q                   # Python: 104 tests; mypy --strict and ruff check alongside
 pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
+cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON && cmake --build sdks/cpp/build && ctest --test-dir sdks/cpp/build   # C++: 34 Catch2 cases
+pnpm conformance:run:cpp           # the C++ host against the corpus (build first)
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```

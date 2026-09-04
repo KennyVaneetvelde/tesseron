@@ -3,10 +3,10 @@
 *Last Updated: 2026-09-04*
 
 Monorepo laid out as a **hub**: the language-neutral pieces (spec, gateway, conformance, docs, plugin)
-sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript, Rust, and Python
-exist today. 56 tracked TypeScript source files under `sdks/typescript/*/src`, `gateway/src`, and
-`docs-mcp/src`, plus ~4k lines of Rust under `sdks/rust/` and ~2.5k lines of Python under
-`sdks/python/src/tesseron/`.
+sit at the top level, and each language SDK lives under `sdks/<language>/`. TypeScript, Rust, Python,
+and C++ exist today. 56 tracked TypeScript source files under `sdks/typescript/*/src`, `gateway/src`,
+and `docs-mcp/src`, plus ~4k lines of Rust under `sdks/rust/`, ~2.5k lines of Python under
+`sdks/python/src/tesseron/`, and ~4k lines of C++ under `sdks/cpp/`.
 The layout landed on 2026-09-03 (commit 4ca98ea); it is the in-place precursor to per-language
 repos, so nothing under `sdks/typescript/` should reach up to `gateway/` except through
 `@tesseron/core`.
@@ -47,14 +47,20 @@ tesseron/
 │       ├── examples/         todo/ and prompts/ (`python -m examples.todo`), same action set as the Rust pair;
 │       │                     validate-e2e.mjs drives both through the real gateway: `pnpm example:python:e2e`
 │       └── tests/            pytest, 104 tests; mypy --strict and ruff gate the whole tree
+│   └── cpp/                  CMake >= 3.24 project, C++20, library target `tesseron::tesseron`; build dir sdks/cpp/build/ is gitignored
+│       ├── include/tesseron/ action, context, error, host, json, manifest, protocol, resource, schema, tesseron (umbrella)
+│       ├── src/              one .cpp per header plus session, jsonrpc, elicit_schema, and private *_state.hpp
+│       ├── cmake/            TesseronDependencies.cmake: FetchContent pins (Boost 1.89.0, nlohmann/json 3.12.0) by URL hash
+│       ├── tests/            Catch2 3.8.1 via FetchContent, 34 cases, gateway_double.cpp plays the gateway
+│       └── conformance-host/ private target tesseron-conformance-host (no C++ example yet: SQ-25)
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
-│   └── src/content/docs/     49 pages (six under sdk/python/). docs-mcp bakes these in at build time.
+│   └── src/content/docs/     55 pages (six each under sdk/python/ and sdk/cpp/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
 │   ├── fixtures/             39 scripted JSON exchanges. no deps on this workspace.
 │   ├── validate.mjs          zero-dep fixture linter, `pnpm conformance:validate`
-│   ├── run-reference.mjs     `pnpm conformance:run` (TS host) / `conformance:run:rust`; takes --host, --unsupported,
+│   ├── run-reference.mjs     `pnpm conformance:run` (TS host) / `conformance:run:{rust,python,cpp}`; takes --host, --unsupported,
 │   │                         always passes --fixtures so the live corpus runs, never the copy in runner/dist
 │   └── runner/               @tesseron/conformance 1.2.x, bin tesseron-conformance, depends on ws only
 ├── plugin/                   the Claude Code plugin (also accepted by Codex)
@@ -107,5 +113,8 @@ The dependency shape is a fan, not a chain:
 - `sdks/rust/` and `sdks/python/` must never reference a path above their own prefix; each is lifted
   into its own repo at the split milestone. `conformance/` may reference `sdks/`, the reverse is forbidden.
 - `sdks/python/` is excluded from Biome (`biome.json`) and invisible to pnpm; ruff owns its formatting.
+- `sdks/cpp/` is excluded from Biome too and is never entered with `cd`: configure with `cmake -S sdks/cpp -B
+  sdks/cpp/build` from the repo root, the way `ci.yml` does. Dependencies come only through FetchContent at
+  pinned hashes (no vcpkg, no Conan, no system packages).
 - `packages/` and `examples/` may still exist on disk in an old checkout. They are untracked
   leftovers (`node_modules/`, `.turbo/`) from before the move; git holds nothing there. Delete them.

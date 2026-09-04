@@ -7,6 +7,7 @@
 | Language | TypeScript 5.7, ES2022 target | `tsconfig.base.json:3` |
 | Rust SDK | edition 2024, MSRV 1.85, tokio + tokio-tungstenite 0.30 + serde_json + schemars 1 | `sdks/rust/Cargo.toml` |
 | Python SDK | Python >= 3.11, pydantic >= 2.7 + websockets >= 14, uv-managed, Hatchling build, ruff + mypy --strict + pytest | `sdks/python/pyproject.toml` |
+| C++ SDK | CMake >= 3.24, C++20, Boost.Asio (public) + Boost.Beast (private) 1.89.0, nlohmann/json 3.12.0, Catch2 3.8.1, all via FetchContent | `sdks/cpp/CMakeLists.txt`, `sdks/cpp/cmake/TesseronDependencies.cmake` |
 | Runtime | Node >= 20 | `package.json:12` |
 | Package manager | **pnpm 9.15.4**, workspace | `package.json:14`, `pnpm-workspace.yaml` |
 | Task runner | turbo 2.3 | `turbo.json` |
@@ -69,6 +70,12 @@ onto the wire unchanged, `websockets` for the asyncio server), Hatchling as the 
 `[tool.hatch.build.targets.wheel] packages = ["src/tesseron"]` so the sibling `conformance_host/`
 never ships. It also versions independently (0.1.0, not on PyPI yet).
 
+The C++ library (`sdks/cpp/`) is a self-contained CMake project. Boost.Asio is a PUBLIC dependency
+because handlers return `boost::asio::awaitable<Result<Json>>`; Boost.Beast (the WebSocket layer) is
+private. `BOOST_INCLUDE_LIBRARIES` keeps the fetch to the libraries used. Nothing throws across a
+handler boundary (`Result<T>` in every signature), and nothing under `sdks/cpp/` refers to a path above
+it, so the directory can move to its own repository unchanged.
+
 ## CI
 
 Four workflows in `.github/workflows/`:
@@ -90,6 +97,10 @@ Four workflows in `.github/workflows/`:
 - **`ci.yml` `python` job** (`:126-188`) — ubuntu + windows matrix: `uv sync --locked`, `ruff check`,
   `ruff format --check`, `mypy --strict src tests`, `pytest`, `uv build`, then pnpm build and
   `pnpm conformance:run:python` (`--unsupported host-minted-claim,uds`; the Python host is WS-only).
+- **`ci.yml` `cpp` job** (`:190-`) — ubuntu (clang) + windows (MSVC through ilammy/msvc-dev-cmd) matrix:
+  Ninja, a cache of `sdks/cpp/build/_deps` keyed on the dependency pins, `cmake -S sdks/cpp -B
+  sdks/cpp/build` with tests and the conformance host on, build, `ctest`, then the conformance runner
+  through `pnpm conformance:run:cpp` (`--unsupported host-minted-claim,uds`; the C++ host is WS-only).
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.
   `pnpm sync-labels` pushes that file to GitHub.
