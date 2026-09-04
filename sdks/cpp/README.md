@@ -5,12 +5,16 @@ application binds a loopback WebSocket, writes an instance manifest, and the MCP
 gateway dials *in*. There is no port to configure and no gateway address to
 point at.
 
+This repository is [Eigenwise/tesseron-cpp](https://github.com/Eigenwise/tesseron-cpp).
+The [Tesseron hub](https://github.com/Eigenwise/tesseron) holds the protocol,
+docs, and issue tracker.
+
 Two targets live here:
 
 | Target | Where | What it is |
 |---|---|---|
-| `tesseron::tesseron` | `sdks/cpp/` | the library you link against |
-| `tesseron-conformance-host` | `sdks/cpp/conformance-host/` | test binary the `@tesseron/conformance` runner drives; never installed or exported |
+| `tesseron::tesseron` | repository root | the library you link against |
+| `tesseron-conformance-host` | `conformance-host/` | test binary the `@tesseron/conformance` runner drives; never installed or exported |
 
 ## Status
 
@@ -98,9 +102,9 @@ needs nothing but a compiler, CMake, and a network connection. No vcpkg, no
 Conan, no system packages.
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON
-cmake --build sdks/cpp/build
-ctest --test-dir sdks/cpp/build --output-on-failure
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 Run those from the repository root. `-S` and `-B` are what make that work; there
@@ -111,8 +115,8 @@ is no reason to change directory first.
 Build the headless todo app and prompt library with:
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
-cmake --build sdks/cpp/build --target tesseron-example-todo tesseron-example-prompts
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
+cmake --build build --target tesseron-example-todo tesseron-example-prompts
 ```
 
 `tesseron-example-todo` and `tesseron-example-prompts` print a claim code after
@@ -124,8 +128,9 @@ Consuming it from another project:
 
 ```cmake
 include(FetchContent)
-FetchContent_Declare(tesseron GIT_REPOSITORY https://github.com/Eigenwise/tesseron.git
-                     GIT_TAG main SOURCE_SUBDIR sdks/cpp)
+FetchContent_Declare(tesseron
+                     GIT_REPOSITORY https://github.com/Eigenwise/tesseron-cpp.git
+                     GIT_TAG v0.1.0)
 FetchContent_MakeAvailable(tesseron)
 target_link_libraries(your_app PRIVATE tesseron::tesseron)
 ```
@@ -151,20 +156,18 @@ completion API and it has to be set before any Asio header is included.
 
 ## Conformance
 
-From the repository root, against the language-neutral corpus in `conformance/`:
+From the repository root, use the runner published from the Tesseron hub:
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON
-cmake --build sdks/cpp/build
-pnpm -r --filter @tesseron/conformance build
-pnpm conformance:run:cpp
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON
+cmake --build build
+npx -y @tesseron/conformance@1.2.0 --host build/conformance-host/tesseron-conformance-host --unsupported host-minted-claim,uds
 ```
 
 Every fixture passes except the ten that need something this host does not
 have: the nine `bind/*` fixtures, which need a host-minted claim, plus
 `uds/file-mode`. At the corpus this was last run against that is 29 passed, 10
-skipped, 0 failed. `conformance/run-reference.mjs` owns both skip lists and CI
-runs the same script.
+skipped, 0 failed. CI uses the same protocol-pinned runner.
 
 ## House rules
 
@@ -173,8 +176,8 @@ runs the same script.
   better name instead.
 - Nothing throws across a handler boundary: the error type is part of every
   signature. `Result<T>` or `Result<T, HostError>`, never an exception.
-- Nothing under `sdks/cpp/` refers to a path above `sdks/cpp/`. The directory
-  moves to its own repository unchanged.
+- Nothing here refers to a path outside this repository. The C++ SDK moves to
+  its own repository unchanged.
 
 ## License
 
