@@ -135,6 +135,28 @@ Json addition_input() {
   return input;
 }
 
+void require_invalid_request(Json frame, const Json& expected_id) {
+  ProbeHost probe;
+  GatewayDouble gateway(probe.url());
+
+  const auto hello = gateway.receive();
+  REQUIRE(hello.has_value());
+  gateway.accept_handshake(*hello);
+  gateway.send(frame);
+
+  const auto refusal = gateway.receive();
+  REQUIRE(refusal.has_value());
+  REQUIRE(refusal->at("jsonrpc") == "2.0");
+  REQUIRE(refusal->at("id") == expected_id);
+  REQUIRE(refusal->at("error").at("code") == -32600);
+
+  gateway.send(invoke("after-invalid", "add", addition_input()));
+  const auto answer = gateway.receive();
+  REQUIRE(answer.has_value());
+  REQUIRE(answer->at("id") == "after-invalid");
+  REQUIRE(answer->at("result").at("output").at("sum") == 5.0);
+}
+
 }  // namespace
 
 TEST_CASE("the host opens with a hello carrying its manifest", "[handshake]") {
@@ -188,6 +210,32 @@ TEST_CASE("an accepted welcome opens the session for invocations", "[handshake]"
   REQUIRE(welcome.has_value());
   REQUIRE(welcome->session_id == "session-under-test");
   REQUIRE(welcome->claim_code == "CLAIM-0001");
+}
+
+TEST_CASE("malformed envelopes receive InvalidRequest and leave the session open", "[handshake]") {
+  SECTION("a readable id is echoed") {
+    Json frame = invoke("missing-jsonrpc", "add", addition_input());
+    frame.erase("jsonrpc");
+    require_invalid_request(std::move(frame), Json("missing-jsonrpc"));
+  }
+
+  SECTION("an absent id becomes null") {
+    Json frame = invoke("unused", "add", addition_input());
+    frame.erase("jsonrpc");
+    frame.erase("id");
+    require_invalid_request(std::move(frame), Json(nullptr));
+  }
+
+  SECTION("an unreadable id becomes null") {
+    Json frame = invoke("unused", "add", addition_input());
+    frame.erase("jsonrpc");
+    frame["id"] = Json::array();
+    require_invalid_request(std::move(frame), Json(nullptr));
+  }
+
+  SECTION("a non-object frame gets a null id") {
+    require_invalid_request(Json::array(), Json(nullptr));
+  }
 }
 
 TEST_CASE("an upgrade without the gateway subprotocol is refused", "[handshake]") {

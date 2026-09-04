@@ -14,9 +14,10 @@ Json envelope_with_id(const RequestId& id) {
   return envelope;
 }
 
-IncomingFrame malformed(std::string problem) {
+IncomingFrame malformed(std::string problem, std::optional<RequestId> id = std::nullopt) {
   IncomingFrame frame;
   frame.kind = IncomingFrame::Kind::Malformed;
+  frame.id = std::move(id);
   frame.problem = std::move(problem);
   return frame;
 }
@@ -36,20 +37,25 @@ std::optional<RequestId> RequestId::from_json(const Json& value) {
 
 RequestId RequestId::from_number(std::int64_t number) { return RequestId(Json(number)); }
 
+RequestId RequestId::null() { return RequestId(Json(nullptr)); }
+
 IncomingFrame classify(const Json& frame) {
   if (!frame.is_object()) return malformed("envelope is not a JSON object");
-  if (!declares_json_rpc_version(frame)) {
-    return malformed("envelope does not declare jsonrpc " + std::string(kJsonRpcVersion));
-  }
 
   const auto id_member = frame.find("id");
-  // JSON-RPC sorts by presence: a notification omits `id` entirely, while
-  // `"id": null` is a response to a request whose id could not be read.
   std::optional<RequestId> id;
   if (id_member != frame.end()) id = RequestId::from_json(*id_member);
 
+  if (!declares_json_rpc_version(frame)) {
+    return malformed("envelope does not declare jsonrpc " + std::string(kJsonRpcVersion),
+                     std::move(id));
+  }
+
   const auto method = frame.find("method");
   if (method != frame.end() && method->is_string()) {
+    if (id_member != frame.end() && !id.has_value()) {
+      return malformed("request id is not a string, number, or null");
+    }
     IncomingFrame decoded;
     decoded.kind = id.has_value() ? IncomingFrame::Kind::Request : IncomingFrame::Kind::Notification;
     decoded.id = std::move(id);
@@ -64,7 +70,9 @@ IncomingFrame classify(const Json& frame) {
   const auto error = frame.find("error");
   if (error != frame.end()) {
     auto decoded_error = ProtocolError::from_json(*error);
-    if (!decoded_error.has_value()) return malformed("unreadable error member");
+    if (!decoded_error.has_value()) {
+      return malformed("unreadable error member", std::move(id));
+    }
     IncomingFrame decoded;
     decoded.kind = IncomingFrame::Kind::Failure;
     decoded.id = std::move(id);
@@ -81,7 +89,7 @@ IncomingFrame classify(const Json& frame) {
     return decoded;
   }
 
-  return malformed("response has neither a result nor an error");
+  return malformed("response has neither a result nor an error", std::move(id));
 }
 
 Json request(const RequestId& id, std::string_view method, Json params) {

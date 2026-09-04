@@ -83,6 +83,31 @@ TEST_CASE("a frame that is not JSON-RPC 2.0 is refused rather than guessed at", 
   }
 }
 
+TEST_CASE("a malformed frame keeps a readable id for the error response", "[framing]") {
+  SECTION("missing jsonrpc") {
+    const auto frame = classify(Json({{"id", "missing-version"}, {"method", "actions/invoke"}}));
+    REQUIRE(frame.kind == IncomingFrame::Kind::Malformed);
+    REQUIRE(frame.id.has_value());
+    REQUIRE(frame.id->to_json() == "missing-version");
+  }
+
+  SECTION("wrong jsonrpc type") {
+    const auto frame = classify(
+        Json({{"jsonrpc", 2}, {"id", 7}, {"method", "actions/invoke"}}));
+    REQUIRE(frame.kind == IncomingFrame::Kind::Malformed);
+    REQUIRE(frame.id.has_value());
+    REQUIRE(frame.id->to_json() == Json(7));
+  }
+
+  SECTION("wrong jsonrpc value") {
+    const auto frame = classify(
+        Json({{"jsonrpc", "1.0"}, {"id", nullptr}, {"method", "actions/invoke"}}));
+    REQUIRE(frame.kind == IncomingFrame::Kind::Malformed);
+    REQUIRE(frame.id.has_value());
+    REQUIRE(frame.id->to_json().is_null());
+  }
+}
+
 TEST_CASE("an id is echoed in the shape it arrived", "[framing]") {
   SECTION("a fractional number keeps its fraction") {
     const auto frame = classify(envelope({{"id", 1.5}, {"method", "resources/read"}}));

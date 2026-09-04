@@ -23,6 +23,7 @@ class RequestId {
   /// object, which JSON-RPC 2.0 does not allow as an id.
   [[nodiscard]] static std::optional<RequestId> from_json(const Json& value);
   [[nodiscard]] static RequestId from_number(std::int64_t number);
+  [[nodiscard]] static RequestId null();
 
   [[nodiscard]] const Json& to_json() const noexcept { return value_; }
 
@@ -48,6 +49,7 @@ struct IncomingFrame {
     Success,
     Failure,
     /// Valid JSON that is not a JSON-RPC 2.0 message this peer can act on.
+    /// The session answers every malformed frame with `InvalidRequest`.
     Malformed,
   };
 
@@ -65,8 +67,8 @@ struct IncomingFrame {
 ///
 /// Presence, not nullness, decides: a success response carrying
 /// `"result": null` is a success, not a response with neither member. The
-/// `jsonrpc` member is required, because a frame without it is not a JSON-RPC
-/// 2.0 message and guessing what a peer meant is how version drift hides.
+/// `jsonrpc` member is required. Malformed frames retain a readable `id` so
+/// the session can echo it in the `InvalidRequest` response.
 [[nodiscard]] IncomingFrame classify(const Json& frame);
 
 [[nodiscard]] Json request(const RequestId& id, std::string_view method, Json params);
