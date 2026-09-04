@@ -119,7 +119,8 @@ jobs:
       # The helper adds uds on Windows and owns the unsupported list, which
       # the runner cross-checks against the four hello capability flags: a
       # capability declared true in the SDK and named here fails the run.
-      # Host-minted claims are the only thing the Rust host leaves out.
+      # The Rust host leaves out host-minted claims and UDS (it is WS-only, like
+      # Python and C++), so uds/file-mode must be skipped on Linux too.
       - name: Run the conformance suite
         run: pnpm conformance:run:rust
 

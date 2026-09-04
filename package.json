@@ -25,7 +25,7 @@
     "sync-labels": "node scripts/sync-labels.mjs",
     "conformance:validate": "node conformance/validate.mjs",
     "conformance:run": "node conformance/run-reference.mjs",
-    "conformance:run:rust": "node conformance/run-reference.mjs --host sdks/rust/target/debug/tesseron-conformance-host --unsupported host-minted-claim",
+    "conformance:run:rust": "node conformance/run-reference.mjs --host sdks/rust/target/debug/tesseron-conformance-host --unsupported host-minted-claim,uds",
     "conformance:run:cpp": "node conformance/run-reference.mjs --host sdks/cpp/build/conformance-host/tesseron-conformance-host --unsupported host-minted-claim,uds",
     "conformance:run:python": "node conformance/run-reference.mjs --host \"uv run --locked --directory sdks/python python -m conformance_host\" --unsupported host-minted-claim,uds",
     "example:rust:e2e": "node sdks/rust/examples/validate-e2e.mjs",
