@@ -1,0 +1,57 @@
+{
+  "id": "handshake/missing-jsonrpc-field",
+  "title": "A request without jsonrpc receives InvalidRequest",
+  "spec": "/protocol/errors/#error-catalog",
+  "requires": [],
+  "fixture": {},
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "pending",
+            "name": "Awaiting agent"
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "id": "missing-jsonrpc",
+        "method": "actions/invoke",
+        "params": {
+          "name": "unused",
+          "input": {},
+          "invocationId": "missing-jsonrpc"
+        }
+      },
+      "raw": true
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "missing-jsonrpc",
+        "error": {
+          "code": -32600
+        }
+      }
+    }
+  ]
+}

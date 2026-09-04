@@ -213,6 +213,14 @@ function parseStep(
     problems.push(`${fixtureId}: step ${index} expectSilence requires timeoutMs`);
   }
   if (typeof value['note'] === 'string') step.note = value['note'];
+  const raw = value['raw'];
+  if (raw !== undefined) {
+    if (kind !== 'send' || raw !== true) {
+      problems.push(`${fixtureId}: step ${index} raw is valid only as true on send`);
+    } else {
+      step.raw = true;
+    }
+  }
 
   const body = value[kind];
   if (kind === 'recv' || kind === 'send') {
@@ -220,7 +228,7 @@ function parseStep(
       problems.push(`${fixtureId}: step ${index} ${kind} must be a JSON-RPC object`);
       return undefined;
     }
-    if (kind === 'send' && body['jsonrpc'] !== '2.0') {
+    if (kind === 'send' && !step.raw && body['jsonrpc'] !== '2.0') {
       problems.push(`${fixtureId}: step ${index} send must carry jsonrpc "2.0"`);
     }
     validateMatcherTokens(body, fixtureId, index, kind, captures, problems);

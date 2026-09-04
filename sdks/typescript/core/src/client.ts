@@ -388,8 +388,16 @@ export class TesseronClient implements BuilderRegistry {
       }
     });
     this.dispatcher = dispatcher;
+    let acceptedWelcome = false;
+    const queuedBeforeWelcome: unknown[] = [];
 
-    transport.onMessage((message) => dispatcher.receive(message));
+    transport.onMessage((message) => {
+      if (!acceptedWelcome && hasJsonRpcMethod(message)) {
+        queuedBeforeWelcome.push(message);
+        return;
+      }
+      dispatcher.receive(message);
+    });
     transport.onClose((reason) => {
       dispatcher.rejectAllPending(new TransportClosedError(reason));
       // Only clear instance state if it still belongs to *this* transport.
@@ -415,18 +423,25 @@ export class TesseronClient implements BuilderRegistry {
       resolveClosed();
     });
 
-    dispatcher.on('actions/invoke', (params) => this.handleInvoke(params as ActionInvokeParams));
+    dispatcher.on('actions/invoke', (params) => {
+      requireAcceptedWelcome(acceptedWelcome);
+      return this.handleInvoke(params as ActionInvokeParams);
+    });
     dispatcher.onNotification('actions/cancel', (params) => {
+      if (!acceptedWelcome) return;
       this.handleCancel(params as { invocationId: string });
     });
-    dispatcher.on('resources/read', (params) =>
-      this.handleResourceRead(params as ResourceReadParams),
-    );
+    dispatcher.on('resources/read', (params) => {
+      requireAcceptedWelcome(acceptedWelcome);
+      return this.handleResourceRead(params as ResourceReadParams);
+    });
     dispatcher.on('resources/subscribe', (params) => {
+      requireAcceptedWelcome(acceptedWelcome);
       this.handleResourceSubscribe(params as ResourceSubscribeParams);
       return undefined;
     });
     dispatcher.on('resources/unsubscribe', (params) => {
+      requireAcceptedWelcome(acceptedWelcome);
       this.handleResourceUnsubscribe(params as ResourceUnsubscribeParams);
       return undefined;
     });
@@ -471,14 +486,27 @@ export class TesseronClient implements BuilderRegistry {
       resources: this.resourceManifest(),
       capabilities: SDK_CAPABILITIES,
     };
-    const welcome = options?.resume
+    const response = options?.resume
       ? await dispatcher.request('tesseron/resume', {
           ...baseParams,
           sessionId: options.resume.sessionId,
           resumeToken: options.resume.resumeToken,
         } satisfies ResumeParams)
       : await dispatcher.request('tesseron/hello', baseParams satisfies HelloParams);
+    let welcome: WelcomeResult;
+    try {
+      welcome = parseWelcome(response);
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // The close race has already made the welcome unreadable.
+      }
+      throw error;
+    }
     this.welcome = welcome;
+    acceptedWelcome = true;
+    for (const message of queuedBeforeWelcome) dispatcher.receive(message);
     return welcome;
   }
 
@@ -774,6 +802,93 @@ export class TesseronClient implements BuilderRegistry {
     sub.unsubscribe();
     this.subscriptions.delete(params.subscriptionId);
   }
+}
+
+function requireAcceptedWelcome(acceptedWelcome: boolean): void {
+  if (acceptedWelcome) return;
+  throw new TesseronError(TesseronErrorCode.Unauthorized, 'Session has not accepted a welcome');
+}
+
+function parseWelcome(value: unknown): WelcomeResult {
+  if (!isRecord(value)) throw unreadableWelcome();
+  const sessionId = value['sessionId'];
+  const protocolVersion = value['protocolVersion'];
+  if (typeof sessionId !== 'string' || typeof protocolVersion !== 'string')
+    throw unreadableWelcome();
+  if (!sharesMajorVersion(protocolVersion, PROTOCOL_VERSION)) {
+    throw new TesseronError(
+      TesseronErrorCode.ProtocolMismatch,
+      `Gateway speaks protocol ${protocolVersion}; SDK speaks ${PROTOCOL_VERSION}`,
+    );
+  }
+  const claimCode = optionalString(value['claimCode']);
+  const resumeToken = optionalString(value['resumeToken']);
+  return {
+    sessionId,
+    protocolVersion,
+    capabilities: parseWelcomeCapabilities(value['capabilities']),
+    agent: parseWelcomeAgent(value['agent']),
+    ...(claimCode === undefined ? {} : { claimCode }),
+    ...(resumeToken === undefined ? {} : { resumeToken }),
+  };
+}
+
+function parseWelcomeCapabilities(value: unknown): TesseronCapabilities {
+  if (value === undefined) {
+    return { streaming: false, subscriptions: false, sampling: false, elicitation: false };
+  }
+  if (!isRecord(value)) throw unreadableWelcome();
+  const streaming = value['streaming'];
+  const subscriptions = value['subscriptions'];
+  const sampling = value['sampling'];
+  const elicitation = value['elicitation'];
+  if (
+    typeof streaming !== 'boolean' ||
+    typeof subscriptions !== 'boolean' ||
+    typeof sampling !== 'boolean' ||
+    typeof elicitation !== 'boolean'
+  ) {
+    throw unreadableWelcome();
+  }
+  return { streaming, subscriptions, sampling, elicitation };
+}
+
+function parseWelcomeAgent(value: unknown): { id: string; name: string } {
+  if (value === undefined) return { id: 'pending', name: 'Awaiting agent' };
+  if (!isRecord(value)) throw unreadableWelcome();
+  const id = value['id'];
+  const name = value['name'];
+  if (typeof id !== 'string' || typeof name !== 'string') throw unreadableWelcome();
+  return { id, name };
+}
+
+function optionalString(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') throw unreadableWelcome();
+  return value;
+}
+
+function unreadableWelcome(): TesseronError {
+  return new TesseronError(TesseronErrorCode.InvalidParams, 'Gateway sent an unreadable welcome');
+}
+
+function sharesMajorVersion(left: string, right: string): boolean {
+  const leftMajor = left.split('.')[0];
+  const rightMajor = right.split('.')[0];
+  return (
+    leftMajor !== undefined &&
+    rightMajor !== undefined &&
+    leftMajor !== '' &&
+    leftMajor === rightMajor
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasJsonRpcMethod(value: unknown): boolean {
+  return isRecord(value) && typeof value['method'] === 'string';
 }
 
 /**

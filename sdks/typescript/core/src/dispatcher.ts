@@ -109,7 +109,14 @@ export class JsonRpcDispatcher {
   }
 
   receive(message: unknown): void {
-    if (!isJsonRpcEnvelope(message)) return;
+    if (!isJsonRpcObject(message)) return;
+    if (message.jsonrpc !== JSONRPC_VERSION) {
+      this.sendError(jsonRpcIdOrNull(message.id), {
+        code: TesseronErrorCode.InvalidRequest,
+        message: 'envelope is missing jsonrpc: "2.0"',
+      });
+      return;
+    }
     if (typeof message.method === 'string') {
       if ('id' in message && message.id !== undefined) {
         // Suppress unhandled rejections from `handleRequest`. The transport
@@ -181,7 +188,7 @@ export class JsonRpcDispatcher {
 }
 
 interface JsonRpcEnvelope {
-  jsonrpc: typeof JSONRPC_VERSION;
+  jsonrpc?: unknown;
   method?: unknown;
   id?: unknown;
   result?: unknown;
@@ -189,10 +196,12 @@ interface JsonRpcEnvelope {
   params?: unknown;
 }
 
-function isJsonRpcEnvelope(value: unknown): value is JsonRpcEnvelope {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as { jsonrpc?: unknown };
-  return candidate.jsonrpc === JSONRPC_VERSION;
+function isJsonRpcObject(value: unknown): value is JsonRpcEnvelope {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function jsonRpcIdOrNull(value: unknown): JsonRpcId {
+  return value === null || typeof value === 'string' || typeof value === 'number' ? value : null;
 }
 
 function abortReason(signal: AbortSignal | undefined): Error {

@@ -214,4 +214,6 @@ The MCP gateway parses `protocolVersion` as `major.minor`:
 { "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "Gateway speaks protocol 1.2.0; SDK sent 2.0.0. Major version mismatch. See https://eigenwise.github.io/tesseron/protocol/compatibility/" } }
 ```
 
+An SDK also refuses an unreadable welcome result or one from a different major version. It closes that transport and does not run later requests from the rejected session.
+
 Next: the [action model](/protocol/actions/).

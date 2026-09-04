@@ -31,7 +31,7 @@ Tesseron uses JSON-RPC error codes with a Tesseron-specific extension range.
 | Code | Name | Raised when |
 |---:|---|---|
 | `-32700` | `ParseError` | JSON-RPC message failed to parse. Almost always a bug or a non-JSON frame. |
-| `-32600` | `InvalidRequest` | Envelope is well-formed JSON but not a valid JSON-RPC request. |
+| `-32600` | `InvalidRequest` | Envelope is well-formed JSON but not a valid JSON-RPC request, including a missing or non-`"2.0"` `jsonrpc` member. The response echoes a usable string, number, or null id, otherwise it uses null. |
 | `-32601` | `MethodNotFound` | Method isn't registered. Tesseron's method surface is fixed - this is almost always a version mismatch. |
 | `-32602` | `InvalidParams` | Params don't match the method's expected shape. |
 | `-32603` | `InternalError` | Unhandled exception inside the SDK or gateway. Report it. |
