@@ -41,7 +41,7 @@ Two details worth knowing before you write a handler:
 
 ## Using it
 
-```rust
+```rust,no_run
 use tesseron::{Action, ActionContext, ActionError, HostEvent, Tesseron};
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
@@ -64,7 +64,7 @@ async fn add_todo(input: AddTodo, _context: ActionContext) -> Result<Added, Acti
 # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 let builder = Tesseron::builder()
     .application("todo", "Todo")
-    .action(Action::typed("add_todo", add_todo));
+    .action(Action::typed("add_todo", add_todo).output_schema_from_type::<Added>());
 let mut events = builder.subscribe();
 let host = builder.listen().await?;
 
@@ -76,8 +76,34 @@ while let Ok(event) = events.recv().await {
         break;
     }
 }
+host.shutdown().await?;
 # Ok(())
 # }
+```
+
+`output_schema_from_type` puts the type your handler returns in the manifest. It
+helps the agent shape tool results. It does not validate the value at runtime.
+
+```rust
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use tesseron::{Action, ActionContext, ActionError};
+
+#[derive(Deserialize, JsonSchema)]
+struct GetTodo {
+    id: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+struct Todo {
+    id: String,
+}
+
+async fn get_todo(input: GetTodo, _context: ActionContext) -> Result<Todo, ActionError> {
+    Ok(Todo { id: input.id })
+}
+
+let _action = Action::typed("get_todo", get_todo).output_schema_from_type::<Todo>();
 ```
 
 Subscribe *before* `listen()`. The gateway can dial and finish the handshake
