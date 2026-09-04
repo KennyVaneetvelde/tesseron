@@ -56,7 +56,7 @@ tesseron/
 │       └── examples/         todo/ and prompts/ behind -DTESSERON_BUILD_EXAMPLES=ON, same action set as the Rust and
 │                             Python pairs; validate-e2e.mjs drives both through the real gateway: `pnpm example:cpp:e2e`
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
-│   └── src/content/docs/     62 pages (seven under sdk/rust/, six each under sdk/python/ and sdk/cpp/). docs-mcp bakes these in at build time.
+│   └── src/content/docs/     64 pages (seven under sdk/rust/, six under sdk/python/, eight under sdk/cpp/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
