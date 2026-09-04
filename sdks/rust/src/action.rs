@@ -271,7 +271,7 @@ fn has_object_schema(schema: &Value) -> bool {
         .get("type")
         .and_then(Value::as_str)
         .is_some_and(|schema_type| schema_type == "object")
-        && schema.get("properties").is_some_and(Value::is_object)
+        && schema.get("properties").is_none_or(Value::is_object)
 }
 
 impl fmt::Debug for Action {
@@ -309,6 +309,9 @@ mod tests {
         first: i64,
         second: i64,
     }
+
+    #[derive(serde::Deserialize, JsonSchema)]
+    struct EmptyInput {}
 
     #[derive(serde::Deserialize, JsonSchema)]
     struct NestedSettings {
@@ -470,6 +473,32 @@ mod tests {
                 "required": ["id"]
             }))
         );
+    }
+
+    #[tokio::test]
+    async fn listen_accepts_a_typed_empty_struct_input() {
+        let action = Action::typed(
+            "empty",
+            |_input: EmptyInput, _context: ActionContext| async move { Ok(()) },
+        );
+        let (descriptor, _validator, _handler) = action.into_parts();
+        assert_eq!(descriptor.input_schema["type"], "object");
+        assert!(descriptor.input_schema.get("properties").is_none());
+
+        let action = Action::typed(
+            "empty",
+            |_input: EmptyInput, _context: ActionContext| async move { Ok(()) },
+        );
+        crate::Tesseron::builder()
+            .application("test", "Test")
+            .manifest(crate::ManifestPublication::Disabled)
+            .action(action)
+            .listen()
+            .await
+            .expect("the listener must accept an empty struct input schema")
+            .shutdown()
+            .await
+            .expect("the accepted listener must shut down");
     }
 
     #[tokio::test]
