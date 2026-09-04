@@ -69,6 +69,8 @@ Wire format - sent by the app as a notification (no response):
 
 All three payload fields (`message`, `percent`, `data`) are optional. Send any combination. The MCP gateway forwards the notification to the agent as MCP `notifications/progress`; MCP clients render them at their leisure.
 
+When present, `percent` is an integer from 0 through 100 and cannot decrease during one invocation. The host clamps a value outside that range, then raises anything below that invocation's highest sent percent to that ceiling. It forwards `message` and `data` unchanged. An update without `percent` does not change the ceiling.
+
 **Guideline:** cap progress updates at ~2 / second. Faster rates spam the agent UI without adding information.
 
 ## Cancellation

@@ -32,45 +32,114 @@ use crate::resource::{ResourceEmitter, Subscription};
 /// after the agent has stopped waiting.
 const DEFAULT_INVOCATION_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum HandshakeState {
+    Waiting,
+    Accepted,
+    Rejected,
+}
+
+struct HandshakeGate {
+    state: HandshakeState,
+    pending_claim: Option<ClaimedParams>,
+}
+
+struct PendingRequests {
+    closed: bool,
+    waiting: HashMap<RequestId, oneshot::Sender<Result<Value, ProtocolError>>>,
+}
+
 /// One gateway connection, from the socket opening to the socket closing.
 struct Session {
     outgoing: Mutex<Option<mpsc::UnboundedSender<Message>>>,
-    pending: Mutex<HashMap<RequestId, oneshot::Sender<Result<Value, ProtocolError>>>>,
+    pending: Mutex<PendingRequests>,
     invocations: Mutex<HashMap<String, Cancellation>>,
     subscriptions: Mutex<HashMap<String, Subscription>>,
     next_request_id: AtomicI64,
-    handshake: watch::Sender<bool>,
+    handshake: Mutex<HandshakeGate>,
+    handshake_state: watch::Sender<HandshakeState>,
 }
 
 impl Session {
     fn new(outgoing: mpsc::UnboundedSender<Message>) -> Self {
+        let (handshake_state, _receiver) = watch::channel(HandshakeState::Waiting);
         Self {
             outgoing: Mutex::new(Some(outgoing)),
-            pending: Mutex::new(HashMap::new()),
+            pending: Mutex::new(PendingRequests {
+                closed: false,
+                waiting: HashMap::new(),
+            }),
             invocations: Mutex::new(HashMap::new()),
             subscriptions: Mutex::new(HashMap::new()),
             next_request_id: AtomicI64::new(1),
-            handshake: watch::Sender::new(false),
+            handshake: Mutex::new(HandshakeGate {
+                state: HandshakeState::Waiting,
+                pending_claim: None,
+            }),
+            handshake_state,
         }
     }
 
-    fn settle_handshake(&self) {
-        self.handshake.send_replace(true);
+    fn accept_handshake(&self, host: &SharedHost) {
+        let Ok(mut gate) = self.handshake.lock() else {
+            return;
+        };
+        gate.state = HandshakeState::Accepted;
+        if let Some(claimed) = gate.pending_claim.take() {
+            host.record_claim(&claimed);
+            host.emit(HostEvent::Claimed(claimed));
+        }
+        self.handshake_state.send_replace(HandshakeState::Accepted);
     }
 
-    /// Waits until the handshake task has applied the welcome, or given up.
-    ///
-    /// The welcome arrives as a response through the read loop, and the task
-    /// awaiting it is woken rather than run. An invocation the gateway wrote
-    /// straight after the welcome reaches the read loop first, so without this
-    /// it would negotiate against capabilities nothing had recorded yet.
-    async fn handshake_settled(&self) {
-        let mut settled = self.handshake.subscribe();
-        while !*settled.borrow_and_update() {
-            if settled.changed().await.is_err() {
-                return;
+    fn reject_handshake(&self) {
+        if let Ok(mut gate) = self.handshake.lock() {
+            gate.state = HandshakeState::Rejected;
+            gate.pending_claim = None;
+        }
+        self.handshake_state.send_replace(HandshakeState::Rejected);
+    }
+
+    fn record_claim(&self, claimed: ClaimedParams, host: &SharedHost) {
+        let Ok(mut gate) = self.handshake.lock() else {
+            return;
+        };
+        match gate.state {
+            HandshakeState::Waiting => gate.pending_claim = Some(claimed),
+            HandshakeState::Accepted => {
+                host.record_claim(&claimed);
+                host.emit(HostEvent::Claimed(claimed));
+            }
+            HandshakeState::Rejected => {}
+        }
+    }
+
+    async fn handshake_accepted(&self) -> bool {
+        let mut state = self.handshake_state.subscribe();
+        loop {
+            let current_state = *state.borrow_and_update();
+            match current_state {
+                HandshakeState::Accepted => return true,
+                HandshakeState::Rejected => return false,
+                HandshakeState::Waiting => {
+                    if state.changed().await.is_err() {
+                        return false;
+                    }
+                }
             }
         }
+    }
+
+    fn handshake_is_waiting(&self) -> bool {
+        self.handshake
+            .lock()
+            .is_ok_and(|gate| gate.state == HandshakeState::Waiting)
+    }
+
+    fn handshake_is_accepted(&self) -> bool {
+        self.handshake
+            .lock()
+            .is_ok_and(|gate| gate.state == HandshakeState::Accepted)
     }
 
     fn send_envelope(&self, envelope: &Value) {
@@ -91,7 +160,7 @@ impl Session {
     }
 
     fn mint_request_id(&self) -> RequestId {
-        RequestId::Number(self.next_request_id.fetch_add(1, Ordering::Relaxed))
+        RequestId::Number(self.next_request_id.fetch_add(1, Ordering::Relaxed).into())
     }
 
     /// Sends a request and waits for the response the gateway correlates by id.
@@ -106,8 +175,14 @@ impl Session {
 
         let (sender, receiver) = oneshot::channel();
         match self.pending.lock() {
-            Ok(mut pending) => {
-                pending.insert(id.clone(), sender);
+            Ok(mut pending) if !pending.closed => {
+                pending.waiting.insert(id.clone(), sender);
+            }
+            Ok(_) => {
+                return Err(ProtocolError::new(
+                    TesseronErrorCode::TransportClosed,
+                    "the gateway connection closed",
+                ));
             }
             Err(_) => {
                 return Err(ProtocolError::new(
@@ -135,7 +210,7 @@ impl Session {
             .pending
             .lock()
             .ok()
-            .and_then(|mut pending| pending.remove(id));
+            .and_then(|mut pending| pending.waiting.remove(id));
         if let Some(sender) = waiting {
             let _ = sender.send(outcome);
         }
@@ -145,7 +220,10 @@ impl Session {
     /// so no answer is ever coming.
     fn fail_all_pending(&self) {
         let waiting = match self.pending.lock() {
-            Ok(mut pending) => pending.drain().collect::<Vec<_>>(),
+            Ok(mut pending) => {
+                pending.closed = true;
+                pending.waiting.drain().collect::<Vec<_>>()
+            }
             Err(_) => Vec::new(),
         };
         for (_id, sender) in waiting {
@@ -157,11 +235,13 @@ impl Session {
     }
 
     fn register_invocation(&self, invocation_id: &str) -> Cancellation {
-        let cancellation = Cancellation::new();
-        if let Ok(mut invocations) = self.invocations.lock() {
-            invocations.insert(invocation_id.to_owned(), cancellation.clone());
+        match self.invocations.lock() {
+            Ok(mut invocations) => invocations
+                .entry(invocation_id.to_owned())
+                .or_insert_with(Cancellation::new)
+                .clone(),
+            Err(_) => Cancellation::new(),
         }
-        cancellation
     }
 
     fn finish_invocation(&self, invocation_id: &str) {
@@ -171,14 +251,14 @@ impl Session {
     }
 
     fn cancel_invocation(&self, invocation_id: &str) {
-        let cancellation = self
-            .invocations
-            .lock()
-            .ok()
-            .and_then(|invocations| invocations.get(invocation_id).cloned());
-        if let Some(cancellation) = cancellation {
-            cancellation.cancel();
-        }
+        let cancellation = match self.invocations.lock() {
+            Ok(mut invocations) => invocations
+                .entry(invocation_id.to_owned())
+                .or_insert_with(Cancellation::new)
+                .clone(),
+            Err(_) => return,
+        };
+        cancellation.cancel();
     }
 
     fn cancel_all_invocations(&self) {
@@ -260,7 +340,7 @@ struct PendingRequest<'a> {
 impl Drop for PendingRequest<'_> {
     fn drop(&mut self) {
         if let Ok(mut pending) = self.session.pending.lock() {
-            pending.remove(&self.id);
+            pending.waiting.remove(&self.id);
         }
     }
 }
@@ -337,6 +417,12 @@ fn dispatch(frame: IncomingFrame, session: &Arc<Session>, host: &Arc<SharedHost>
         IncomingFrame::Notification { method, params } => {
             handle_notification(&method, params, session, host);
         }
+        IncomingFrame::InvalidRequest { id, problem } => {
+            session.send_envelope(&jsonrpc::failure(
+                &id,
+                &ProtocolError::new(TesseronErrorCode::InvalidRequest, problem),
+            ));
+        }
         IncomingFrame::Malformed(problem) => {
             eprintln!("tesseron: dropping a frame that is not JSON-RPC 2.0: {problem}");
         }
@@ -344,6 +430,29 @@ fn dispatch(frame: IncomingFrame, session: &Arc<Session>, host: &Arc<SharedHost>
 }
 
 fn handle_request(
+    id: RequestId,
+    method: &str,
+    params: Value,
+    session: &Arc<Session>,
+    host: &Arc<SharedHost>,
+) {
+    if session.handshake_is_waiting() {
+        let session = Arc::clone(session);
+        let host = Arc::clone(host);
+        let method = method.to_owned();
+        tokio::spawn(async move {
+            if session.handshake_accepted().await {
+                handle_accepted_request(id, &method, params, &session, &host);
+            }
+        });
+        return;
+    }
+    if session.handshake_is_accepted() {
+        handle_accepted_request(id, method, params, session, host);
+    }
+}
+
+fn handle_accepted_request(
     id: RequestId,
     method: &str,
     params: Value,
@@ -379,8 +488,7 @@ fn handle_notification(
         }
         methods::CLAIMED => {
             if let Ok(claimed) = serde_json::from_value::<ClaimedParams>(params) {
-                host.record_claim(&claimed);
-                host.emit(HostEvent::Claimed(claimed));
+                session.record_claim(claimed, host);
             }
         }
         _ => {}
@@ -434,7 +542,10 @@ fn start_invocation(id: RequestId, params: Value, session: &Arc<Session>, host: 
     let host = Arc::clone(host);
 
     tokio::spawn(async move {
-        session.handshake_settled().await;
+        if !session.handshake_accepted().await {
+            session.finish_invocation(&invoke.invocation_id);
+            return;
+        }
         let context = ActionContext::new(InvocationEnvironment {
             action_name: invoke.name.clone(),
             invocation_id: invoke.invocation_id.clone(),
@@ -586,7 +697,10 @@ fn subscribe_to_resource(
         Arc::clone(session) as Arc<dyn GatewayChannel>,
         subscribe.subscription_id.clone(),
     );
-    session.register_subscription(&subscribe.subscription_id, subscriber.subscribe(emitter));
+    let subscription = subscriber
+        .subscribe(emitter.clone())
+        .gate_emitter(emitter.active_flag());
+    session.register_subscription(&subscribe.subscription_id, subscription);
 }
 
 /// Drops a subscription. An id nobody registered is not an error: the agent and
@@ -637,11 +751,12 @@ fn wire_error(failure: ActionError) -> ProtocolError {
 /// A refused resume falls back to a fresh hello on the same socket: the
 /// credentials are stale, not the connection.
 async fn open_session(session: Arc<Session>, host: Arc<SharedHost>) {
-    run_handshake(&session, &host).await;
-    session.settle_handshake();
+    if run_handshake(&session, &host).await {
+        session.accept_handshake(&host);
+    }
 }
 
-async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) {
+async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) -> bool {
     if let Some((session_id, resume_token)) = host.resume_credentials() {
         match session
             .call(
@@ -650,16 +765,13 @@ async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) {
             )
             .await
         {
-            Ok(result) => {
-                accept_welcome(session, host, result);
-                return;
-            }
+            Ok(result) => return accept_welcome(session, host, result),
             Err(refusal) => {
                 if refusal.named_code() == Some(TesseronErrorCode::ProtocolMismatch) {
                     reject_handshake(session, host, refusal);
-                    return;
+                    return false;
                 }
-                host.forget_resume_credentials();
+                host.reset_session_state();
                 eprintln!("tesseron: resume refused, opening a fresh session: {refusal}");
             }
         }
@@ -667,7 +779,10 @@ async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) {
 
     match session.call(methods::HELLO, host.hello_params()).await {
         Ok(result) => accept_welcome(session, host, result),
-        Err(refusal) => reject_handshake(session, host, refusal),
+        Err(refusal) => {
+            reject_handshake(session, host, refusal);
+            false
+        }
     }
 }
 
@@ -677,7 +792,7 @@ async fn run_handshake(session: &Arc<Session>, host: &Arc<SharedHost>) {
 /// The gateway is the side that normally rejects a major mismatch, but a
 /// welcome from a different major is just as unusable here, and continuing with
 /// it would surface as mysterious method errors later.
-fn accept_welcome(session: &Arc<Session>, host: &Arc<SharedHost>, result: Value) {
+fn accept_welcome(session: &Arc<Session>, host: &Arc<SharedHost>, result: Value) -> bool {
     let welcome = match serde_json::from_value::<WelcomeResult>(result) {
         Ok(welcome) => welcome,
         Err(problem) => {
@@ -689,7 +804,7 @@ fn accept_welcome(session: &Arc<Session>, host: &Arc<SharedHost>, result: Value)
                     format!("the gateway sent an unreadable welcome: {problem}"),
                 ),
             );
-            return;
+            return false;
         }
     };
     if !shares_major_version(&welcome.protocol_version, PROTOCOL_VERSION) {
@@ -704,10 +819,11 @@ fn accept_welcome(session: &Arc<Session>, host: &Arc<SharedHost>, result: Value)
                 ),
             ),
         );
-        return;
+        return false;
     }
     host.record_welcome(&welcome);
     host.emit(HostEvent::Welcome(welcome));
+    true
 }
 
 /// Ends the connection after a handshake the gateway refused.
@@ -715,6 +831,7 @@ fn accept_welcome(session: &Arc<Session>, host: &Arc<SharedHost>, result: Value)
 /// A refusal is about this application, not this socket, so retrying the same
 /// hello would loop. The host reports it and waits for the next dial.
 fn reject_handshake(session: &Arc<Session>, host: &Arc<SharedHost>, refusal: ProtocolError) {
+    session.reject_handshake();
     if refusal.named_code() != Some(TesseronErrorCode::TransportClosed) {
         host.emit(HostEvent::HandshakeFailed(refusal));
     }

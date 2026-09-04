@@ -151,7 +151,24 @@ with `progress` (percent clamped to 0..=100 and never below the ceiling already 
 `sample`/`sample_as`, `log`, and resources with subscribe/unsubscribe and `resources/updated`
 pushes. Only host-minted claims are missing, by design. A per-connection handshake gate in
 `session.rs` holds invocations and claims that arrive before the welcome is applied.
-`conformance-host/` is the fixture adapter the runner drives.
+`conformance-host/` is the fixture adapter the runner drives. `examples/todo` and `examples/prompts` are
+the canonical example pair (same action names and schemas as the TypeScript `vanilla-todo` and
+`node-prompts`, minus the UI-only `setFilter`); `examples/validate-e2e.mjs` proves them through the
+real gateway. `examples/tauri-todo` is the desktop variant: `examples/todo/src/lib.rs` holds the store,
+the action registrations, and the `todos://all` resource, and both binaries import it, so the schemas
+cannot drift. The Tauri app holds the host in `tauri::State` and emits a Tauri event from the action
+handlers so the window re-renders after an agent mutation.
+
+## `tesseron` (Python, `sdks/python/`)
+
+The same application half in asyncio Python. `TesseronApp(id, name)` with `@app.action(name)`
+decorators that read the input type from the handler annotation (a Pydantic model; the
+validation-mode JSON Schema is published unchanged, no adapter, or pass `input_schema=` raw),
+`app.resource(name, read=...)` for reads and subscriptions, `await app.listen()` returning a
+`TesseronHost` bound on loopback port 0 with the v2 manifest written, and an `ActionContext` with the same progress, confirm, elicit, sample, and log surface as
+Rust. `jsonrpc.py` classifies frames, `session.py` runs the handshake gate and dispatch, `errors.py`
+carries the 17 codes. `conformance_host/` sits beside `src/tesseron`, drives the fixture DSL, and
+stays out of the wheel. Docs live at `docs/src/content/docs/sdk/python/`.
 
 ## Not packages
 

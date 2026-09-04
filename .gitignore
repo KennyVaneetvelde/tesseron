@@ -12,6 +12,11 @@ sdks/cpp/build/
 .astro/
 .vite/
 .cache/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Test output
 coverage/

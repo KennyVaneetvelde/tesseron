@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use std::io;
+use std::net::SocketAddr;
 
 use serde::de::{Deserialize, Deserializer, Error as DeserializeError};
 use serde::ser::{Serialize, Serializer};
@@ -298,6 +299,8 @@ pub enum HostError {
     /// manifest has to stay unambiguous because the gateway projects each name
     /// into a distinct MCP tool.
     DuplicateName(String),
+    /// The configured address is reachable off the local machine.
+    NonLoopbackBindAddress(SocketAddr),
     /// The loopback listener could not bind.
     Listen(io::Error),
     /// The instance manifest could not be written or removed.
@@ -320,6 +323,10 @@ impl fmt::Display for HostError {
             Self::DuplicateName(name) => {
                 write!(formatter, "{name:?} was registered more than once")
             }
+            Self::NonLoopbackBindAddress(address) => write!(
+                formatter,
+                "Tesseron hosts bind loopback addresses only; {address} is not loopback"
+            ),
             Self::Listen(source) => {
                 write!(formatter, "could not bind the loopback listener: {source}")
             }

@@ -6,6 +6,7 @@
 |---|---|---|
 | Language | TypeScript 5.7, ES2022 target | `tsconfig.base.json:3` |
 | Rust SDK | edition 2024, MSRV 1.85, tokio + tokio-tungstenite 0.30 + serde_json + schemars 1 | `sdks/rust/Cargo.toml` |
+| Python SDK | Python >= 3.11, pydantic >= 2.7 + websockets >= 14, uv-managed, Hatchling build, ruff + mypy --strict + pytest | `sdks/python/pyproject.toml` |
 | Runtime | Node >= 20 | `package.json:12` |
 | Package manager | **pnpm 9.15.4**, workspace | `package.json:14`, `pnpm-workspace.yaml` |
 | Task runner | turbo 2.3 | `turbo.json` |
@@ -62,6 +63,12 @@ in `Cargo.toml`: `missing_docs = warn`, `unsafe_code = forbid`, `clippy::unwrap_
 versions independently (0.1.0); compatibility is declared by protocol version, never by matching an
 npm number.
 
+The Python package (`sdks/python/`) is the same shape: a uv project with its own `uv.lock`, two
+runtime dependencies (Pydantic v2 for input validation and the validation-mode JSON Schema that goes
+onto the wire unchanged, `websockets` for the asyncio server), Hatchling as the build backend, and
+`[tool.hatch.build.targets.wheel] packages = ["src/tesseron"]` so the sibling `conformance_host/`
+never ships. It also versions independently (0.1.0, not on PyPI yet).
+
 ## CI
 
 Four workflows in `.github/workflows/`:
@@ -74,10 +81,15 @@ Four workflows in `.github/workflows/`:
   [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
   `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
   ships that prose.
-- **`ci.yml` `rust` job** (`:64-121`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
-  with `-D warnings`, `cargo test --workspace`, build, then the conformance runner against the Rust
-  host through `pnpm conformance:run:rust` (`--unsupported host-minted-claim`). The runner
+- **`ci.yml` `rust` job** (`:64-125`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
+  with `-D warnings`, `cargo test --workspace`, build (all three `--exclude tauri-todo`, then
+  `cargo check -p tauri-todo` on Windows only because Tauri needs GTK and WebKit on Linux), then the
+  conformance runner against the Rust host through `pnpm conformance:run:rust`
+  (`--unsupported host-minted-claim`). The runner
   cross-checks that list against the hello flags, so a capability declared true while listed fails.
+- **`ci.yml` `python` job** (`:126-188`) — ubuntu + windows matrix: `uv sync --locked`, `ruff check`,
+  `ruff format --check`, `mypy --strict src tests`, `pytest`, `uv build`, then pnpm build and
+  `pnpm conformance:run:python` (`--unsupported host-minted-claim,uds`; the Python host is WS-only).
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.
   `pnpm sync-labels` pushes that file to GitHub.

@@ -1,0 +1,71 @@
+{
+  "id": "handshake/null-request-id",
+  "title": "A null JSON-RPC request id receives a null response id",
+  "spec": "/protocol/wire-format/#envelope-shapes",
+  "requires": [],
+  "fixture": {
+    "actions": [
+      {
+        "name": "ping",
+        "returns": {
+          "ok": true
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello"
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "pending",
+            "name": "Awaiting agent"
+          },
+          "claimCode": "AB3X-7K",
+          "resumeToken": "rt_conformance_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "method": "actions/invoke",
+        "params": {
+          "name": "ping",
+          "input": {},
+          "invocationId": "null-request-id"
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "result": {
+          "invocationId": "null-request-id",
+          "output": {
+            "ok": true
+          }
+        }
+      }
+    }
+  ]
+}

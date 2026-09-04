@@ -82,7 +82,8 @@
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-1"
+        "id": "s-1",
+        "result": null
       },
       "label": "subscribed"
     },
@@ -112,7 +113,8 @@
     {
       "recv": {
         "jsonrpc": "2.0",
-        "id": "s-2"
+        "id": "s-2",
+        "result": null
       }
     },
     {

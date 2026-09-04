@@ -9,8 +9,8 @@
 // clearest way to write one; the workspace denies it everywhere else.
 #![allow(clippy::unwrap_used)]
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures_util::{SinkExt as _, StreamExt as _};
@@ -143,6 +143,28 @@ impl Gateway {
     async fn notify(&mut self, method: &str, params: Value) {
         self.send(json!({ "jsonrpc": "2.0", "method": method, "params": params }))
             .await;
+    }
+
+    async fn expect_closed(&mut self) {
+        loop {
+            let message = tokio::time::timeout(PATIENCE, self.socket.next())
+                .await
+                .expect("the host closed the socket in time");
+            match message {
+                Some(Ok(Message::Close(_))) | None => return,
+                Some(Ok(_)) => continue,
+                Some(Err(problem)) => panic!("the close frame was unreadable: {problem}"),
+            }
+        }
+    }
+
+    async fn expect_silence(&mut self, window: Duration) {
+        assert!(
+            tokio::time::timeout(window, self.socket.next())
+                .await
+                .is_err(),
+            "the host sent a frame after it should have been silent"
+        );
     }
 
     async fn drop_transport(mut self) {
@@ -340,6 +362,19 @@ async fn a_refused_resume_falls_back_to_a_fresh_hello() {
         next_event(&mut events).await,
         HostEvent::Welcome(_)
     ));
+    first
+        .notify(
+            "tesseron/claimed",
+            json!({
+                "agent": { "id": "claimed-agent", "name": "Claimed agent" },
+                "claimedAt": 1
+            }),
+        )
+        .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Claimed(_)
+    ));
     first.drop_transport().await;
     assert!(matches!(
         next_event(&mut events).await,
@@ -365,6 +400,99 @@ async fn a_refused_resume_falls_back_to_a_fresh_hello() {
         HostEvent::Welcome(result) => assert_eq!(result.claim_code.as_deref(), Some("XYZ-789")),
         other => panic!("expected a welcome, got {other:?}"),
     }
+    let fallback_welcome = host.welcome().expect("the fallback welcome was stored");
+    assert_eq!(fallback_welcome.session_id, "session-2");
+    assert_eq!(fallback_welcome.agent.id, "pending");
+    assert_eq!(fallback_welcome.claim_code.as_deref(), Some("XYZ-789"));
+
+    second.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_invoke_before_a_refused_welcome_never_runs_its_handler() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&ran);
+    let (host, mut events) = started(application().action(Action::json(
+        "count",
+        move |_input: Value, _context: ActionContext| {
+            let counter = Arc::clone(&counter);
+            async move {
+                counter.fetch_add(1, Ordering::Relaxed);
+                Ok(Value::Null)
+            }
+        },
+    )))
+    .await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    let hello = gateway.next_frame().await;
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": "invoke-before-welcome",
+            "method": "actions/invoke",
+            "params": { "name": "count", "input": {}, "invocationId": "inv-1" }
+        }))
+        .await;
+    let mut mismatched = welcome("session-1", "token-1", Some("ABC-123"));
+    mismatched["protocolVersion"] = json!("2.0.0");
+    gateway
+        .send(json!({ "jsonrpc": "2.0", "id": hello["id"].clone(), "result": mismatched }))
+        .await;
+
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::HandshakeFailed(_)
+    ));
+    gateway.expect_closed().await;
+    assert_eq!(ran.load(Ordering::Relaxed), 0);
+
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_claim_before_a_refused_welcome_cannot_poison_the_next_session() {
+    let (host, mut events) = started(application()).await;
+    let mut first = Gateway::dial(host.url()).await;
+    let hello = first.next_frame().await;
+    first
+        .notify(
+            "tesseron/claimed",
+            json!({
+                "agent": { "id": "forged", "name": "Forged" },
+                "claimedAt": 1
+            }),
+        )
+        .await;
+    let mut mismatched = welcome("session-1", "token-1", Some("ABC-123"));
+    mismatched["protocolVersion"] = json!("2.0.0");
+    first
+        .send(json!({ "jsonrpc": "2.0", "id": hello["id"].clone(), "result": mismatched }))
+        .await;
+
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::HandshakeFailed(_)
+    ));
+    first.expect_closed().await;
+    drop(first);
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Disconnected
+    ));
+
+    let mut second = Gateway::dial(host.url()).await;
+    second
+        .answer_next(welcome("session-2", "token-2", Some("NEW-456")))
+        .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Welcome(_)
+    ));
+    let second_welcome = host.welcome().expect("the new welcome was stored");
+    assert_eq!(second_welcome.agent.id, "pending");
+    assert_eq!(second_welcome.claim_code.as_deref(), Some("NEW-456"));
 
     second.drop_transport().await;
     host.shutdown().await.unwrap();
@@ -392,6 +520,21 @@ async fn a_welcome_from_another_protocol_major_is_refused() {
     assert!(host.welcome().is_none());
 
     host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn non_loopback_addresses_fail_before_the_host_binds() {
+    for address in ["0.0.0.0:0", "192.0.2.1:0"] {
+        let error = application()
+            .bind_address(address.parse().expect("the test address parses"))
+            .listen()
+            .await
+            .expect_err("non-loopback addresses are rejected");
+        assert!(
+            error.to_string().contains("loopback addresses only"),
+            "{error}"
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -836,6 +979,138 @@ async fn an_agent_that_negotiated_nothing_gets_the_documented_refusals() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn cloned_context_requests_fail_promptly_after_the_transport_closes() {
+    let stored_context = Arc::new(Mutex::new(None));
+    let saved_context = Arc::clone(&stored_context);
+    let host_builder = application().action(Action::json(
+        "capture_context",
+        move |_input: Value, context: ActionContext| {
+            *saved_context
+                .lock()
+                .expect("the context store is available") = Some(context.clone());
+            async move { Ok(Value::Null) }
+        },
+    ));
+    let (host, mut events) = started(host_builder).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+    gateway
+        .call(
+            1,
+            "actions/invoke",
+            json!({ "name": "capture_context", "input": {}, "invocationId": "capture" }),
+        )
+        .await;
+    let context = stored_context
+        .lock()
+        .expect("the context store is available")
+        .clone()
+        .expect("the handler retained a context clone");
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Welcome(_)
+    ));
+
+    gateway.drop_transport().await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        HostEvent::Disconnected
+    ));
+
+    let sample_error = tokio::time::timeout(
+        PATIENCE,
+        context.sample(SampleRequest::new("summarise this")),
+    )
+    .await
+    .expect("sample must not hang")
+    .expect_err("sample must fail after transport close");
+    assert_eq!(sample_error.code(), TesseronErrorCode::TransportClosed);
+
+    let sample_as_error = tokio::time::timeout(
+        PATIENCE,
+        context.sample_as::<Value>(SampleRequest::new("summarise this")),
+    )
+    .await
+    .expect("sample_as must not hang")
+    .expect_err("sample_as must fail after transport close");
+    assert_eq!(sample_as_error.code(), TesseronErrorCode::TransportClosed);
+
+    let confirm_error = tokio::time::timeout(PATIENCE, context.confirm("continue?"))
+        .await
+        .expect("confirm must not hang")
+        .expect_err("confirm must fail after transport close");
+    assert_eq!(confirm_error.code(), TesseronErrorCode::TransportClosed);
+
+    let elicit_error = tokio::time::timeout(PATIENCE, context.elicit(ElicitRequest::new("name?")))
+        .await
+        .expect("elicit must not hang")
+        .expect_err("elicit must fail after transport close");
+    assert_eq!(elicit_error.code(), TesseronErrorCode::TransportClosed);
+
+    let elicit_as_error = tokio::time::timeout(
+        PATIENCE,
+        context.elicit_as::<Value>(ElicitRequest::new("name?")),
+    )
+    .await
+    .expect("elicit_as must not hang")
+    .expect_err("elicit_as must fail after transport close");
+    assert_eq!(elicit_as_error.code(), TesseronErrorCode::TransportClosed);
+
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn invalid_jsonrpc_envelopes_and_lossless_request_ids_are_handled_on_the_wire() {
+    let (host, _events) = started(with_actions()).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    gateway
+        .send(json!({
+            "id": "missing-jsonrpc",
+            "method": "actions/invoke",
+            "params": { "name": "add", "input": { "left": 2, "right": 3 }, "invocationId": "missing" }
+        }))
+        .await;
+    let missing_jsonrpc = gateway.next_frame().await;
+    assert_eq!(missing_jsonrpc["id"], "missing-jsonrpc");
+    assert_eq!(missing_jsonrpc["error"]["code"], -32600);
+
+    gateway
+        .send(json!({
+            "jsonrpc": "2.0",
+            "id": null,
+            "method": "actions/invoke",
+            "params": { "name": "add", "input": { "left": 2, "right": 3 }, "invocationId": "null-id" }
+        }))
+        .await;
+    let null_id = gateway.next_frame().await;
+    assert!(null_id["id"].is_null());
+    assert_eq!(null_id["result"]["output"]["sum"], 5);
+
+    for id in [json!(u64::MAX), json!(-1), json!(1.5), json!("string-id")] {
+        gateway
+            .send(json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "unknown/method",
+                "params": {}
+            }))
+            .await;
+        let response = gateway.next_frame().await;
+        assert_eq!(response["id"], id);
+        assert_eq!(response["error"]["code"], -32601);
+    }
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_subscription_pushes_updates_and_its_cleanup_runs_on_unsubscribe() {
     let torn_down = Arc::new(AtomicUsize::new(0));
     let counter = Arc::clone(&torn_down);
@@ -887,6 +1162,45 @@ async fn a_subscription_pushes_updates_and_its_cleanup_runs_on_unsubscribe() {
         .await;
     assert_eq!(dropped["id"], 2);
     assert_eq!(torn_down.load(Ordering::Relaxed), 1);
+
+    gateway.drop_transport().await;
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_emitter_is_silent_after_its_subscription_is_removed() {
+    let host_builder = application().resource(
+        Resource::new("cart", || async { Ok(Value::Null) }).subscribe(move |emitter| {
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                emitter.emit(json!({ "total": 42 }));
+            });
+            Subscription::without_cleanup()
+        }),
+    );
+    let (host, _events) = started(host_builder).await;
+    let mut gateway = Gateway::dial(host.url()).await;
+    gateway
+        .answer_next(welcome("session-1", "token-1", Some("ABC-123")))
+        .await;
+
+    let acknowledgement = gateway
+        .call(
+            1,
+            "resources/subscribe",
+            json!({ "name": "cart", "subscriptionId": "sub-1" }),
+        )
+        .await;
+    assert_eq!(acknowledgement["id"], 1);
+    let unsubscribe = gateway
+        .call(
+            2,
+            "resources/unsubscribe",
+            json!({ "subscriptionId": "sub-1" }),
+        )
+        .await;
+    assert_eq!(unsubscribe["id"], 2);
+    gateway.expect_silence(Duration::from_millis(200)).await;
 
     gateway.drop_transport().await;
     host.shutdown().await.unwrap();

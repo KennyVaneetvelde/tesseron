@@ -8,6 +8,7 @@
       "sdks/typescript/examples",
       "sdks/rust/**",
       "sdks/cpp/**",
+      "sdks/python/**",
       "**/.astro/**",
       "assets/diagrams/**",
       ".claude/**"

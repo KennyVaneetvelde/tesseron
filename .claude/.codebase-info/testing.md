@@ -64,12 +64,16 @@ Two invariant tests scan source text rather than behavior: no `Math.random` in
 statistical no-short-circuit timing check lives at `sdks/typescript/core/test/timing-safe.test.ts:65`.
 
 Two manual e2e scripts are not part of the suite: `gateway/scripts/e2e-browser-claim.mjs` and
-`e2e-issue-69.mjs`. `sdks/typescript/examples/node-prompts` carries `validate:e2e`.
+`e2e-issue-69.mjs`. `sdks/typescript/examples/node-prompts` carries `validate:e2e`, and
+`sdks/rust/examples/validate-e2e.mjs` (`pnpm example:rust:e2e`) builds the two Rust examples, starts
+the gateway from `gateway/src/cli.ts`, claims with the printed code, and asserts 15 invariants
+(canonical action sets and schemas, one progress per imported item, resource read, a subscription
+update on delete, `not_found`, the sampling and confirm responders).
 
 ## The conformance corpus is not part of `pnpm test`
 
-`conformance/fixtures/` holds 34 scripted JSON exchanges (5 actions, 9 bind, 13 elicitation, 3 handshake,
-resources, resume, uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
+`conformance/fixtures/` holds 37 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 4 handshake,
+3 resources, 1 resume, 1 uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
 every `pnpm-workspace.yaml` glob so a port can vendor the directory.
 
 `pnpm conformance:validate` (`conformance/validate.mjs`, zero deps, wired into `ci.yml`) only lints
@@ -90,8 +94,21 @@ runner error. Fixtures whose `requires` the host lacks (declared via
 The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
 "sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim` (the script
 takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). Expected
-on Windows: 24 passed, 10 skipped (9 `bind/*` plus `uds/file-mode`), 0 failed; on Linux only the
-9 `bind/*` skip. A `--host` that is only a path is resolved to its absolute native form
+on Windows: TS host 31 passed / 6 skipped, Rust host 27 passed / 10 skipped (9 `bind/*` plus
+`uds/file-mode`), 0 failed; on Linux only the 9 `bind/*` skip for Rust and nothing for TS.
+
+The Python host is the third: `pnpm conformance:run:python` runs
+`uv run --locked --directory sdks/python python -m conformance_host` with
+`--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
+design). Its own suite is `uv run --locked pytest` (98 tests), `mypy --strict src conformance_host
+tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
+usual way a host goes red: rerun every host at HEAD after any corpus change.
+
+Trap: `conformance/runner/scripts/copy-fixtures.mjs` copies the corpus into `runner/dist/fixtures`
+at build time (that copy is what `npx @tesseron/conformance` ships), and turbo does not list
+`../fixtures` as a build input, so a cached build keeps an old copy. `run-reference.mjs` therefore
+passes `--fixtures conformance/fixtures` on every hub run; a bare `tesseron-conformance` invocation
+after a fixture-only change reads the stale copy until the runner is rebuilt. A `--host` that is only a path is resolved to its absolute native form
 (`conformance/runner/src/runner.ts` `resolveHostCommand`, 7 tests in `test/host-command.test.ts`),
 because cmd.exe otherwise splits a relative forward-slash path at the first slash. Every `bind/*`
 fixture requires `host-minted-claim`, which the Rust SDK skips by design (gateway-minted claims
@@ -107,6 +124,8 @@ pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 40 unit + 19 integration + 3 host + 1 doctest
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 44 unit + 25 integration + 3 host + 1 doctest
+cd sdks/python && uv run --locked pytest -q                   # Python: 98 tests; mypy --strict and ruff check alongside
+pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```

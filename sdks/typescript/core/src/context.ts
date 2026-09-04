@@ -37,7 +37,7 @@ export interface ClientContext {
 export interface ProgressUpdate {
   /** Short status line shown to the user. */
   message?: string;
-  /** Completion percentage (0–100). Must increase monotonically within an invocation. */
+  /** Completion percentage (0–100). The host clamps it to range and never lets it decrease. */
   percent?: number;
   /** Free-form structured data forwarded to `notifications/progress._meta`. */
   data?: unknown;
@@ -87,7 +87,7 @@ export interface ActionContext {
   agent: InvokingAgent;
   /** Origin/route metadata about the registering app. */
   client: ClientContext;
-  /** Emits a progress notification. Percent must strictly increase within an invocation. */
+  /** Emits a progress notification. The host clamps percent to 0–100 and never lets it decrease. */
   progress(update: ProgressUpdate): void;
   /**
    * Asks the agent's LLM to complete `req.prompt`. When `req.schema` is set the

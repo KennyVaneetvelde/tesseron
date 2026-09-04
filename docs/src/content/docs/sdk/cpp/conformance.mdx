@@ -12,9 +12,9 @@ The [conformance corpus](https://github.com/Eigenwise/tesseron/tree/main/conform
 
 ## Where it stands
 
-**24 fixtures pass, 10 skip, 0 fail**, on Linux with clang and on Windows with MSVC.
+**Every fixture passes except the ten it declares it cannot serve**, on Linux with clang and on Windows with MSVC. At the corpus this was last run against, that is 27 passed, 10 skipped, 0 failed.
 
-The 10 skips are the nine `bind/*` fixtures, which need a host-minted claim code, plus `uds/file-mode`, which needs a unix domain socket. The C++ host speaks WebSocket only and takes gateway-minted claims only, and it says so:
+Those 10 are the nine `bind/*` fixtures, which need a host-minted claim code, plus `uds/file-mode`, which needs a unix domain socket. The C++ host speaks WebSocket only and takes gateway-minted claims only, and it says so:
 
 ```bash
 pnpm conformance:run:cpp

@@ -129,6 +129,21 @@ fn home_directory() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+trait StagingFile {
+    fn write_manifest(&mut self, bytes: &[u8]) -> std::io::Result<()>;
+    fn sync_manifest(&mut self) -> std::io::Result<()>;
+}
+
+impl StagingFile for fs::File {
+    fn write_manifest(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        self.write_all(bytes)
+    }
+
+    fn sync_manifest(&mut self) -> std::io::Result<()> {
+        self.sync_all()
+    }
+}
+
 /// Writes the manifest into `directory` and returns the file it created.
 ///
 /// The write is atomic through a rename so a gateway watching the directory
@@ -139,6 +154,18 @@ fn home_directory() -> Option<PathBuf> {
 /// when it stops, both outside any request path, and a blocking call there is
 /// cheaper to read than an async file API that only exists for two calls.
 pub(crate) fn publish(manifest: &InstanceManifest, directory: &Path) -> Result<PathBuf, HostError> {
+    publish_with_staging_file(manifest, directory, create_private_file)
+}
+
+fn publish_with_staging_file<File, CreateFile>(
+    manifest: &InstanceManifest,
+    directory: &Path,
+    create_file: CreateFile,
+) -> Result<PathBuf, HostError>
+where
+    File: StagingFile,
+    CreateFile: FnOnce(&Path) -> Result<File, HostError>,
+{
     fs::create_dir_all(directory).map_err(HostError::Manifest)?;
     tighten_directory(directory)?;
 
@@ -147,16 +174,25 @@ pub(crate) fn publish(manifest: &InstanceManifest, directory: &Path) -> Result<P
     let encoded = serde_json::to_vec(manifest)
         .map_err(|problem| HostError::Manifest(std::io::Error::other(problem)))?;
 
-    let mut file = create_private_file(&staging)?;
-    file.write_all(&encoded).map_err(HostError::Manifest)?;
-    file.sync_all().map_err(HostError::Manifest)?;
+    let mut file = create_file(&staging)?;
+    let result = file
+        .write_manifest(&encoded)
+        .and_then(|()| file.sync_manifest());
     drop(file);
+    if let Err(problem) = result {
+        remove_staging_file(&staging);
+        return Err(HostError::Manifest(problem));
+    }
 
     fs::rename(&staging, &destination).map_err(|problem| {
-        let _ = fs::remove_file(&staging);
+        remove_staging_file(&staging);
         HostError::Manifest(problem)
     })?;
     Ok(destination)
+}
+
+fn remove_staging_file(path: &Path) {
+    let _ = fs::remove_file(path);
 }
 
 /// Removes a published manifest. A manifest that is already gone is a success:
@@ -262,6 +298,75 @@ mod tests {
         assert_eq!(directory_mode, DIRECTORY_MODE);
 
         fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_staging_file_is_removed_when_the_final_rename_fails() {
+        let directory =
+            std::env::temp_dir().join(format!("tesseron-partial-{}", mint_instance_id()));
+        let manifest = InstanceManifest::for_websocket(
+            mint_instance_id(),
+            "todo".to_owned(),
+            "ws://127.0.0.1:1234/".to_owned(),
+        );
+        let destination = directory.join(format!("{}.json", manifest.instance_id));
+        fs::create_dir_all(&destination).unwrap();
+
+        let result = publish(&manifest, &directory);
+        let staging = directory.join(format!("{}.json.partial", manifest.instance_id));
+        assert!(result.is_err());
+        assert!(!staging.exists());
+
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_staging_file_is_removed_when_its_write_or_sync_fails() {
+        for fail_sync in [false, true] {
+            let directory =
+                std::env::temp_dir().join(format!("tesseron-partial-{}", mint_instance_id()));
+            let manifest = InstanceManifest::for_websocket(
+                mint_instance_id(),
+                "todo".to_owned(),
+                "ws://127.0.0.1:1234/".to_owned(),
+            );
+            let staging = directory.join(format!("{}.json.partial", manifest.instance_id));
+            let result = publish_with_staging_file(&manifest, &directory, |path| {
+                fs::create_dir_all(&directory).map_err(HostError::Manifest)?;
+                fs::File::create(path).map_err(HostError::Manifest)?;
+                Ok(FailingStagingFile { fail_sync })
+            });
+
+            assert!(result.is_err());
+            assert!(
+                !staging.exists(),
+                "a failed staging write must not leave {} behind",
+                staging.display()
+            );
+            fs::remove_dir_all(&directory).ok();
+        }
+    }
+
+    struct FailingStagingFile {
+        fail_sync: bool,
+    }
+
+    impl StagingFile for FailingStagingFile {
+        fn write_manifest(&mut self, _bytes: &[u8]) -> std::io::Result<()> {
+            if self.fail_sync {
+                Ok(())
+            } else {
+                Err(std::io::Error::other("injected write failure"))
+            }
+        }
+
+        fn sync_manifest(&mut self) -> std::io::Result<()> {
+            if self.fail_sync {
+                Err(std::io::Error::other("injected sync failure"))
+            } else {
+                Ok(())
+            }
+        }
     }
 
     #[test]

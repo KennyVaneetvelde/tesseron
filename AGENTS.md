@@ -34,6 +34,9 @@ repo; do not introduce one.
 - `sdks/rust/`: the Rust SDK (`tesseron`) and `tesseron-conformance-host`. Its own
   cargo workspace, invisible to pnpm and to Biome. In progress; see
   [`sdks/rust/README.md`](./sdks/rust/README.md) for what it covers.
+- `sdks/python/`: the Python SDK (`tesseron`) plus the `conformance_host/` adapter that
+  sits outside the wheel. Its own uv project, invisible to pnpm and to Biome. In
+  progress; see [`sdks/python/README.md`](./sdks/python/README.md) for what it covers.
 - `sdks/cpp/`: the C++ SDK (`tesseron::tesseron`) and `tesseron-conformance-host`.
   Its own CMake project, invisible to pnpm and to Biome. In progress; see
   [`sdks/cpp/README.md`](./sdks/cpp/README.md) for what it covers.
@@ -58,6 +61,24 @@ cargo build --manifest-path sdks/rust/Cargo.toml --workspace
 House rules there: no `unwrap()` outside tests (`unwrap_used` is denied),
 `#![deny(missing_docs)]` on the library, no abbreviations in names. `Cargo.lock`
 is committed.
+
+`sdks/python/` does not move with pnpm either. Run uv from the repo root and point it
+at that project, the way CI does:
+
+```bash
+uv sync --locked --directory sdks/python
+uv run --locked --directory sdks/python ruff check .
+uv run --locked --directory sdks/python ruff format --check .
+uv run --locked --directory sdks/python mypy --strict src tests
+uv run --locked --directory sdks/python pytest
+uv build --directory sdks/python
+pnpm conformance:run:python
+```
+
+House rules there: no `Any`, no `cast()`, no bare `# type: ignore`, no abbreviations in
+names, and every public symbol carries a docstring. `uv.lock` is committed. The
+conformance host lives at `sdks/python/conformance_host/`, beside `src/tesseron` rather
+than inside it, so `uv build` produces a wheel with the SDK and nothing else.
 
 `sdks/cpp/` is the same story with CMake. Never change directory into it; point
 `-S` and `-B` at it from the repo root, the way CI does:

@@ -18,20 +18,14 @@ A host speaking protocol `1.x` works with a gateway speaking protocol `1.y`, as 
 | Protocol version | Packages that speak it |
 | --- | --- |
 | `1.2.0` | `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/svelte`, `@tesseron/vue`, `@tesseron/vite`, and `@tesseron/mcp` `>=2.10.0` |
+| `1.2.0` | [`tesseron`](/sdk/python/) (Python) `>=0.1.0`. Not on PyPI yet. |
+| `1.2.0` | [`tesseron::tesseron`](/sdk/cpp/) (C++) `>=0.1.0`. Source-only, built through CMake `FetchContent`. |
 
 The table starts at `1.2.0`. The history checked for this page does not prove package boundaries for earlier protocol versions.
 
-## Other implementations
+The Python and C++ SDKs carry their own versions and move on their own. They speak the same protocol, which is the only thing that has to match. A future Rust SDK gets a row here on the same terms.
 
-These are not published packages. You build them from source, and their versions move independently of the TypeScript group.
-
-| Implementation | Protocol | What it leaves out |
-| --- | --- | --- |
-| `tesseron::tesseron` (C++, [`sdks/cpp/`](https://github.com/Eigenwise/tesseron/tree/main/sdks/cpp)) | `1.2.0` | host-minted claim codes, unix domain sockets |
-
-The C++ host declares all four handshake capabilities and passes 24 of the 34 conformance fixtures; the 10 it skips are the nine `bind/*` fixtures and `uds/file-mode`, which are exactly the two things in that last column. See [Conformance](/sdk/cpp/conformance/).
-
-Rust and Python SDKs get rows here when they ship.
+The C++ host does not mint its own claim code and does not speak a unix domain socket, so it skips the `bind/*` fixtures and `uds/file-mode` and passes every other fixture in the suite. See [C++ conformance](/sdk/cpp/conformance/).
 
 ## TypeScript package versions
 

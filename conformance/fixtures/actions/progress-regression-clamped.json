@@ -1,0 +1,113 @@
+{
+  "id": "actions/progress-regression-clamped",
+  "title": "A progress regression is raised to the invocation's highest percent",
+  "spec": "/protocol/progress-cancellation/",
+  "requires": ["streaming"],
+  "fixture": {
+    "actions": [
+      {
+        "name": "slow",
+        "progress": [{ "percent": 10 }, { "percent": 55 }, { "percent": 30 }, { "percent": 100 }],
+        "returns": { "done": true }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "~capture:helloId",
+        "method": "tesseron/hello",
+        "params": {
+          "protocolVersion": "~regex:^1\\.[0-9]+\\.[0-9]+$",
+          "app": {
+            "id": "~regex:^[a-z][a-z0-9_]*$",
+            "name": "~string",
+            "origin": "~string"
+          },
+          "actions": "~array",
+          "resources": "~array",
+          "capabilities": {
+            "streaming": "~boolean",
+            "subscriptions": "~boolean",
+            "sampling": "~boolean",
+            "elicitation": "~boolean"
+          }
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "~ref:helloId",
+        "result": {
+          "sessionId": "s_conformance_0001",
+          "protocolVersion": "1.2.0",
+          "capabilities": {
+            "streaming": true,
+            "subscriptions": true,
+            "sampling": true,
+            "elicitation": true
+          },
+          "agent": {
+            "id": "agent_conformance",
+            "name": "conformance-runner"
+          },
+          "claimCode": "AB3X-7K",
+          "resumeToken": "rt_conformance_0001"
+        }
+      }
+    },
+    {
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "inv-1",
+        "method": "actions/invoke",
+        "params": {
+          "name": "slow",
+          "input": {},
+          "invocationId": "i-1"
+        }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "id": "~absent",
+        "params": { "invocationId": "i-1", "percent": 10 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 55 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 55 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "method": "actions/progress",
+        "params": { "invocationId": "i-1", "percent": 100 }
+      }
+    },
+    {
+      "recv": {
+        "jsonrpc": "2.0",
+        "id": "inv-1",
+        "result": {
+          "invocationId": "i-1",
+          "output": { "done": true }
+        }
+      }
+    }
+  ]
+}

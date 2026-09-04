@@ -146,9 +146,11 @@ pnpm -r --filter @tesseron/conformance build
 pnpm conformance:run:cpp
 ```
 
-24 fixtures pass and 10 skip: the nine `bind/*` fixtures, which need a
-host-minted claim, plus `uds/file-mode`. `conformance/run-reference.mjs` owns
-both lists and CI runs the same script.
+Every fixture passes except the ten that need something this host does not
+have: the nine `bind/*` fixtures, which need a host-minted claim, plus
+`uds/file-mode`. At the corpus this was last run against that is 27 passed, 10
+skipped, 0 failed. `conformance/run-reference.mjs` owns both skip lists and CI
+runs the same script.
 
 ## House rules
 

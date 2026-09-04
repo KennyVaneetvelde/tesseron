@@ -9,6 +9,10 @@ const runnerPath = fileURLToPath(
 const referenceHostPath = fileURLToPath(
   new URL('../sdks/typescript/conformance-host/dist/bin.js', import.meta.url),
 );
+// The runner ships a copy of the corpus in its dist for npx consumers, and turbo
+// does not know that copy depends on ../fixtures, so a hub run reads the live
+// corpus instead of whatever the cached build captured.
+const fixturesPath = fileURLToPath(new URL('./fixtures', import.meta.url));
 
 const options = parseArguments(process.argv.slice(2));
 const unsupported =
@@ -19,12 +23,16 @@ if (process.platform === 'win32' && !unsupported.includes('uds')) unsupported.pu
 
 const hostCommand =
   options.host ?? `${quoteForShell(process.execPath)} ${quoteForShell(referenceHostPath)}`;
-const child = spawn(process.execPath, [runnerPath, '--host', hostCommand, ...options.forwarded], {
-  cwd: workspaceRoot,
-  env: { ...process.env, TESSERON_CONFORMANCE_UNSUPPORTED: unsupported.join(',') },
-  stdio: 'inherit',
-  windowsHide: true,
-});
+const child = spawn(
+  process.execPath,
+  [runnerPath, '--host', hostCommand, '--fixtures', fixturesPath, ...options.forwarded],
+  {
+    cwd: workspaceRoot,
+    env: { ...process.env, TESSERON_CONFORMANCE_UNSUPPORTED: unsupported.join(',') },
+    stdio: 'inherit',
+    windowsHide: true,
+  },
+);
 
 child.once('error', (error) => {
   process.stderr.write(`${error.message}\n`);

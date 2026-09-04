@@ -38,7 +38,7 @@ Tesseron uses JSON-RPC error codes with a Tesseron-specific extension range.
 | `-32000` | `ProtocolMismatch` | `tesseron/hello` sent a `protocolVersion` the gateway doesn't accept. |
 | `-32001` | `Cancelled` | Invocation was cancelled by the agent. |
 | `-32002` | `Timeout` | Invocation exceeded its timeout. |
-| `-32003` | `ActionNotFound` | Agent called an action that isn't registered for this session. |
+| `-32003` | `ActionNotFound` | Agent called an action that isn't registered for this session, or tried subscribing to an unknown or non-subscribable resource. |
 | `-32004` | `InputValidation` | Input failed Standard Schema validation. Issues in `error.data`. |
 | `-32005` | `HandlerError` | Handler threw, or output failed strict validation. Message comes from the thrown error. |
 | `-32006` | `SamplingNotAvailable` | Handler called `ctx.sample` but agent didn't advertise sampling. |

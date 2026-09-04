@@ -28,7 +28,12 @@ workspace = true
 # host, because `cargo fmt --manifest-path sdks/rust/Cargo.toml` needs a package
 # to point at: a virtual manifest gives it no targets and it exits 1.
 [workspace]
-members = ["conformance-host"]
+members = [
+    "conformance-host",
+    "examples/todo",
+    "examples/prompts",
+    "examples/tauri-todo",
+]
 
 [workspace.package]
 edition = "2024"
