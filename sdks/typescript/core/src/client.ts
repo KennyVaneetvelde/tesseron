@@ -389,8 +389,15 @@ export class TesseronClient implements BuilderRegistry {
     });
     this.dispatcher = dispatcher;
     let acceptedWelcome = false;
+    const queuedBeforeWelcome: unknown[] = [];
 
-    transport.onMessage((message) => dispatcher.receive(message));
+    transport.onMessage((message) => {
+      if (!acceptedWelcome && hasJsonRpcMethod(message)) {
+        queuedBeforeWelcome.push(message);
+        return;
+      }
+      dispatcher.receive(message);
+    });
     transport.onClose((reason) => {
       dispatcher.rejectAllPending(new TransportClosedError(reason));
       // Only clear instance state if it still belongs to *this* transport.
@@ -499,6 +506,7 @@ export class TesseronClient implements BuilderRegistry {
     }
     this.welcome = welcome;
     acceptedWelcome = true;
+    for (const message of queuedBeforeWelcome) dispatcher.receive(message);
     return welcome;
   }
 
@@ -877,6 +885,10 @@ function sharesMajorVersion(left: string, right: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasJsonRpcMethod(value: unknown): boolean {
+  return isRecord(value) && typeof value['method'] === 'string';
 }
 
 /**

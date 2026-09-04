@@ -126,6 +126,58 @@ describe('TesseronClient end-to-end', () => {
     expect(handlerCalls).toBe(0);
   });
 
+  it('runs an invocation queued behind an accepted welcome', async () => {
+    const client = new TesseronClient();
+    client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
+    let handlerCalls = 0;
+    client.action('runsAfterWelcome').handler(() => {
+      handlerCalls += 1;
+      return { invoked: true };
+    });
+
+    let clientMessageHandler: ((message: unknown) => void) | undefined;
+    let sentWelcome = false;
+    const transport: Transport = {
+      send: () => {
+        if (sentWelcome) return;
+        sentWelcome = true;
+        queueMicrotask(() => {
+          clientMessageHandler?.({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {
+              sessionId: 'accepted-session',
+              protocolVersion: PROTOCOL_VERSION,
+              capabilities: {
+                streaming: false,
+                subscriptions: false,
+                sampling: false,
+                elicitation: false,
+              },
+              agent: { id: 'test-agent', name: 'Test Agent' },
+            },
+          });
+          clientMessageHandler?.({
+            jsonrpc: '2.0',
+            id: 'invoke-after-welcome',
+            method: 'actions/invoke',
+            params: { name: 'runsAfterWelcome', input: {}, invocationId: 'after-welcome' },
+          });
+        });
+      },
+      onMessage: (handler) => {
+        clientMessageHandler = handler;
+      },
+      onClose: () => {},
+      close: () => {},
+    };
+
+    await client.connect(transport);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(handlerCalls).toBe(1);
+  });
+
   it('keeps the transport open when the gateway rejects hello', async () => {
     const client = new TesseronClient();
     client.app({ id: 'shop', name: 'Shop', origin: 'http://localhost' });
