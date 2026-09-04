@@ -36,7 +36,7 @@ The gateway exposes those actions as MCP tools over stdio. Any MCP-capable agent
 
 ### Not just for the web
 
-Tesseron is a protocol, not a web framework. The shipped SDKs cover TypeScript, Python, and Rust. The Python and Rust SDKs are unpublished and live in the hub repository under `sdks/python/` and `sdks/rust/`. A C++ SDK is in progress. Any process that can open a WebSocket and speak JSON-RPC 2.0 can host actions, including a Python daemon, a Rust desktop app, or a .NET line-of-business tool. See [Porting Tesseron](/sdk/porting/), the [Python SDK](/sdk/python/), and the [Rust SDK](/sdk/rust/).
+Tesseron is a protocol, not a web framework. The shipped SDKs cover TypeScript, Python, Rust, and C++. The Python, Rust, and C++ SDKs are unpublished and live in the hub repository under `sdks/python/`, `sdks/rust/`, and `sdks/cpp/`. Any process that can open a WebSocket and speak JSON-RPC 2.0 can host actions, including a Python daemon, a Rust desktop app, a C++ service, or a .NET line-of-business tool. See [Porting Tesseron](/sdk/porting/), the [Python SDK](/sdk/python/), the [Rust SDK](/sdk/rust/), and the [C++ SDK](/sdk/cpp/).
 
 ## 5. Tesseron and WebMCP
 
@@ -47,7 +47,7 @@ The [W3C WebMCP draft](https://webmachinelearning.github.io/webmcp/) is a W3C Co
 - **One gateway sees every running app.** Tesseron can expose a browser tab and a desktop app together, so a cross-app flow is built in; for example, it can read an invoice from a web app and post it into a local accounting app.
 - **The app can talk back.** Tesseron supports sampling, elicitation, `confirm`, resources with subscriptions, progress, cancellation, and resume; for example, `importTodos` can report each added item while a subscribed resource updates.
 - **Loopback plus an explicit claim.** Tesseron stays on loopback and requires the user's claim code, so a third-party script on the page cannot register a tool; for example, an unrelated analytics script cannot expose `deleteAccount` through the gateway.
-- **One CC BY spec, several languages, conformance-tested.** The protocol is CC BY 4.0, SDKs can be written in several languages, and the conformance suite checks them; for example, the same `addTodo` action can run in TypeScript and Rust.
+- **One CC BY spec, several languages, conformance-tested.** The protocol is CC BY 4.0, SDKs can be written in several languages, and the conformance suite checks them; for example, the same `addTodo` action can run in TypeScript, Python, Rust, or C++.
 
 Tesseron does not build on WebMCP and does not publish into it. Use WebMCP for browser-native agents and Tesseron for the wider set of processes and agents.
 

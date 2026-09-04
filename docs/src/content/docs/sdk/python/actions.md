@@ -14,22 +14,30 @@ An action is a named, typed, handler-backed operation the agent can invoke. The 
 
 ```python
 from pydantic import BaseModel, Field
-from tesseron import ActionContext, TesseronApp
-
-app = TesseronApp(id="todo", name="Todo")
+from tesseron import ActionContext, JsonObject, TesseronApp
 
 
-class AddTodo(BaseModel):
+class AddTodoInput(BaseModel):
     text: str = Field(min_length=1)
     tag: str | None = None
 
 
-@app.action("addTodo", description="Add one todo")
-async def add_todo(input: AddTodo, context: ActionContext) -> dict[str, object]:
-    return {"id": "1", "text": input.text}
+def create_app() -> TesseronApp:
+    app = TesseronApp(id="python_todo", name="Python Todo")
+
+    @app.action("addTodo", description="Add one todo")
+    async def add_todo(input_data: AddTodoInput, context: ActionContext) -> JsonObject:
+        del context
+        todo = store.create(input_data.text, input_data.tag)
+        await publish_todos()
+        return todo_payload(todo)
+
+    return app
 ```
 
-Every handler is `async def` and takes `(input, context)`. A handler that is not a coroutine function, or that does not take two parameters, raises `HostError` at registration. Registering one name twice raises `DuplicateNameError`, because the manifest has to stay unambiguous for the gateway to project it.
+The `store`, `publish_todos`, and `todo_payload` names above come directly from the canonical [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py) host.
+
+Every handler is `async def` and takes `(input_data, context)`. A handler that is not a coroutine function, or that does not take two parameters, raises `HostError` at registration. Registering one name twice raises `DuplicateNameError`, because the manifest has to stay unambiguous for the gateway to project it.
 
 ## Input comes from the annotation
 
@@ -98,14 +106,25 @@ Anything else has no defined wire shape, so it fails as an internal error rather
 Raise `ActionError` when the handler cannot produce its output:
 
 ```python
-from tesseron import ActionError, TesseronErrorCode
+from pydantic import BaseModel
+from tesseron import ActionContext, ActionError, JsonObject
 
 
-@app.action("removeTodo")
-async def remove_todo(input: RemoveTodo, context: ActionContext) -> None:
-    todo = store.get(input.id)
-    if todo is None:
-        raise ActionError.handler("no todo with that id", {"id": input.id})
+class TodoIdentifierInput(BaseModel):
+    id: str
+
+
+@app.action("deleteTodo", description="Delete one todo")
+async def delete_todo(input_data: TodoIdentifierInput, context: ActionContext) -> JsonObject:
+    del context
+    original_length = len(store.todos)
+    store.todos[:] = [todo for todo in store.todos if todo.id != input_data.id]
+    if len(store.todos) == original_length:
+        raise ActionError.handler("Todo not found", {"kind": "not_found"})
+    await publish_todos()
+    return {"id": input_data.id, "removed": True}
 ```
+
+This is the canonical `deleteTodo` shape from [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py).
 
 `ActionError.handler` sends its message and data to the agent as `-32005`. `ActionError.protocol(code, message, data)` does the same under a code you pick. `ActionError.internal(cause)` keeps the cause on your side and answers with a bare `-32603 Internal error`, which is what an unhandled exception in a handler is turned into too. See [errors](/sdk/python/errors/).

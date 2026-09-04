@@ -194,11 +194,7 @@ Published to npm: eight TypeScript packages — `@tesseron/{core,web,server,reac
 
 The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language. The [conformance fixtures](./conformance) are the executable half of that.
 
-Rust and Python SDKs are shipped in the hub repository under [`sdks/rust/`](./sdks/rust) and [`sdks/python/`](./sdks/python). Both are unpublished for now, so neither is on crates.io or PyPI. They speak protocol 1.2.0 and pass the shared conformance suite apart from the fixtures their transports or claim flow do not support.
-
-A C++ SDK is in progress. The protocol spec is the shared contract for every port.
-
-A C++ SDK is in progress under [`sdks/cpp/`](./sdks/cpp): same story, same two exclusions. CMake 3.24 with `FetchContent` at pinned hashes, C++20 coroutines on Boost.Asio, no package manager involved. Nothing is packaged for distribution yet.
+Rust, Python, and C++ SDKs are shipped in the hub repository under [`sdks/rust/`](./sdks/rust), [`sdks/python/`](./sdks/python), and [`sdks/cpp/`](./sdks/cpp). All three are unpublished for now. Rust and Python are not on crates.io or PyPI, and C++ is consumed from source through CMake with pinned dependency hashes. They speak protocol 1.2.0 and pass the shared conformance suite apart from the fixtures their transports or claim flow do not support.
 
 On the roadmap: a Streamable HTTP transport and bindings for desktop-native runtimes (Rust for Tauri, etc.).
 
