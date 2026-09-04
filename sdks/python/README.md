@@ -1,5 +1,8 @@
 # tesseron (Python)
 
+The Python SDK lives at [Eigenwise/tesseron-python](https://github.com/Eigenwise/tesseron-python).
+The [Tesseron hub](https://github.com/Eigenwise/tesseron) owns the protocol, docs, and issues.
+
 The Python implementation of the [Tesseron](https://eigenwise.github.io/tesseron/) host
 protocol. Your application listens on loopback, the MCP gateway dials in, and the agent
 gets typed actions and readable resources instead of a scraper.

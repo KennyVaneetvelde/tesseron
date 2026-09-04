@@ -21,7 +21,8 @@ dependencies = ["pydantic>=2.7", "websockets>=14"]
 [project.urls]
 Homepage = "https://eigenwise.github.io/tesseron/"
 Documentation = "https://eigenwise.github.io/tesseron/sdk/python/"
-Repository = "https://github.com/Eigenwise/tesseron"
+Repository = "https://github.com/Eigenwise/tesseron-python"
+Issues = "https://github.com/Eigenwise/tesseron/issues"
 
 [build-system]
 requires = ["hatchling"]
