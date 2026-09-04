@@ -1,5 +1,7 @@
 # Tesseron Rust SDK
 
+This SDK lives in [Eigenwise/tesseron-rust](https://github.com/Eigenwise/tesseron-rust). The [Tesseron hub](https://github.com/Eigenwise/tesseron) has the protocol, docs, and issue tracker.
+
 Rust half of the [Tesseron](https://eigenwise.github.io/tesseron/) protocol: your
 application binds a loopback WebSocket, writes an instance manifest, and the MCP
 gateway dials *in*. There is no port to configure and no gateway address to

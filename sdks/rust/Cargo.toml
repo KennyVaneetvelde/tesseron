@@ -45,7 +45,7 @@ license = "BUSL-1.1"
 authors = ["Kenny Vaneetvelde <kenny@eigenwise.io>"]
 homepage = "https://eigenwise.github.io/tesseron/"
 documentation = "https://eigenwise.github.io/tesseron/sdk/rust/"
-repository = "https://github.com/Eigenwise/tesseron"
+repository = "https://github.com/Eigenwise/tesseron-rust"
 
 [workspace.dependencies]
 futures-util = "0.3"
