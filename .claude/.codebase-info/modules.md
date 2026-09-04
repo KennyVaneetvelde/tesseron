@@ -144,7 +144,11 @@ The application half of the protocol in Rust, written from the spec pages with t
 as reference only where the spec is silent. `Tesseron::builder().application(..).action(..)
 .listen().await` binds a loopback WebSocket on port 0, writes the v2 instance manifest (`0600` in a
 `0700` dir, advisory on Windows), and the gateway dials in; `HostEvent::Welcome` carries the
-gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. Covers handshake,
+gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. `Action::typed` inputs must derive an
+object-root schema (a struct, an empty one for no-input actions); scalars, enums, and `Vec<T>` are
+refused at `listen()` with `HostError::InvalidTypedActionInputSchema`. Output schemas are opt-in
+(`.output_schema_from_type::<T>()` or `.output_schema(Value)`). `README.md` is the crate doc via
+`include_str!`, so its code blocks run as doctests. Covers handshake,
 claiming, resume with in-memory token rotation, invoke with validation and cancel, `ActionContext`
 with `progress` (percent clamped to 0..=100 and never below the ceiling already sent), `confirm`,
 `elicit`/`elicit_as` (schema rejection matrix in `elicit_schema.rs`, checked before the wire),

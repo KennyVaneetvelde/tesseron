@@ -44,7 +44,7 @@ tesseron/
 │   └── python/               uv project: PyPI `tesseron` 0.1.0 (unpublished), Python >= 3.11, Hatchling
 │       ├── src/tesseron/     action, context, elicit_schema, errors, host, jsonrpc, manifest, protocol, resource, session
 │       ├── conformance_host/ fixture adapter the runner drives; beside the package, so it is NOT in the wheel
-│       └── tests/            pytest, 98 tests; mypy --strict and ruff gate the whole tree
+│       └── tests/            pytest, 104 tests; mypy --strict and ruff gate the whole tree
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
 │   └── src/content/docs/     49 pages (six under sdk/python/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation

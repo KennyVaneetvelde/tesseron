@@ -100,7 +100,7 @@ on Windows: TS host 31 passed / 6 skipped, Rust host 27 passed / 10 skipped (9 `
 The Python host is the third: `pnpm conformance:run:python` runs
 `uv run --locked --directory sdks/python python -m conformance_host` with
 `--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
-design). Its own suite is `uv run --locked pytest` (98 tests), `mypy --strict src conformance_host
+design). Its own suite is `uv run --locked pytest` (104 tests), `mypy --strict src conformance_host
 tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
 usual way a host goes red: rerun every host at HEAD after any corpus change.
 
@@ -124,8 +124,8 @@ pnpm lint                          # biome check . at the root, not via turbo
 pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 44 unit + 25 integration + 3 host + 1 doctest
-cd sdks/python && uv run --locked pytest -q                   # Python: 98 tests; mypy --strict and ruff check alongside
+cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 49 unit + 25 integration + 3 host + 2 doctests (README blocks)
+cd sdks/python && uv run --locked pytest -q                   # Python: 104 tests; mypy --strict and ruff check alongside
 pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
 pnpm conformance:run:rust          # the corpus against the Rust host
 ```
