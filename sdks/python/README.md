@@ -62,6 +62,26 @@ elicitation, structured logs, and resources with reads, subscriptions, and pushe
 Gateway-minted claims only. WebSocket only: no Unix domain sockets and no host-minted bind
 in this release, so the conformance suite skips those fixtures honestly.
 
+## Examples
+
+From the repo root, run the headless todo app with:
+
+```bash
+uv run --locked --directory sdks/python python -m examples.todo
+```
+
+Run the prompt library with:
+
+```bash
+uv run --locked --directory sdks/python python -m examples.prompts
+```
+
+Each prints a claim code after the gateway connects. In Claude Code with the Tesseron plugin
+loaded, ask Claude to claim that code, then call the actions. The todo app includes the canonical
+`todos://all` resource and the prompt app includes `library` and `lastTest` resources.
+
+Validate both examples against the real gateway with `pnpm example:python:e2e`.
+
 ## Development
 
 Run everything from this directory:
