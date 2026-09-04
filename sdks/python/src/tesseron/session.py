@@ -18,7 +18,7 @@ from .action import RegisteredAction
 from .context import ActionContext, Cancellation
 from .errors import ActionError, ProtocolError, TesseronErrorCode
 from .json_types import JsonObject, JsonValue, as_object, as_string
-from .jsonrpc import Failure, Malformed, Notification, Request, RequestId, Success
+from .jsonrpc import Failure, InvalidRequest, Malformed, Notification, Request, RequestId, Success
 from .protocol import ClaimedParams, Methods, WelcomeResult, shares_major_version
 from .resource import Subscription
 
@@ -158,6 +158,8 @@ class Session:
                 self._handle_request(request_id, method, params)
             case Notification(method, params):
                 self._handle_notification(method, params)
+            case InvalidRequest(request_id, reason):
+                self._refuse(request_id, TesseronErrorCode.INVALID_REQUEST, reason)
             case Malformed(reason):
                 logger.warning("tesseron: dropping a frame that is not JSON-RPC 2.0: %s", reason)
 

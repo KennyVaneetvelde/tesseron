@@ -122,6 +122,26 @@ async def test_an_invocation_with_a_null_id_answers_with_a_null_id() -> None:
         }
 
 
+async def test_a_method_without_jsonrpc_answers_invalid_request_with_the_same_id() -> None:
+    async with listening(todo_application()) as host, dial(host) as gateway:
+        await gateway.accept_handshake()
+        await gateway.send(
+            {
+                "id": "missing-jsonrpc",
+                "method": "actions/invoke",
+                "params": {
+                    "name": "addTodo",
+                    "input": {"text": "buy milk"},
+                    "invocationId": "missing-jsonrpc",
+                },
+            }
+        )
+
+        answer = await gateway.receive()
+        assert answer["id"] == "missing-jsonrpc"
+        assert members(answer, "error")["code"] == -32600
+
+
 async def test_input_that_fails_the_model_is_refused_before_the_handler_runs() -> None:
     async with listening(todo_application()) as host, dial(host) as gateway:
         await gateway.accept_handshake()
