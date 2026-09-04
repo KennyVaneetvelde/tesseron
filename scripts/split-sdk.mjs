@@ -72,8 +72,21 @@ function readJsonDocument(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
-function writeJsonDocument(filePath, document) {
-  writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`);
+function replaceRequiredText(filePath, currentText, replacementText) {
+  const fileContents = readFileSync(filePath, 'utf8');
+  const firstOccurrence = fileContents.indexOf(currentText);
+  const secondOccurrence = fileContents.indexOf(currentText, firstOccurrence + currentText.length);
+  if (firstOccurrence < 0 || secondOccurrence >= 0) {
+    throw new Error(`Expected exactly one ${JSON.stringify(currentText)} in ${filePath}`);
+  }
+  writeFileSync(filePath, fileContents.replace(currentText, replacementText));
+}
+
+function requireString(value, location) {
+  if (typeof value !== 'string') {
+    throw new Error(`Expected a string at ${location}`);
+  }
+  return value;
 }
 
 function parseInvocation() {
@@ -145,19 +158,27 @@ function moveSplitRoot(splitWorktree) {
   rmSync(splitRoot, { recursive: true });
 }
 
+function rewriteConfigurationExtends(configurationPath, replacementExtends) {
+  const configuration = readJsonDocument(configurationPath);
+  if (!Object.hasOwn(configuration, 'extends')) {
+    return;
+  }
+  const currentExtends = requireString(configuration.extends, `${configurationPath}#extends`);
+  replaceRequiredText(
+    configurationPath,
+    JSON.stringify(currentExtends),
+    JSON.stringify(replacementExtends),
+  );
+}
+
 function rebaseTypeScriptConfigurations(splitWorktree) {
   for (const entry of readdirSync(splitWorktree, { withFileTypes: true })) {
     if (!entry.isDirectory()) {
       continue;
     }
     const configurationPath = join(splitWorktree, entry.name, 'tsconfig.json');
-    if (!existsSync(configurationPath)) {
-      continue;
-    }
-    const configuration = readJsonDocument(configurationPath);
-    if (Object.hasOwn(configuration, 'extends')) {
-      configuration.extends = '../tsconfig.base.json';
-      writeJsonDocument(configurationPath, configuration);
+    if (existsSync(configurationPath)) {
+      rewriteConfigurationExtends(configurationPath, '../tsconfig.base.json');
     }
   }
 
@@ -167,32 +188,53 @@ function rebaseTypeScriptConfigurations(splitWorktree) {
       continue;
     }
     const configurationPath = join(examplesDirectory, entry.name, 'tsconfig.json');
-    if (!existsSync(configurationPath)) {
-      continue;
-    }
-    const configuration = readJsonDocument(configurationPath);
-    if (Object.hasOwn(configuration, 'extends')) {
-      configuration.extends = '../../tsconfig.base.json';
-      writeJsonDocument(configurationPath, configuration);
+    if (existsSync(configurationPath)) {
+      rewriteConfigurationExtends(configurationPath, '../../tsconfig.base.json');
     }
   }
 }
 
 function rewriteTypeScriptPackageMetadata(splitWorktree) {
   const gatewayPackage = readJsonDocument(join(hubRoot, 'gateway', 'package.json'));
+  const gatewayVersion = requireString(gatewayPackage.version, 'gateway/package.json#version');
   const nodePromptsPath = join(splitWorktree, 'examples', 'node-prompts', 'package.json');
   const nodePromptsPackage = readJsonDocument(nodePromptsPath);
-  nodePromptsPackage.devDependencies['@tesseron/mcp'] = `^${gatewayPackage.version}`;
-  writeJsonDocument(nodePromptsPath, nodePromptsPackage);
+  const currentGatewayRange = requireString(
+    nodePromptsPackage.devDependencies?.['@tesseron/mcp'],
+    `${nodePromptsPath}#devDependencies.@tesseron/mcp`,
+  );
+  replaceRequiredText(
+    nodePromptsPath,
+    `"@tesseron/mcp": ${JSON.stringify(currentGatewayRange)}`,
+    `"@tesseron/mcp": ${JSON.stringify(`^${gatewayVersion}`)}`,
+  );
 
   for (const packageDirectory of publishedTypeScriptPackages) {
     const packagePath = join(splitWorktree, packageDirectory, 'package.json');
     const packageDocument = readJsonDocument(packagePath);
-    packageDocument.repository.url = 'git+https://github.com/Eigenwise/tesseron-typescript.git';
-    packageDocument.repository.directory = packageDirectory;
-    packageDocument.homepage = 'https://github.com/Eigenwise/tesseron-typescript#readme';
-    packageDocument.bugs.url = 'https://github.com/Eigenwise/tesseron/issues';
-    writeJsonDocument(packagePath, packageDocument);
+    const currentRepositoryUrl = requireString(
+      packageDocument.repository?.url,
+      `${packagePath}#repository.url`,
+    );
+    const currentRepositoryDirectory = requireString(
+      packageDocument.repository?.directory,
+      `${packagePath}#repository.directory`,
+    );
+    const currentHomepage = requireString(packageDocument.homepage, `${packagePath}#homepage`);
+    const currentBugsUrl = requireString(packageDocument.bugs?.url, `${packagePath}#bugs.url`);
+    const replacements = [
+      [currentRepositoryUrl, 'git+https://github.com/Eigenwise/tesseron-typescript.git'],
+      [currentRepositoryDirectory, packageDirectory],
+      [currentHomepage, 'https://github.com/Eigenwise/tesseron-typescript#readme'],
+      [currentBugsUrl, 'https://github.com/Eigenwise/tesseron/issues'],
+    ];
+    for (const [currentValue, replacementValue] of replacements) {
+      replaceRequiredText(
+        packagePath,
+        JSON.stringify(currentValue),
+        JSON.stringify(replacementValue),
+      );
+    }
   }
 }
 
