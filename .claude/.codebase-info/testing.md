@@ -100,7 +100,7 @@ on Windows: TS host 33 passed / 6 skipped, Rust host 29 passed / 10 skipped (9 `
 The Python host is the third: `pnpm conformance:run:python` runs
 `uv run --locked --directory sdks/python python -m conformance_host` with
 `--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
-design). Its own suite is `uv run --locked pytest` (104 tests), `mypy --strict src conformance_host
+design). Its own suite is `uv run --locked pytest` (106 tests), `mypy --strict src conformance_host
 tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
 usual way a host goes red: rerun every host at HEAD after any corpus change (SQ-22, SQ-24, and SQ-43 each
 left a sibling host red that way). `pnpm example:python:e2e`
@@ -139,7 +139,7 @@ pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
 pnpm conformance:run               # runs them against the TS reference host (build first)
 cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 49 unit + 25 integration + 3 host + 2 doctests (README blocks)
-cd sdks/python && uv run --locked pytest -q                   # Python: 104 tests; mypy --strict and ruff check alongside
+cd sdks/python && uv run --locked pytest -q                   # Python: 106 tests; mypy --strict and ruff check alongside
 pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
 cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON && cmake --build sdks/cpp/build && ctest --test-dir sdks/cpp/build   # C++: 34 Catch2 cases
 pnpm conformance:run:cpp           # the C++ host against the corpus (build first)

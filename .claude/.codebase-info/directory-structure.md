@@ -46,7 +46,7 @@ tesseron/
 │       ├── conformance_host/ fixture adapter the runner drives; beside the package, so it is NOT in the wheel
 │       ├── examples/         todo/ and prompts/ (`python -m examples.todo`), same action set as the Rust pair;
 │       │                     validate-e2e.mjs drives both through the real gateway: `pnpm example:python:e2e`
-│       └── tests/            pytest, 104 tests; mypy --strict and ruff gate the whole tree
+│       └── tests/            pytest, 106 tests; mypy --strict and ruff gate the whole tree
 │   └── cpp/                  CMake >= 3.24 project, C++20, library target `tesseron::tesseron`; build dir sdks/cpp/build/ is gitignored
 │       ├── include/tesseron/ action, context, error, host, json, manifest, protocol, resource, schema, tesseron (umbrella)
 │       ├── src/              one .cpp per header plus session, jsonrpc, elicit_schema, and private *_state.hpp
