@@ -1,5 +1,6 @@
 packages:
   - "sdks/typescript/*"
+  - "!sdks/typescript/.split-root"
   - "sdks/typescript/examples/*"
   - "gateway"
   - "docs-mcp"
