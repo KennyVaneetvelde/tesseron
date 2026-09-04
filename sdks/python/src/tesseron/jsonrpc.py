@@ -24,8 +24,8 @@ __all__ = [
     "success",
 ]
 
-RequestId: TypeAlias = "str | int | float"
-"""What JSON-RPC allows as a correlation id. Null ids are not correlated, so not accepted."""
+RequestId: TypeAlias = "str | int | float | None"
+"""What JSON-RPC allows as an id, including null for requests that expect a null response."""
 
 
 def request(request_id: RequestId, method: str, params: JsonValue) -> JsonObject:
@@ -98,16 +98,21 @@ def classify(frame: JsonValue) -> IncomingFrame:
     if frame.get("jsonrpc") != JSONRPC_VERSION:
         return Malformed(f"jsonrpc must be {JSONRPC_VERSION!r}")
 
-    identifier = _read_id(frame.get("id"))
     method = frame.get("method")
 
     if isinstance(method, str):
         params = frame.get("params")
-        if identifier is None:
+        if "id" not in frame:
             return Notification(method, params)
+        identifier = _read_id(frame["id"])
+        if isinstance(identifier, _InvalidRequestId):
+            return Malformed("a request id must be a string, number, or null")
         return Request(identifier, method, params)
 
-    if identifier is None:
+    if "id" not in frame:
+        return Malformed("a response must carry a correlatable id")
+    identifier = _read_id(frame["id"])
+    if isinstance(identifier, _InvalidRequestId):
         return Malformed("a response must carry a correlatable id")
     if "error" in frame:
         return Failure(identifier, _read_error(frame["error"]))
@@ -116,14 +121,20 @@ def classify(frame: JsonValue) -> IncomingFrame:
     return Malformed("a response must carry either result or error")
 
 
-def _read_id(raw_id: JsonValue) -> RequestId | None:
-    """The correlatable id, or ``None`` for an envelope that carries no usable one.
+@dataclass(frozen=True)
+class _InvalidRequestId:
+    pass
 
-    JSON-RPC allows a string, a number, or null. ``true`` is not a number here even though
-    Python's ``bool`` is a subclass of ``int``.
-    """
-    if isinstance(raw_id, bool) or not isinstance(raw_id, str | int | float):
+
+_INVALID_REQUEST_ID = _InvalidRequestId()
+
+
+def _read_id(raw_id: JsonValue) -> RequestId | _InvalidRequestId:
+    """Reads a JSON-RPC id without confusing a null id with an invalid one."""
+    if raw_id is None:
         return None
+    if isinstance(raw_id, bool) or not isinstance(raw_id, str | int | float):
+        return _INVALID_REQUEST_ID
     return raw_id
 
 

@@ -97,6 +97,31 @@ async def test_an_invocation_streams_progress_then_answers_with_the_handler_outp
         }
 
 
+async def test_an_invocation_with_a_null_id_answers_with_a_null_id() -> None:
+    async with listening(todo_application()) as host, dial(host) as gateway:
+        await gateway.accept_handshake()
+        await gateway.send(
+            {
+                "jsonrpc": "2.0",
+                "id": None,
+                "method": "actions/invoke",
+                "params": {
+                    "name": "addTodo",
+                    "input": {"text": "buy milk"},
+                    "invocationId": "null-request-id",
+                },
+            }
+        )
+
+        await gateway.receive()
+        answer = await gateway.receive()
+        assert answer["id"] is None
+        assert members(answer, "result") == {
+            "invocationId": "null-request-id",
+            "output": {"text": "buy milk", "tag": None},
+        }
+
+
 async def test_input_that_fails_the_model_is_refused_before_the_handler_runs() -> None:
     async with listening(todo_application()) as host, dial(host) as gateway:
         await gateway.accept_handshake()
