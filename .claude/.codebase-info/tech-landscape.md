@@ -99,7 +99,7 @@ Four workflows in `.github/workflows/`:
   `pnpm conformance:run:python` (`--unsupported host-minted-claim,uds`; the Python host is WS-only).
 - **`ci.yml` `cpp` job** (`:190-`) — ubuntu (clang) + windows (MSVC through ilammy/msvc-dev-cmd) matrix:
   Ninja, a cache of `sdks/cpp/build/_deps` keyed on the dependency pins, `cmake -S sdks/cpp -B
-  sdks/cpp/build` with tests and the conformance host on, build, `ctest`, then the conformance runner
+  sdks/cpp/build` with tests, the conformance host, and the examples on, build, `ctest`, then the conformance runner
   through `pnpm conformance:run:cpp` (`--unsupported host-minted-claim,uds`; the C++ host is WS-only).
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
   collect and applies the matching `area: *` label from `.github/labels.json`.

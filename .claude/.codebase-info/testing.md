@@ -111,8 +111,9 @@ The C++ host is the fourth: `pnpm conformance:run:cpp` runs
 `sdks/cpp/build/conformance-host/tesseron-conformance-host` with the same `--unsupported
 host-minted-claim,uds`, so it also skips 10 everywhere (29 passed on the 39-fixture corpus). Its own suite is Catch2 (`ctest --test-dir
 sdks/cpp/build`, 36 cases, `gateway_double.cpp` plays the gateway over a real WebSocket), built with
-`-DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON`. There is no C++ example e2e yet
-(SQ-25).
+`-DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON`. `pnpm example:cpp:e2e`
+(`sdks/cpp/examples/validate-e2e.mjs`, needs `-DTESSERON_BUILD_EXAMPLES=ON`) is the C++ twin of the
+Rust and Python e2e: 15 PASS lines through the real gateway.
 
 A `send` step may carry `raw: true` to write a deliberately malformed envelope verbatim (no
 `jsonrpc` member, say); `validate.mjs` and the runner otherwise refuse a send without

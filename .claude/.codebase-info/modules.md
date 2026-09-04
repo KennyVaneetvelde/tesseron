@@ -186,8 +186,10 @@ and every failure is a `Result`, never an exception across the boundary. `includ
 public surface (one header per concern plus `tesseron.hpp` as the umbrella), `src/session.cpp` runs
 the handshake gate and dispatch, `src/jsonrpc.cpp` classifies frames, `error.cpp` maps the 17 codes.
 The `schema.hpp` builder covers the common JSON Schema shapes with a raw-JSON escape hatch.
-`conformance-host/` is the private fixture adapter the runner drives. Docs live at
-`docs/src/content/docs/sdk/cpp/`. Canonical examples are SQ-25.
+`conformance-host/` is the private fixture adapter the runner drives. `examples/todo` and
+`examples/prompts` are the canonical pair with the same action names and schemas as the Rust, Python,
+and TypeScript examples; `examples/validate-e2e.mjs` proves them through the real gateway. Docs live
+at `docs/src/content/docs/sdk/cpp/`.
 
 ## Not packages
 
