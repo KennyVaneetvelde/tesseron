@@ -7,7 +7,9 @@ related:
   - protocol/errors
 ---
 
-## The code catalog
+## Envelope errors
+
+The host follows the wire-format ID rules. A request with `id: null` is answered with `id: null`; only an absent `id` is a notification. A frame without `jsonrpc: "2.0"` is answered with `-32600 Invalid Request`, carrying the readable request id through or using `null` when there is no usable id.
 
 `TesseronErrorCode` is an `IntEnum` carrying every code the protocol defines. The set is closed: a gateway that sends an integer outside it speaks a protocol this package does not implement, so `ProtocolError` keeps the raw integer and `named_code` answers `None` rather than inventing a member.
 
@@ -38,9 +40,12 @@ related:
 ```python
 from tesseron import ActionError, TesseronErrorCode
 
-ActionError.handler("cart is empty", {"cartId": "c-1"})
-ActionError.protocol(TesseronErrorCode.UNAUTHORIZED, "this agent cannot charge cards")
-ActionError.internal(problem)
+
+raise ActionError.handler("Todo not found", {"kind": "not_found"})
+raise ActionError.protocol(
+    TesseronErrorCode.UNAUTHORIZED, "this agent cannot charge cards"
+)
+raise ActionError.internal(RuntimeError("database unavailable"))
 ```
 
 The distinction that matters is what crosses the socket. `handler` and `protocol` send their message and data to the agent. `internal` keeps the cause on your side, reachable through `internal_source`, and answers with a bare `-32603 Internal error`: a stack trace or a database URL in a handler error is a leak.
@@ -57,7 +62,7 @@ These never reach the wire. They are how the host tells you it cannot start.
 
 | Exception | When |
 | --- | --- |
-| `HostError` | The base. A handler that is not a coroutine function, or that does not take `(input, context)`. |
+| `HostError` | The base. A handler that is not a coroutine function, or that does not take `(input_data, context)`. |
 | `InvalidApplicationIdError` | The application id is reserved or does not match `^[a-z][a-z0-9_]*$`. |
 | `DuplicateNameError` | Two actions, or two resources, under one name. |
 | `ManifestError` | The instance manifest could not be written or removed. |

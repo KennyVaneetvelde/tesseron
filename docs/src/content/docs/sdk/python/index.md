@@ -10,7 +10,9 @@ related:
 
 `tesseron` is the Python host SDK. Your application listens on loopback, the MCP gateway dials in, and the agent gets typed actions and readable resources.
 
-It speaks protocol [**1.2.0**](/protocol/), the same version the TypeScript packages speak. Compatibility is decided by protocol version, never by matching package numbers: see the [compatibility contract](/protocol/compatibility/).
+It speaks protocol [**1.2.0**](/protocol/), the same version the TypeScript, Rust, and C++ SDKs speak. Compatibility is decided by protocol version, never by matching package numbers: see the [compatibility contract](/protocol/compatibility/).
+
+The host follows the protocol's envelope rules. A request with `id: null` is still a request and gets an answer with `id: null`; only an absent `id` makes a notification. A frame without `jsonrpc: "2.0"` gets `-32600 Invalid Request`, with its readable request id carried through or `null` when there is no usable id.
 
 Not on PyPI yet. It lives in the monorepo at [`sdks/python/`](https://github.com/eigenwise/tesseron/tree/main/sdks/python) and versions independently of the TypeScript group.
 
@@ -21,33 +23,57 @@ Python 3.11 or newer. Two runtime dependencies: Pydantic v2 and `websockets`. Ev
 ## A first host
 
 ```python
+from __future__ import annotations
+
 import asyncio
 
 from pydantic import BaseModel, Field
-from tesseron import ActionContext, TesseronApp
 
-app = TesseronApp(id="todo", name="Todo", origin="http://127.0.0.1")
+from tesseron import ActionContext, JsonObject, JsonValue, TesseronApp
 
 
-class AddTodo(BaseModel):
+class AddTodoInput(BaseModel):
     text: str = Field(min_length=1)
     tag: str | None = None
 
 
-@app.action("addTodo", description="Add one todo")
-async def add_todo(input: AddTodo, context: ActionContext) -> dict[str, object]:
-    await context.progress(percent=100, message="saved")
-    return {"id": "1", "text": input.text, "done": False, "tag": input.tag}
+def create_app() -> TesseronApp:
+    app = TesseronApp(id="python_todo", name="Python Todo")
+    store = TodoStore()
+
+    async def read_todos() -> JsonValue:
+        return [todo_payload(todo) for todo in store.todos]
+
+    todos_resource = app.resource(
+        "todos://all",
+        description="The complete todo list. Pushed on every mutation.",
+        read=read_todos,
+        subscribable=True,
+    )
+
+    async def publish_todos() -> None:
+        await todos_resource.publish(await read_todos())
+
+    @app.action("addTodo", description="Add one todo")
+    async def add_todo(input_data: AddTodoInput, context: ActionContext) -> JsonObject:
+        del context
+        todo = store.create(input_data.text, input_data.tag)
+        await publish_todos()
+        return todo_payload(todo)
+
+    return app
 
 
 async def main() -> None:
+    app = create_app()
     host = await app.listen()
-    print(host.url)
-    await asyncio.Event().wait()
-
-
-asyncio.run(main())
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await host.shutdown()
 ```
+
+The `TodoStore` and `todo_payload` definitions in this excerpt are the ones in [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py). The complete example also registers the other canonical actions.
 
 `app.listen()` binds `127.0.0.1` on a port the OS picks, writes the instance manifest the gateway watches for, and answers with a `TesseronHost` carrying the URL and the manifest path. Nothing dials out.
 
@@ -70,8 +96,8 @@ from pathlib import Path
 
 from tesseron import ManifestPublication, TesseronApp
 
-TesseronApp(id="todo", name="Todo", manifest=ManifestPublication.in_directory(Path("/tmp/x")))
-TesseronApp(id="todo", name="Todo", manifest=ManifestPublication.disabled())
+TesseronApp(id="python_todo", name="Python Todo", manifest=ManifestPublication.in_directory(Path("/tmp/x")))
+TesseronApp(id="python_todo", name="Python Todo", manifest=ManifestPublication.disabled())
 ```
 
 Disabling it is what a test harness wants. The conformance host does exactly that, because the runner dials an endpoint it was told about and should never touch a developer's `~/.tesseron`.

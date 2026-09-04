@@ -14,7 +14,6 @@ The [conformance corpus](https://github.com/eigenwise/tesseron/tree/main/conform
 From the repo root:
 
 ```bash
-pnpm -r --filter @tesseron/conformance build
 pnpm conformance:run:python
 ```
 
@@ -26,7 +25,7 @@ node conformance/run-reference.mjs \
   --unsupported host-minted-claim,uds
 ```
 
-The current result on both Linux and Windows: **24 passed, 10 skipped, 0 failed**.
+The current result on both Linux and Windows is **29 passed, 10 skipped, 0 failed** across the 39-fixture corpus.
 
 ## What it skips, and why
 
@@ -35,7 +34,9 @@ The runner cross-checks the unsupported list against the four capability flags t
 - `host-minted-claim` skips the nine `bind/*` fixtures. This host takes gateway-minted claims only.
 - `uds` skips `uds/file-mode`. This host speaks WebSocket only. The runner appends `uds` on Windows by itself, where Unix sockets do not exist.
 
-Neither is a negotiated capability, so neither is covered by the four flags. Everything the host does declare, streaming, subscriptions, sampling, and elicitation, is exercised by the fixtures that run.
+Those are the only ten skips. WebSocket-only is by design for this release. The end-to-end example check also passes: `pnpm example:python:e2e` reports **15 PASS** through the real gateway.
+
+Neither transport is a negotiated capability, so neither is covered by the four flags. Everything the host declares, streaming, subscriptions, sampling, and elicitation, is exercised by the fixtures that run.
 
 ## The host adapter
 

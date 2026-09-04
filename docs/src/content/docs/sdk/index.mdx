@@ -1,8 +1,10 @@
 ---
 title: SDK overview
-description: What a Tesseron SDK has to expose - in TypeScript today, in any other language tomorrow.
+description: What a Tesseron SDK has to expose across TypeScript, Rust, Python, and C++.
 related:
   - sdk/rust/index
+  - sdk/python/index
+  - sdk/cpp/index
   - sdk/porting
   - sdk/typescript/index
   - protocol/index
@@ -13,7 +15,7 @@ import Mermaid from '../../../components/Mermaid.astro';
 
 An SDK is the part of Tesseron that lives in **your** process. It serialises outgoing JSON-RPC, dispatches incoming method calls into your handlers, and wraps the per-invocation protocol glue (progress, cancel, sample, elicit) in a shape that feels natural in the host language.
 
-Today we ship eight TypeScript packages, plus Rust and Python SDKs in the hub repository. The surface they expose - the **SDK contract** - is the portable part. The Rust and Python implementations are unpublished for now and live under `sdks/rust/` and `sdks/python/`.
+Today we ship eight TypeScript packages, plus Rust, Python, and C++ SDKs in the hub repository. The surface they expose - the **SDK contract** - is the portable part. The Rust, Python, and C++ implementations are unpublished for now and live under `sdks/rust/`, `sdks/python/`, and `sdks/cpp/`.
 
 ## The shipped TypeScript SDK
 
@@ -66,10 +68,12 @@ Whatever language you implement Tesseron in, the SDK has to expose these primiti
 ## Other SDKs
 
 <CardGrid>
-  <LinkCard title="Python SDK" href="./python/"
+  <LinkCard title="Python SDK" href="/sdk/python/"
     description="asyncio and Pydantic v2, the full host surface, passing conformance. Not on PyPI yet." />
-  <LinkCard title="Rust SDK" href="./rust/"
+  <LinkCard title="Rust SDK" href="/sdk/rust/"
     description="Tokio and WebSocket host with typed actions, resources, and the full context API. Not on crates.io yet." />
+  <LinkCard title="C++ SDK" href="/sdk/cpp/"
+    description="C++20 and Boost.Asio host with actions, resources, and the full context API. Not packaged yet." />
   <LinkCard title="Port Tesseron to your language" href="./porting/"
     description="Step-by-step guide, protocol conformance checklist, test strategy." />
 </CardGrid>

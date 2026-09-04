@@ -28,7 +28,12 @@ The context is assembled after the handshake settles, so `agent_capabilities` is
 ## Progress
 
 ```python
-await context.progress(percent=40, message="reading", data={"page": 2})
+for index, text in enumerate(input_data.items, start=1):
+    todo = store.create(text, input_data.tag)
+    identifiers.append(todo.id)
+    await context.progress(
+        message=f"{index}/{item_count} imported", percent=index * 100 // item_count
+    )
 ```
 
 Percent is an integer from 0 to 100. Out-of-range values are clamped into range, and a value below one already sent for this invocation is raised back up to the running ceiling. An agent rendering a progress bar treats a backwards jump as a restart, and the message is worth more than the regression. Message and data travel unchanged.
@@ -42,14 +47,18 @@ The agent cancels with a notification, so nothing answers `actions/cancel`. The 
 A handler that ignores the signal still gets its answer replaced, so long handlers should watch for it:
 
 ```python
-@app.action("export")
-async def export(input: Export, context: ActionContext) -> JsonValue:
-    for index, row in enumerate(rows):
-        if context.is_cancelled:
-            return {"exported": index}
-        await write(row)
-        await context.progress(percent=index * 100 // len(rows))
-    return {"exported": len(rows)}
+@app.action("importTodos", description="Import several todos")
+async def import_todos(input_data: ImportTodosInput, context: ActionContext) -> JsonObject:
+    identifiers: list[str] = []
+    item_count = len(input_data.items)
+    for index, text in enumerate(input_data.items, start=1):
+        todo = store.create(text, input_data.tag)
+        identifiers.append(todo.id)
+        await context.progress(
+            message=f"{index}/{item_count} imported", percent=index * 100 // item_count
+        )
+    await publish_todos()
+    return {"added": len(identifiers), "ids": json_string_array(identifiers)}
 ```
 
 `await context.cancellation.wait()` resolves as soon as cancellation is requested, immediately if it already was, which is what you race a long await against.
@@ -57,19 +66,19 @@ async def export(input: Export, context: ActionContext) -> JsonValue:
 ## Sampling
 
 ```python
-summary = await context.sample("Summarise this cart", max_tokens=200)
+await context.progress(message="asking LLM...", percent=25)
+suggested = await context.sample_as(
+    SuggestedTodos,
+    (
+        f'Produce exactly {count} concrete todo items for the theme "{input_data.theme}". '
+        "Return JSON matching { items: string[] }. Items should be short, imperative, "
+        "and user-friendly. No numbering."
+    ),
+    max_tokens=400,
+)
 ```
 
-`sample` asks the agent's model and answers with the content it returned. With a Pydantic model, `sample_as` derives the output schema and decodes the answer into it:
-
-```python
-class Summary(BaseModel):
-    headline: str
-    items: int
-
-
-summary = await context.sample_as(Summary, "Summarise this cart")
-```
+`sample_as` derives the output schema from a Pydantic model and decodes the structured response into it. The canonical todo host uses `SuggestedTodos` with an `items: list[str]` field.
 
 A model asked for structured output answers with the JSON as text, so a string result is parsed before it is decoded.
 
@@ -78,8 +87,11 @@ An agent that never negotiated sampling gets you `-32006 SamplingNotAvailable` b
 ## Confirmation
 
 ```python
-if not await context.confirm("Delete every todo?"):
-    return {"deleted": 0}
+confirmed = await context.confirm(
+    f'Delete prompt "{prompt.name}" (tested {prompt.times_tested}x)? This cannot be undone.'
+)
+if not confirmed:
+    return {"id": input_data.id, "deleted": False, "cancelled": True}
 ```
 
 `True` only on an explicit accept. A decline, a cancel, and an agent that never negotiated elicitation all answer `False`, which is the safe reading for the destructive-operation gates this exists for. It never raises on the user's answer.
@@ -87,11 +99,10 @@ if not await context.confirm("Delete every todo?"):
 ## Elicitation
 
 ```python
-answer = await context.elicit("How many?", json_schema={
-    "type": "object",
-    "properties": {"count": {"type": "integer"}},
-    "required": ["count"],
-})
+answer = await context.elicit_as(RenameTodoAnswer, f'Rename "{todo.text}" to?')
+if answer is None:
+    return {"id": input_data.id, "renamed": False, "cancelled": True}
+todo.text = answer.new_name
 ```
 
 `None` on a decline or a cancel. Unlike `confirm`, a missing capability is an error here: structured content has no safe default, so the handler has to branch on it explicitly.
@@ -100,15 +111,13 @@ MCP renders an elicit prompt as a flat form, so the schema has to be one object 
 
 Leave `json_schema` off and the host sends a one-text-field schema, which is the least a client can render.
 
-`elicit_as` derives the form schema from a Pydantic model and decodes the accepted answer into it:
+`elicit_as` derives the form schema from a Pydantic model and decodes the accepted answer into it. The todo example declares the answer this way:
 
 ```python
-class Quantity(BaseModel):
-    count: int
-
-
-quantity = await context.elicit_as(Quantity, "How many?")
+class RenameTodoAnswer(BaseModel):
+    new_name: str = Field(alias="newName", min_length=1)
 ```
+
 
 ## Logs
 
@@ -123,7 +132,9 @@ Fire and forget, forwarded to the agent. Levels are `debug`, `info`, `warn`, `er
 `ActionContext.detached(action_name)` builds a context with no connection behind it. Notifications go nowhere, which is what a fire-and-forget frame does on a closed socket anyway, and every request answers `-32010 TransportClosed` rather than hanging.
 
 ```python
-output = await add_todo(AddTodo(text="buy milk"), ActionContext.detached("addTodo"))
+output = await add_todo(
+    AddTodoInput(text="buy milk"), ActionContext.detached("addTodo")
+)
 ```
 
 A live invocation sees the same `-32010` if the transport drops underneath it: every request still waiting on an answer fails with it rather than hanging, and a request started after the socket is gone fails immediately. The invocation itself is cancelled at that point, so a handler that watches `cancellation` gets to unwind.
