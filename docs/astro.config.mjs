@@ -197,6 +197,19 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Rust SDK',
+              collapsed: false,
+              items: [
+                { label: 'Overview', link: '/sdk/rust/' },
+                { label: 'Actions', link: '/sdk/rust/actions/' },
+                { label: 'Resources', link: '/sdk/rust/resources/' },
+                { label: 'Context', link: '/sdk/rust/context/' },
+                { label: 'Errors', link: '/sdk/rust/errors/' },
+                { label: 'Conformance', link: '/sdk/rust/conformance/' },
+                { label: 'Tauri', link: '/sdk/rust/tauri/' },
+              ],
+            },
+            {
               label: 'Other SDKs',
               collapsed: false,
               items: [{ label: 'Port Tesseron to your language', link: '/sdk/porting/' }],
