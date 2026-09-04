@@ -295,6 +295,14 @@ pub enum HostError {
     /// The application id does not match `^[a-z][a-z0-9_]*$`, or it is one of
     /// the reserved ids (`tesseron`, `mcp`, `system`).
     InvalidApplicationId(String),
+    /// A typed action derives a scalar or collection input schema. Tesseron
+    /// actions require an object schema with `properties` at the root.
+    InvalidTypedActionInputSchema {
+        /// The action registration that cannot be published.
+        action_name: String,
+        /// The derived input type that produced the invalid root schema.
+        input_type_name: &'static str,
+    },
     /// Two actions, or two resources, were registered under one name. The
     /// manifest has to stay unambiguous because the gateway projects each name
     /// into a distinct MCP tool.
@@ -319,6 +327,13 @@ impl fmt::Display for HostError {
             Self::InvalidApplicationId(id) => write!(
                 formatter,
                 "application id {id:?} must match ^[a-z][a-z0-9_]*$ and must not be reserved"
+            ),
+            Self::InvalidTypedActionInputSchema {
+                action_name,
+                input_type_name,
+            } => write!(
+                formatter,
+                "action {action_name:?} has typed input {input_type_name}; its derived schema must have type 'object' and an object properties member"
             ),
             Self::DuplicateName(name) => {
                 write!(formatter, "{name:?} was registered more than once")

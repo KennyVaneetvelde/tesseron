@@ -21,7 +21,7 @@ type HandlerFuture = Pin<Box<dyn Future<Output = Result<Value, ActionError>> + S
 /// Typed handlers registered with [`Action::typed`] are wrapped into this shape
 /// once, at registration, so the session dispatch loop stays free of generics.
 #[derive(Clone)]
-pub struct ActionHandler {
+pub(crate) struct ActionHandler {
     call: Arc<dyn Fn(Value, ActionContext) -> HandlerFuture + Send + Sync>,
 }
 
@@ -95,6 +95,8 @@ pub struct Action {
     name: String,
     description: String,
     input_schema: Value,
+    typed_input_schema: Option<Value>,
+    typed_input_type_name: Option<&'static str>,
     output_schema: Option<Value>,
     timeout: Option<Duration>,
     validator: Option<Arc<dyn InputValidator>>,
@@ -116,6 +118,8 @@ impl Action {
             name: name.into(),
             description: String::new(),
             input_schema: Value::Object(serde_json::Map::new()),
+            typed_input_schema: None,
+            typed_input_type_name: None,
             output_schema: None,
             timeout: None,
             validator: None,
@@ -141,10 +145,13 @@ impl Action {
         Fut: Future<Output = Result<Output, ActionError>> + Send + 'static,
     {
         let handler = Arc::new(handler);
+        let derived_input_schema = json_schema_for::<Input>();
         Self {
             name: name.into(),
             description: String::new(),
-            input_schema: json_schema_for::<Input>(),
+            input_schema: derived_input_schema.clone(),
+            typed_input_schema: Some(derived_input_schema),
+            typed_input_type_name: Some(std::any::type_name::<Input>()),
             output_schema: None,
             timeout: None,
             validator: None,
@@ -191,6 +198,17 @@ impl Action {
         self
     }
 
+    /// Publishes the JSON Schema 2020-12 document derived from the action's
+    /// output type.
+    ///
+    /// Supply the same type the handler returns. The schema is manifest metadata
+    /// for the agent and does not add runtime output validation.
+    #[must_use]
+    pub fn output_schema_from_type<Output: JsonSchema>(mut self) -> Self {
+        self.output_schema = Some(json_schema_for::<Output>());
+        self
+    }
+
     /// Overrides the gateway's 60-second invocation timeout for this action.
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
@@ -211,6 +229,23 @@ impl Action {
         &self.name
     }
 
+    pub(crate) fn validate_configuration(&self) -> Result<(), crate::error::HostError> {
+        let Some((derived_input_schema, input_type_name)) = self
+            .typed_input_schema
+            .as_ref()
+            .zip(self.typed_input_type_name)
+        else {
+            return Ok(());
+        };
+        if has_object_schema(derived_input_schema) && has_object_schema(&self.input_schema) {
+            return Ok(());
+        }
+        Err(crate::error::HostError::InvalidTypedActionInputSchema {
+            action_name: self.name.clone(),
+            input_type_name,
+        })
+    }
+
     pub(crate) fn into_parts(
         self,
     ) -> (
@@ -229,6 +264,14 @@ impl Action {
         };
         (descriptor, self.validator, self.handler)
     }
+}
+
+fn has_object_schema(schema: &Value) -> bool {
+    schema
+        .get("type")
+        .and_then(Value::as_str)
+        .is_some_and(|schema_type| schema_type == "object")
+        && schema.get("properties").is_some_and(Value::is_object)
 }
 
 impl fmt::Debug for Action {
@@ -265,6 +308,37 @@ mod tests {
     struct AddInput {
         first: i64,
         second: i64,
+    }
+
+    #[derive(serde::Deserialize, JsonSchema)]
+    struct NestedSettings {
+        enabled: bool,
+    }
+
+    #[derive(serde::Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    enum TicketState {
+        Todo,
+        Done,
+    }
+
+    #[derive(serde::Deserialize, JsonSchema)]
+    #[serde(rename_all = "camelCase")]
+    struct StructuredInput {
+        optional_label: Option<String>,
+        nested_settings: NestedSettings,
+        current_state: TicketState,
+    }
+
+    #[derive(serde::Serialize, JsonSchema)]
+    struct Added {
+        id: u64,
+    }
+
+    #[derive(serde::Deserialize, JsonSchema)]
+    enum SearchScope {
+        Current,
+        All,
     }
 
     #[tokio::test]
@@ -313,5 +387,165 @@ mod tests {
             .expect_err("a string is not an i64");
         assert_eq!(error.code(), TesseronErrorCode::InputValidation);
         assert!(error.data().is_some_and(Value::is_array));
+    }
+
+    #[test]
+    fn a_typed_action_uses_a_2020_12_object_schema_for_structured_input() {
+        let StructuredInput {
+            optional_label,
+            nested_settings,
+            current_state,
+        } = StructuredInput {
+            optional_label: None,
+            nested_settings: NestedSettings { enabled: true },
+            current_state: TicketState::Todo,
+        };
+        assert!(optional_label.is_none());
+        assert!(nested_settings.enabled);
+        assert!(matches!(current_state, TicketState::Todo));
+
+        let schema = json_schema_for::<StructuredInput>();
+        assert_eq!(
+            schema,
+            serde_json::json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "title": "StructuredInput",
+                "type": "object",
+                "properties": {
+                    "optionalLabel": {
+                        "type": ["string", "null"]
+                    },
+                    "nestedSettings": { "$ref": "#/$defs/NestedSettings" },
+                    "currentState": { "$ref": "#/$defs/TicketState" }
+                },
+                "required": ["nestedSettings", "currentState"],
+                "$defs": {
+                    "NestedSettings": {
+                        "type": "object",
+                        "properties": { "enabled": { "type": "boolean" } },
+                        "required": ["enabled"]
+                    },
+                    "TicketState": {
+                        "type": "string",
+                        "enum": ["todo", "done"]
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn an_output_schema_is_absent_until_the_action_opts_in() {
+        let action = Action::typed(
+            "add",
+            |input: AddInput, _context: ActionContext| async move {
+                Ok(Added {
+                    id: input.first as u64,
+                })
+            },
+        );
+        let (descriptor, _validator, _handler) = action.into_parts();
+        assert!(descriptor.output_schema.is_none());
+    }
+
+    #[test]
+    fn an_output_schema_is_published_when_the_action_opts_in() {
+        let action = Action::typed(
+            "add",
+            |input: AddInput, _context: ActionContext| async move {
+                Ok(Added {
+                    id: input.first as u64,
+                })
+            },
+        )
+        .output_schema_from_type::<Added>();
+        let (descriptor, _validator, _handler) = action.into_parts();
+        assert_eq!(
+            descriptor.output_schema,
+            Some(serde_json::json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "title": "Added",
+                "type": "object",
+                "properties": { "id": { "type": "integer", "format": "uint64", "minimum": 0 } },
+                "required": ["id"]
+            }))
+        );
+    }
+
+    #[tokio::test]
+    async fn listen_rejects_typed_inputs_without_an_object_schema() {
+        assert_invalid_typed_input_schema(
+            "string",
+            "String",
+            Action::typed(
+                "string",
+                |input: String, _context: ActionContext| async move { Ok(input) },
+            ),
+        )
+        .await;
+        assert_invalid_typed_input_schema(
+            "enum",
+            "SearchScope",
+            Action::typed(
+                "enum",
+                |input: SearchScope, _context: ActionContext| async move {
+                    Ok(match input {
+                        SearchScope::Current => "current".to_owned(),
+                        SearchScope::All => "all".to_owned(),
+                    })
+                },
+            ),
+        )
+        .await;
+        assert_invalid_typed_input_schema(
+            "list",
+            "Vec",
+            Action::typed(
+                "list",
+                |input: Vec<String>, _context: ActionContext| async move { Ok(input) },
+            ),
+        )
+        .await;
+        assert_invalid_typed_input_schema(
+            "overridden",
+            "AddInput",
+            Action::typed(
+                "overridden",
+                |input: AddInput, _context: ActionContext| async move {
+                    Ok(Added {
+                        id: input.first as u64,
+                    })
+                },
+            )
+            .input_schema(serde_json::json!({ "type": "string" })),
+        )
+        .await;
+    }
+
+    async fn assert_invalid_typed_input_schema(
+        expected_action_name: &str,
+        expected_input_type_name: &str,
+        action: Action,
+    ) {
+        let error = crate::Tesseron::builder()
+            .application("test", "Test")
+            .manifest(crate::ManifestPublication::Disabled)
+            .action(action)
+            .listen()
+            .await
+            .expect_err("the listener must reject a scalar typed input schema");
+        let message = error.to_string();
+        assert!(message.contains(expected_action_name));
+        assert!(message.contains(expected_input_type_name));
+        match error {
+            crate::HostError::InvalidTypedActionInputSchema {
+                action_name,
+                input_type_name,
+            } => {
+                assert_eq!(action_name, expected_action_name);
+                assert!(input_type_name.contains(expected_input_type_name));
+            }
+            other => panic!("expected a typed-input configuration error, got {other}"),
+        }
     }
 }

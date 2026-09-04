@@ -374,6 +374,7 @@ impl TesseronHostBuilder {
         let mut actions = HashMap::new();
         let mut action_order = Vec::new();
         for action in self.actions.drain(..) {
+            action.validate_configuration()?;
             let (descriptor, validator, handler) = action.into_parts();
             let name = descriptor.name.clone();
             if actions.contains_key(&name) {

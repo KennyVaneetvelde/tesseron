@@ -14,7 +14,7 @@ type ReadFuture = Pin<Box<dyn Future<Output = Result<Value, ActionError>> + Send
 
 /// The erased form of a resource's read callback.
 #[derive(Clone)]
-pub struct ResourceReader {
+pub(crate) struct ResourceReader {
     call: Arc<dyn Fn() -> ReadFuture + Send + Sync>,
 }
 
@@ -140,7 +140,7 @@ impl fmt::Debug for Subscription {
 
 /// The erased form of a resource's subscribe callback.
 #[derive(Clone)]
-pub struct ResourceSubscriber {
+pub(crate) struct ResourceSubscriber {
     call: Arc<dyn Fn(ResourceEmitter) -> Subscription + Send + Sync>,
 }
 
