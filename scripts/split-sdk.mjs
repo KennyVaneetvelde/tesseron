@@ -283,10 +283,9 @@ function runStandaloneGate(language, splitWorktree) {
 function removeWorktree(splitWorktree, temporaryDirectory) {
   try {
     runCommand('git', ['worktree', 'remove', '--force', splitWorktree], hubRoot);
-  } catch (removalError) {
+  } catch {
     rmSync(splitWorktree, { recursive: true, force: true });
     runCommand('git', ['worktree', 'prune'], hubRoot);
-    throw removalError;
   } finally {
     rmSync(temporaryDirectory, { recursive: true, force: true });
   }
