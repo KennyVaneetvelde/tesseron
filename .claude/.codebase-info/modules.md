@@ -161,7 +161,8 @@ the canonical example pair (same action names and schemas as the TypeScript `van
 real gateway. `examples/tauri-todo` is the desktop variant: `examples/todo/src/lib.rs` holds the store,
 the action registrations, and the `todos://all` resource, and both binaries import it, so the schemas
 cannot drift. The Tauri app holds the host in `tauri::State` and emits a Tauri event from the action
-handlers so the window re-renders after an agent mutation.
+handlers so the window re-renders after an agent mutation. Docs live at
+`docs/src/content/docs/sdk/rust/` (seven pages, tauri.md included).
 
 ## `tesseron` (Python, `sdks/python/`)
 

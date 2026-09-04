@@ -54,7 +54,7 @@ tesseron/
 │       ├── tests/            Catch2 3.8.1 via FetchContent, 34 cases, gateway_double.cpp plays the gateway
 │       └── conformance-host/ private target tesseron-conformance-host (no C++ example yet: SQ-25)
 ├── docs/                     Astro + Starlight → eigenwise.github.io/tesseron/
-│   └── src/content/docs/     55 pages (six each under sdk/python/ and sdk/cpp/). docs-mcp bakes these in at build time.
+│   └── src/content/docs/     62 pages (seven under sdk/rust/, six each under sdk/python/ and sdk/cpp/). docs-mcp bakes these in at build time.
 │       └── protocol/         CC BY 4.0, licensed separately from the implementation
 │                             compatibility.md (new 2026-09-03) is the version-negotiation contract
 ├── conformance/              language-neutral fixture corpus for SDK ports, plus its runner
