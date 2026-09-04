@@ -19,11 +19,12 @@ A host speaking protocol `1.x` works with a gateway speaking protocol `1.y`, as 
 | --- | --- |
 | `1.2.0` | `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/svelte`, `@tesseron/vue`, `@tesseron/vite`, and `@tesseron/mcp` `>=2.10.0` |
 | `1.2.0` | [`tesseron`](/sdk/python/) (Python) `>=0.1.0`. Not on PyPI yet. |
+| `1.2.0` | [`tesseron`](/sdk/rust/) (Rust) `0.1.x`. Not on crates.io yet. |
 | `1.2.0` | [`tesseron::tesseron`](/sdk/cpp/) (C++) `>=0.1.0`. Source-only, built through CMake `FetchContent`. |
 
 The table starts at `1.2.0`. The history checked for this page does not prove package boundaries for earlier protocol versions.
 
-The Python and C++ SDKs carry their own versions and move on their own. They speak the same protocol, which is the only thing that has to match. A future Rust SDK gets a row here on the same terms.
+The Python and Rust SDKs carry their own versions and move on their own. They speak the same protocol, which is the only thing that has to match. C++ releases use the same rule and get rows here as they land.
 
 The C++ host does not mint its own claim code and does not speak a unix domain socket, so it skips the `bind/*` fixtures and `uds/file-mode` and passes every other fixture in the suite. See [C++ conformance](/sdk/cpp/conformance/).
 

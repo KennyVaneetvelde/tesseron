@@ -36,7 +36,7 @@ The gateway exposes those actions as MCP tools over stdio. Any MCP-capable agent
 
 ### Not just for the web
 
-Tesseron is a protocol, not a web framework. The first SDKs happen to target the browser (vanilla, React, Svelte, Vue) and Node (servers, CLIs, Electron/Tauri desktop apps) - but anything that can open a WebSocket and speak JSON-RPC 2.0 can host actions. A Python daemon driving a data pipeline, a Rust desktop app, a .NET line-of-business tool: all of them can expose the same typed actions the same way. The JS/TS implementation is just where it started; see [Porting Tesseron](/sdk/porting/) and the [Python SDK status](/sdk/python/).
+Tesseron is a protocol, not a web framework. The shipped SDKs cover TypeScript, Python, and Rust. The Python and Rust SDKs are unpublished and live in the hub repository under `sdks/python/` and `sdks/rust/`. A C++ SDK is in progress. Any process that can open a WebSocket and speak JSON-RPC 2.0 can host actions, including a Python daemon, a Rust desktop app, or a .NET line-of-business tool. See [Porting Tesseron](/sdk/porting/), the [Python SDK](/sdk/python/), and the [Rust SDK](/sdk/rust/).
 
 ## 5. Tesseron and WebMCP
 

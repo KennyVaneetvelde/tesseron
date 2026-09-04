@@ -6,9 +6,11 @@ related:
   - protocol/index
   - protocol/wire-format
   - sdk/typescript/core
+  - sdk/python/index
+  - sdk/rust/index
 ---
 
-Tesseron's wire protocol is small enough that a competent engineer can implement an SDK for a new language in a couple of days. This page is your map.
+Tesseron already has [Rust](/sdk/rust/) and [Python](/sdk/python/) SDKs in the hub repository. Both are unpublished and serve as working references for a new port.
 
 ## What you're actually building
 
@@ -77,7 +79,7 @@ Don't reinvent backoff or reconnect inside the transport - that's the user's job
 
 ## Step 5 - builder DSL
 
-Whatever shape is idiomatic. In TypeScript we use a fluent builder (`action(...).describe(...).input(...).handler(...)`). In Python, decorators. In Rust, probably a struct with a method-chain pattern. What matters is that it ultimately produces an `ActionDefinition`:
+Whatever shape is idiomatic. TypeScript uses a fluent builder (`action(...).describe(...).input(...).handler(...)`), Python uses decorators, and Rust uses a method chain on `TesseronHostBuilder`. What matters is that it ultimately produces an `ActionDefinition`:
 
 ```
 ActionDefinition {
@@ -126,7 +128,7 @@ Part of this list is executable. Build a small host adapter that reads `TESSERON
 npx @tesseron/conformance@1.2.0 --host "./build/tesseron-conformance-host"
 ```
 
-Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domain sockets. The package carries the fixture corpus, reports skips separately, and runs each fixture against a fresh host process. The prose list below remains the wider implementation checklist.
+Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domain sockets. The package carries the fixture corpus, reports skips separately, and runs each fixture against a fresh host process. The hub's Rust and Python ports use the same runner through `pnpm conformance:run:rust` and `pnpm conformance:run:python`; an extracted port runs the `npx @tesseron/conformance@1.2.0` command above with its own host adapter. The prose list below remains the wider implementation checklist.
 
 **Handshake**
 - [ ] Sends `tesseron/hello` immediately after the binding's connection becomes ready.
@@ -188,6 +190,6 @@ Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domai
 
 ## Step 8 - publish + link
 
-Open a PR against the main Tesseron repo adding your SDK to the README. Add a page to this docs site under `/sdk/<your-language>/` mirroring the Python skeleton.
+Open a PR against the main Tesseron repo adding your SDK to the README. Add a page to this docs site under `/sdk/<your-language>/` following the [Rust](/sdk/rust/) and [Python](/sdk/python/) section structure.
 
 Once your SDK has shipped a 1.0 that passes the checklist on real agents, we'll happily link it as a first-class implementation.

@@ -2,6 +2,7 @@
 title: SDK overview
 description: What a Tesseron SDK has to expose - in TypeScript today, in any other language tomorrow.
 related:
+  - sdk/rust/index
   - sdk/porting
   - sdk/typescript/index
   - protocol/index
@@ -12,7 +13,7 @@ import Mermaid from '../../../components/Mermaid.astro';
 
 An SDK is the part of Tesseron that lives in **your** process. It serialises outgoing JSON-RPC, dispatches incoming method calls into your handlers, and wraps the per-invocation protocol glue (progress, cancel, sample, elicit) in a shape that feels natural in the host language.
 
-Today we ship five TypeScript packages. The surface they expose - the **SDK contract** - is the portable part. A Python or Go implementation reuses the same concepts.
+Today we ship eight TypeScript packages, plus Rust and Python SDKs in the hub repository. The surface they expose - the **SDK contract** - is the portable part. The Rust and Python implementations are unpublished for now and live under `sdks/rust/` and `sdks/python/`.
 
 ## The shipped TypeScript SDK
 
@@ -67,6 +68,8 @@ Whatever language you implement Tesseron in, the SDK has to expose these primiti
 <CardGrid>
   <LinkCard title="Python SDK" href="./python/"
     description="asyncio and Pydantic v2, the full host surface, passing conformance. Not on PyPI yet." />
+  <LinkCard title="Rust SDK" href="./rust/"
+    description="Tokio and WebSocket host with typed actions, resources, and the full context API. Not on crates.io yet." />
   <LinkCard title="Port Tesseron to your language" href="./porting/"
     description="Step-by-step guide, protocol conformance checklist, test strategy." />
 </CardGrid>
