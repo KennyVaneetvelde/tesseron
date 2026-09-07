@@ -1,5 +1,17 @@
 # @tesseron/core
 
+## 2.10.2
+
+### Patch Changes
+
+- [`eb62ec0`](https://github.com/Eigenwise/tesseron/commit/eb62ec043b38def25b8b40b01fa36f89e6298953) by @Eigenwise - Protocol mismatch errors now link to the compatibility page.
+
+- [`675867a`](https://github.com/Eigenwise/tesseron/commit/675867a495d2e60be3b9624904eccb2673ff38f1) by @Eigenwise - Reject unusable handshake welcomes, answer malformed JSON-RPC envelopes, and document both wire behaviors.
+
+- [`8aa20f5`](https://github.com/Eigenwise/tesseron/commit/8aa20f509f601baaecffb519767a362e4325a2f2) by @Eigenwise - Clamp backwards and out-of-range action progress percentages before forwarding them.
+
+- [`aaae5fc`](https://github.com/Eigenwise/tesseron/commit/aaae5fcae007ad65352e406d6b38c40c73eeb5d0) by @Eigenwise - Published tarballs now include the LICENSE file.
+
 ## 2.10.1
 
 ### Patch Changes

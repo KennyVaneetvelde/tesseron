@@ -1,5 +1,52 @@
 # @tesseron/docs-mcp
 
+## 2.10.2
+
+### Patch Changes
+
+- [`675867a`](https://github.com/Eigenwise/tesseron/commit/675867a495d2e60be3b9624904eccb2673ff38f1) by @Eigenwise - Reject unusable handshake welcomes, answer malformed JSON-RPC envelopes, and document both wire behaviors.
+
+- [`73c510d`](https://github.com/Eigenwise/tesseron/commit/73c510db0d0bad45c099d309e27b3f7349911990) by @Eigenwise - Document the C++ canonical todo and prompts examples and how to run their gateway e2e check.
+
+- The C++ conformance page now reports the current corpus result (29 passed, 10
+  skipped) after the C++ host started answering a frame without `jsonrpc: "2.0"`
+  with a -32600 error instead of dropping it.
+
+- [`bf38d9f`](https://github.com/Eigenwise/tesseron/commit/bf38d9f5bbf69961ca191bc09370832d2d1ab4f4) by @Eigenwise - Reconcile the C++ SDK docs with the shipped examples and add errors and threading pages.
+
+- [`b9fc9be`](https://github.com/Eigenwise/tesseron/commit/b9fc9be4d3dcc16e7d25fa12346af22a78d4da78) by @Eigenwise - Add the C++ SDK to the docs snapshot: six pages under `sdk/cpp/` covering the
+  build, actions, resources, the `ActionContext`, and conformance, plus a row on
+  the compatibility page. The C++ host declares all four handshake capabilities
+  and leaves out host-minted claim codes and unix domain sockets, which is what
+  its 10 skipped conformance fixtures are.
+
+- [`2202dfc`](https://github.com/Eigenwise/tesseron/commit/2202dfc2581a119440485475605c137df62ff25b) by @Eigenwise - Refresh the docs snapshot with the corrected 1.2 protocol spec: the published
+  `protocolVersion` was `1.1.0` in eight places, `tesseron/bind` was undocumented,
+  and both transport-binding pages still described the 1.1 handshake (including
+  the `tesseron/hello` direction, which was backwards).
+
+  This is the first release where `@tesseron/docs-mcp` moves on its own. It has
+  left the changesets `fixed` group, so a prose correction no longer forces a
+  version bump across all eight SDK packages.
+
+- [`816b6ae`](https://github.com/Eigenwise/tesseron/commit/816b6ae5bd41414f18286da92c3fddcf95a44d46) by @Eigenwise - The vanilla-todo example page lists the `todos://all` resource the todo examples now expose.
+
+- [`21af3d1`](https://github.com/Eigenwise/tesseron/commit/21af3d15340b377ad5eda3602f5cd115b1679139) by @Eigenwise - Clarify sampling-depth ownership and the 1.2.0 elicitation schema validation rules, including the validator's current lenient cases.
+
+- [`43a546a`](https://github.com/Eigenwise/tesseron/commit/43a546a0da9878ce9cd2bfa49d16d2fe52ceb0d2) by @Eigenwise - Reconcile the Python SDK docs with the shipped examples, envelope rules, conformance results, and hub SDK links.
+
+- [`7f936bd`](https://github.com/Eigenwise/tesseron/commit/7f936bdeabc03b94576f4f3174d9252be7642115) by @Eigenwise - Refresh the docs snapshot with the Python SDK pages. The `sdk/python` section was a
+  placeholder describing a planned implementation with an API sketch that never shipped; it
+  is now six pages covering the real one (overview, actions, resources, context, errors,
+  conformance). The compatibility table gets a Python row, and the SDK index no longer calls
+  it planned.
+
+- [`95c94b0`](https://github.com/Eigenwise/tesseron/commit/95c94b0878c94f70aa3f5c2e54e416b0ffab0a7b) by @Eigenwise - Add the Rust SDK docs section, Tauri guide, and links from the SDK and porting pages.
+
+- [`8aa20f5`](https://github.com/Eigenwise/tesseron/commit/8aa20f509f601baaecffb519767a362e4325a2f2) by @Eigenwise - Document progress percent clamping and resource subscription acknowledgements and failures.
+
+- [`9c315fb`](https://github.com/Eigenwise/tesseron/commit/9c315fbddbeacdaaf44c367b379193508089e1fe) by @Eigenwise - why page: Tesseron and WebMCP
+
 ## 2.10.1
 
 ## 2.10.0

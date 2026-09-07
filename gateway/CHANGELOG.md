@@ -1,5 +1,22 @@
 # @tesseron/mcp
 
+## 2.10.2
+
+### Patch Changes
+
+- [`eb62ec0`](https://github.com/Eigenwise/tesseron/commit/eb62ec043b38def25b8b40b01fa36f89e6298953) by @Eigenwise - Protocol mismatch errors now link to the compatibility page.
+
+- [`5bcd2ec`](https://github.com/Eigenwise/tesseron/commit/5bcd2ec7aa4eca2cdca1dfa0515e16cc61371754) by @Eigenwise - Limit nested sampling round-trips to a depth of three per invocation.
+
+- [`2202dfc`](https://github.com/Eigenwise/tesseron/commit/2202dfc2581a119440485475605c137df62ff25b) by @Eigenwise - Move `@tesseron/server` from `dependencies` to `devDependencies`. The gateway's
+  `src/` never imports it (only the tests do), so it was pulling an extra package
+  into every consumer's install tree for nothing.
+
+- [`aaae5fc`](https://github.com/Eigenwise/tesseron/commit/aaae5fcae007ad65352e406d6b38c40c73eeb5d0) by @Eigenwise - Published tarballs now include the LICENSE file.
+
+- Updated dependencies [[`eb62ec0`](https://github.com/Eigenwise/tesseron/commit/eb62ec043b38def25b8b40b01fa36f89e6298953), [`675867a`](https://github.com/Eigenwise/tesseron/commit/675867a495d2e60be3b9624904eccb2673ff38f1), [`8aa20f5`](https://github.com/Eigenwise/tesseron/commit/8aa20f509f601baaecffb519767a362e4325a2f2), [`aaae5fc`](https://github.com/Eigenwise/tesseron/commit/aaae5fcae007ad65352e406d6b38c40c73eeb5d0)]:
+  - @tesseron/core@2.10.2
+
 ## 2.10.1
 
 ### Patch Changes
