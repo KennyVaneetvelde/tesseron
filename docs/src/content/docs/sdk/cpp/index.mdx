@@ -10,9 +10,13 @@ related:
   - protocol/compatibility
 ---
 
-The C++ SDK lives at [`sdks/cpp/`](https://github.com/Eigenwise/tesseron/tree/main/sdks/cpp) and builds one static library, `tesseron::tesseron`. Your application binds a loopback WebSocket, writes an instance manifest, and the MCP gateway dials *in*. There is no port to configure and no gateway address to point at.
+Source: [github.com/Eigenwise/tesseron-cpp](https://github.com/Eigenwise/tesseron-cpp)
 
-Nothing is packaged for distribution yet. You consume it from source through CMake's `FetchContent`, which is also how the SDK gets its own dependencies.
+[Report an issue](https://github.com/Eigenwise/tesseron/issues/new/choose?labels=area%3A%20sdk-cpp)
+
+The C++ SDK lives in `tesseron-cpp` and builds one static library, `tesseron::tesseron`. Your application binds a loopback WebSocket, writes an instance manifest, and the MCP gateway dials *in*. There is no port to configure and no gateway address to point at.
+
+Consume it from source through CMake's `FetchContent`, linking `tesseron::tesseron`. See [Install & build](/sdk/cpp/installation/) for the declaration. The SDK also fetches its own dependencies.
 
 ## What it covers
 
@@ -77,14 +81,14 @@ Register the event listener before `listen()`. The gateway can dial and finish t
 
 ## Run the examples
 
-From the repository root, configure and build the two shipped apps:
+From the `tesseron-cpp` repository root, configure and build the two shipped apps:
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
-cmake --build sdks/cpp/build --target tesseron-example-todo tesseron-example-prompts
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_EXAMPLES=ON
+cmake --build build --target tesseron-example-todo tesseron-example-prompts
 ```
 
-After building the gateway, run `pnpm example:cpp:e2e` to claim both headless apps and check their canonical actions through the real gateway.
+Run the built examples with the gateway installed, then claim the printed code from your MCP client. The [example guide](https://github.com/Eigenwise/tesseron-cpp/tree/main/examples) covers both apps.
 
 ## Three things that will surprise you
 

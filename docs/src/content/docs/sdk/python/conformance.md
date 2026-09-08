@@ -11,19 +11,14 @@ The [conformance corpus](https://github.com/eigenwise/tesseron/tree/main/conform
 
 ## Running it
 
-From the repo root:
+From the `tesseron-python` repository root:
 
 ```bash
-pnpm conformance:run:python
+uv sync --locked
+TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds pnpm dlx @tesseron/conformance@1.2.1 --host "uv run --locked python -m conformance_host"
 ```
 
-Which expands to the runner pointed at the Python host:
-
-```bash
-node conformance/run-reference.mjs \
-  --host "uv run --locked --directory sdks/python python -m conformance_host" \
-  --unsupported host-minted-claim,uds
-```
+In PowerShell, set `$env:TESSERON_CONFORMANCE_UNSUPPORTED = 'host-minted-claim,uds'` before the `pnpm dlx` command instead of using the Bash environment prefix. The runner uses its bundled corpus; pass `--fixtures <path>` to test a hub checkout's current fixtures.
 
 The current result on both Linux and Windows is **29 passed, 10 skipped, 0 failed** across the 39-fixture corpus.
 
@@ -32,15 +27,15 @@ The current result on both Linux and Windows is **29 passed, 10 skipped, 0 faile
 The runner cross-checks the unsupported list against the four capability flags the host declares in `tesseron/hello`. A capability declared `true` in the SDK and named as unsupported fails the run, so this list cannot be used to hide a gap in something the host claims to do.
 
 - `host-minted-claim` skips the nine `bind/*` fixtures. This host takes gateway-minted claims only.
-- `uds` skips `uds/file-mode`. This host speaks WebSocket only. The runner appends `uds` on Windows by itself, where Unix sockets do not exist.
+- `uds` skips `uds/file-mode`. This host speaks WebSocket only. Set this tag on both platforms.
 
-Those are the only ten skips. WebSocket-only is by design for this release. The end-to-end example check also passes: `pnpm example:python:e2e` reports **15 PASS** through the real gateway.
+Those are the only ten skips. WebSocket-only is by design for this release. The [canonical examples](https://github.com/Eigenwise/tesseron-python/tree/main/examples) exercise the same actions through the real gateway.
 
 Neither transport is a negotiated capability, so neither is covered by the four flags. Everything the host declares, streaming, subscriptions, sampling, and elicitation, is exercised by the fixtures that run.
 
 ## The host adapter
 
-`sdks/python/conformance_host/` reads a fixture document and registers what it declares. It sits **beside** `src/tesseron` rather than inside it and imports the published package like any other consumer, so `uv build` produces a wheel with the SDK and nothing else.
+`conformance_host/` reads a fixture document and registers what it declares. It sits **beside** `src/tesseron` rather than inside it and imports the published package like any other consumer, so `uv build` produces a wheel with the SDK and nothing else.
 
 The runner starts one host process per fixture with `TESSERON_CONFORMANCE_FIXTURE` pointing at the document, waits for a single readiness line on stdout, then plays the gateway against the endpoint that line names:
 

@@ -18,24 +18,21 @@ The [conformance corpus](https://github.com/Eigenwise/tesseron/tree/main/conform
 
 Those 10 are the nine `bind/*` fixtures, which need a host-minted claim code, plus `uds/file-mode`, which needs a unix domain socket. The C++ host speaks WebSocket only and takes gateway-minted claims only, and it says so:
 
-```bash
-pnpm conformance:run:cpp
-# --unsupported host-minted-claim,uds
-```
+`TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds`
 
 That list is not cosmetic. The runner cross-checks it against the four capability flags in the host's `tesseron/hello`: for each known capability, the flag has to equal "not in the unsupported list". Declaring `streaming: true` while naming `streaming` unsupported fails the run, and so does the reverse. All four flags this SDK declares are `true`, and neither of the two things it leaves out is one of them.
 
 ## Running it
 
+From the `tesseron-cpp` repository root:
+
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON -DTESSERON_BUILD_EXAMPLES=ON
-cmake --build sdks/cpp/build
-pnpm -r --filter @tesseron/conformance build
-pnpm conformance:run:cpp
-pnpm example:cpp:e2e
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_CONFORMANCE_HOST=ON -DTESSERON_BUILD_EXAMPLES=ON
+cmake --build build
+TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds pnpm dlx @tesseron/conformance@1.2.1 --host "./build/conformance-host/tesseron-conformance-host"
 ```
 
-CI runs exactly that on both platforms. The example check prints 15 `PASS` lines while driving the todo and prompts executables through the real gateway.
+In PowerShell, set `$env:TESSERON_CONFORMANCE_UNSUPPORTED = 'host-minted-claim,uds'` before the `pnpm dlx` command instead of using the Bash environment prefix. Both tags are required on Linux and Windows. The runner uses its bundled corpus; pass `--fixtures <path>` to test a hub checkout's current fixtures. The [example guide](https://github.com/Eigenwise/tesseron-cpp/tree/main/examples) covers running the todo and prompts executables with the gateway.
 
 ## The adapter
 
@@ -63,9 +60,9 @@ That second one matters more than it looks. The adapter covers the keywords the 
 Separate from conformance, and cheaper to run while you work:
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON
-cmake --build sdks/cpp/build
-ctest --test-dir sdks/cpp/build --output-on-failure
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 Catch2 v3, registered with CTest through `catch_discover_tests`. It covers JSON-RPC framing, the handshake state machine, the progress clamp, resource subscription teardown, and error mapping. The handshake and resource tests talk to a real host over a real loopback socket, because those behaviours only exist in terms of what crosses the wire.

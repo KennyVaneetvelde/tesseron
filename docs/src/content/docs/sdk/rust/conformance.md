@@ -7,23 +7,22 @@ related:
   - protocol/handshake
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+<!-- snippets from examples/todo -->
 
 The [conformance corpus](https://github.com/eigenwise/tesseron/tree/main/conformance) is the executable half of the protocol spec. It is language-neutral. The runner plays the gateway, and the Rust host adapts each fixture into actions and resources through the public SDK API.
 
 ## Run it
 
-From the repository root, build the Rust workspace and the runner, then run the Rust host command:
+From the `tesseron-rust` repository root, build the private host, then run the published runner:
 
 ```bash
-cargo build --manifest-path sdks/rust/Cargo.toml --workspace
-pnpm -r --filter @tesseron/conformance build
-pnpm conformance:run:rust
+cargo build --locked -p tesseron-conformance-host
+TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds pnpm dlx @tesseron/conformance@1.2.1 --host "./target/debug/tesseron-conformance-host"
 ```
 
-`pnpm conformance:run:rust` points `conformance/run-reference.mjs` at `sdks/rust/target/debug/tesseron-conformance-host` and marks `host-minted-claim` unsupported. On Windows, the runner also adds `uds`; on Linux, pass the two tags explicitly with `pnpm conformance:run:rust -- --unsupported host-minted-claim,uds`. The runner reads the live `conformance/fixtures` directory, starts a fresh host for every fixture, and drives it as the gateway.
+In PowerShell, set `$env:TESSERON_CONFORMANCE_UNSUPPORTED = 'host-minted-claim,uds'` before the `pnpm dlx` command instead of using the Bash environment prefix. Both tags are required on Linux and Windows. The runner uses its bundled corpus and starts a fresh host for every fixture. Use `--fixtures <path>` to test a hub checkout's current corpus.
 
-The conformance host is private. It lives at `sdks/rust/conformance-host/` as a workspace member and is not part of the published `tesseron` crate. It reads `TESSERON_CONFORMANCE_FIXTURE`, registers the fixture's canned actions and resources, and prints one readiness line before the runner connects. Diagnostics go to stderr.
+The conformance host is private. It lives at `conformance-host/` as a workspace member and is not part of the published `tesseron` crate. It reads `TESSERON_CONFORMANCE_FIXTURE`, registers the fixture's canned actions and resources, and prints one readiness line before the runner connects. Diagnostics go to stderr.
 
 ## Expected result
 

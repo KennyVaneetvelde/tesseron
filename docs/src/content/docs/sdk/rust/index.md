@@ -9,13 +9,17 @@ related:
   - protocol/compatibility
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+Source: [github.com/Eigenwise/tesseron-rust](https://github.com/Eigenwise/tesseron-rust)
+
+[Report an issue](https://github.com/Eigenwise/tesseron/issues/new/choose?labels=area%3A%20sdk-rust)
+
+<!-- snippets from examples/todo -->
 
 `tesseron` is the Rust host SDK. Your application binds a loopback WebSocket, writes an instance manifest, and the MCP gateway dials in. The agent gets typed actions and readable resources from the process that owns the state.
 
 It speaks protocol [**1.2.0**](/protocol/), the same version as the TypeScript and Python SDKs. Compatibility follows protocol version, never package numbers. See the [compatibility contract](/protocol/compatibility/).
 
-The crate is unpublished for now. It lives in the hub repository at [`sdks/rust/`](https://github.com/eigenwise/tesseron/tree/main/sdks/rust). Add it as a git dependency with `cargo add tesseron --git https://github.com/eigenwise/tesseron`.
+The crate is published on [crates.io](https://crates.io/crates/tesseron). Install it with `cargo add tesseron`. Source and examples live in the `tesseron-rust` repository.
 
 ## Requirements
 
@@ -67,7 +71,7 @@ host.shutdown().await?;
 
 Subscribe before `listen()`. The gateway can finish the handshake before `listen()` returns, and `Welcome` carries the claim code for a fresh session. `host.url()` returns the loopback WebSocket URL when you need to inspect it or connect a test gateway.
 
-Run the complete headless todo app from the repository root with `cargo run --manifest-path sdks/rust/examples/todo/Cargo.toml`. It prints a claim code after the gateway connects. With the Tesseron plugin loaded in Claude Code, tell Claude Code to claim that code, then call the actions.
+Run the complete headless todo app from the `tesseron-rust` repository root with `cargo run --manifest-path examples/todo/Cargo.toml`. It prints a claim code after the gateway connects. With the Tesseron plugin loaded in Claude Code, tell Claude Code to claim that code, then call the actions.
 
 ## What it covers
 

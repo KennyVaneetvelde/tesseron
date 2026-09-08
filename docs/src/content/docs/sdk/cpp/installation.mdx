@@ -17,15 +17,14 @@ CMake 3.24 or newer, and a compiler with C++20 coroutines. Everything else the S
 include(FetchContent)
 FetchContent_Declare(
   tesseron
-  GIT_REPOSITORY https://github.com/Eigenwise/tesseron.git
-  GIT_TAG main
-  SOURCE_SUBDIR sdks/cpp)
+  GIT_REPOSITORY https://github.com/Eigenwise/tesseron-cpp.git
+  GIT_TAG main)
 FetchContent_MakeAvailable(tesseron)
 
 target_link_libraries(your_app PRIVATE tesseron::tesseron)
 ```
 
-`SOURCE_SUBDIR` is the part that matters: the repository is a monorepo, and the C++ project is the `sdks/cpp` subtree. Nothing under that subtree refers to a path above it, so the same declaration keeps working when the SDK moves to its own repository.
+The CMake project is at the repository root. Pin `GIT_TAG` to a reviewed commit hash for a reproducible build.
 
 ## What it pulls in
 
@@ -53,12 +52,12 @@ If your project already has its own Boost, declare it before `FetchContent_MakeA
 
 ## Building the SDK itself
 
-From the repository root. Never change directory into `sdks/cpp` first; `-S` and `-B` are what keep the build runnable from anywhere.
+Run these commands from the `tesseron-cpp` repository root.
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON
-cmake --build sdks/cpp/build
-ctest --test-dir sdks/cpp/build --output-on-failure
+cmake -S . -B build -G Ninja -DTESSERON_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ## Toolchains
@@ -74,8 +73,8 @@ Three compiler settings are attached to the library target rather than left to y
 ## Installing it
 
 ```bash
-cmake -S sdks/cpp -B sdks/cpp/build -DCMAKE_INSTALL_PREFIX=/your/prefix
-cmake --build sdks/cpp/build --target install
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/your/prefix
+cmake --build build --target install
 ```
 
 That writes a `tesseron-config.cmake`, so a consumer can `find_package(tesseron)` instead of fetching sources. An installed `tesseron` does not carry Boost or nlohmann/json with it: the config file resolves those through `find_dependency`, the way it would for any other shared dependency. The conformance host is deliberately neither installed nor exported.

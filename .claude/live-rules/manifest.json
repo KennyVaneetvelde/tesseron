@@ -2,17 +2,6 @@
   "version": 1,
   "rules": [
     {
-      "path": "rules/self-improvement.md",
-      "hash": "240b98f2263c3a55e4d19622439e38709ec2f7a7255b8068f33897ac8f9d6744",
-      "description": "Self-improvement: build the capability that makes the next goal cheaper",
-      "globs": [],
-      "dirs": [],
-      "prompt": [],
-      "priority": 40,
-      "enabled": true,
-      "include": []
-    },
-    {
       "path": "rules/plugin-version-lockstep.md",
       "hash": "34ea3ac81eef56afdd2104f6694eef31b0077a18fe10de3259afcf8dd1bf298d",
       "description": "Plugin version moves across eight surfaces, following two different packages",
@@ -30,11 +19,12 @@
     },
     {
       "path": "rules/release-lockstep.md",
-      "hash": "dd89f2f88811a3ec3391312bb4219992afbd9a886d3e9a1c7b07ccefeda56c72",
-      "description": "Eight packages release as one fixed version; docs-mcp releases alone",
+      "hash": "4d8266c5a0f10997b619c3ad6eec45daea5ec178adad987e1c5aa5d13d72262a",
+      "description": "Hub packages release independently; SDK releases live in their own repositories",
       "globs": [
-        "sdks/typescript/*/package.json",
         "gateway/package.json",
+        "docs-mcp/package.json",
+        "conformance/runner/package.json",
         ".changeset/**"
       ],
       "dirs": [],
@@ -46,6 +36,17 @@
         "ship it"
       ],
       "priority": 60,
+      "enabled": true,
+      "include": []
+    },
+    {
+      "path": "rules/self-improvement.md",
+      "hash": "240b98f2263c3a55e4d19622439e38709ec2f7a7255b8068f33897ac8f9d6744",
+      "description": "Self-improvement: build the capability that makes the next goal cheaper",
+      "globs": [],
+      "dirs": [],
+      "prompt": [],
+      "priority": 40,
       "enabled": true,
       "include": []
     }

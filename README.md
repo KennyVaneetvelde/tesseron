@@ -125,11 +125,11 @@ To also pick up the skill bundle, point OpenCode's `skills.paths` at a clone of 
 
 ### Other MCP clients
 
-Claude Desktop, Cursor, VS Code Copilot, Cline, and any other MCP-compatible client work too — the gateway is plain stdio MCP. See the one-time setup in [`sdks/typescript/examples/README.md`](./sdks/typescript/examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
+Claude Desktop, Cursor, VS Code Copilot, Cline, and any other MCP-compatible client work too — the gateway is plain stdio MCP. See the one-time setup in [`examples/README.md`](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples/README.md#2-wire-the-mcp-gateway-into-your-mcp-client).
 
 ### Then in your app
 
-Drop [`@tesseron/web`](./sdks/typescript/web), [`@tesseron/server`](./sdks/typescript/server), [`@tesseron/react`](./sdks/typescript/react), [`@tesseron/svelte`](./sdks/typescript/svelte), or [`@tesseron/vue`](./sdks/typescript/vue) into your project, declare actions, and let the agent drive your real UI:
+Drop [`@tesseron/web`](https://github.com/Eigenwise/tesseron-typescript/tree/main/web), [`@tesseron/server`](https://github.com/Eigenwise/tesseron-typescript/tree/main/server), [`@tesseron/react`](https://github.com/Eigenwise/tesseron-typescript/tree/main/react), [`@tesseron/svelte`](https://github.com/Eigenwise/tesseron-typescript/tree/main/svelte), or [`@tesseron/vue`](https://github.com/Eigenwise/tesseron-typescript/tree/main/vue) into your project, declare actions, and let the agent drive your real UI:
 
 ```ts
 import { tesseron } from '@tesseron/web';
@@ -149,19 +149,19 @@ tesseron
 await tesseron.connect();
 ```
 
-See [`sdks/typescript/examples/`](./sdks/typescript/examples) for working apps in vanilla TS, React, Svelte, Vue, Express, and plain Node.
+See [`TypeScript examples/`](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples) for working apps in vanilla TS, React, Svelte, Vue, Express, and plain Node.
 
 ## Packages
 
 | Package | Purpose |
 |---|---|
-| [`@tesseron/core`](./sdks/typescript/core) | Protocol types, action builder. Zero runtime deps beyond Standard Schema. |
-| [`@tesseron/web`](./sdks/typescript/web) | Browser SDK. |
-| [`@tesseron/server`](./sdks/typescript/server) | Node SDK. |
-| [`@tesseron/react`](./sdks/typescript/react) | React hooks adapter. |
-| [`@tesseron/svelte`](./sdks/typescript/svelte) | Svelte 5 adapter. |
-| [`@tesseron/vue`](./sdks/typescript/vue) | Vue 3 adapter. |
-| [`@tesseron/vite`](./sdks/typescript/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
+| [`@tesseron/core`](https://github.com/Eigenwise/tesseron-typescript/tree/main/core) | Protocol types, action builder. Zero runtime deps beyond Standard Schema. |
+| [`@tesseron/web`](https://github.com/Eigenwise/tesseron-typescript/tree/main/web) | Browser SDK. |
+| [`@tesseron/server`](https://github.com/Eigenwise/tesseron-typescript/tree/main/server) | Node SDK. |
+| [`@tesseron/react`](https://github.com/Eigenwise/tesseron-typescript/tree/main/react) | React hooks adapter. |
+| [`@tesseron/svelte`](https://github.com/Eigenwise/tesseron-typescript/tree/main/svelte) | Svelte 5 adapter. |
+| [`@tesseron/vue`](https://github.com/Eigenwise/tesseron-typescript/tree/main/vue) | Vue 3 adapter. |
+| [`@tesseron/vite`](https://github.com/Eigenwise/tesseron-typescript/tree/main/vite) | Vite plugin: dev-server bridge for browser tabs to dial the gateway over the same origin as your app. |
 | [`@tesseron/mcp`](./gateway) | MCP gateway server (`tesseron-mcp` CLI; launched by each client's install path via `npx`). |
 | [`@tesseron/docs-mcp`](./docs-mcp) | MCP server that serves the Tesseron docs (`search_docs`, `read_doc`, `list_docs`) for chapter-and-verse spec lookups inside agent sessions. |
 
@@ -190,22 +190,30 @@ For the authoritative, continuously-updated list of which client supports which 
 
 **v1.0** shipped April 2026; the SDK is at **v2.10** as of writing. The protocol is at [**1.2.0**](./docs/src/content/docs/protocol) and intentionally kept small: bidirectional JSON-RPC 2.0 over WebSocket, dynamic MCP tool registration, click-to-connect handshake, streaming progress, cancellation, sampling, confirmation, schema-validated elicitation, subscribable resources, session resume.
 
-Published to npm: eight TypeScript packages — `@tesseron/{core,web,server,react,svelte,vue,vite,mcp}` — share one version and should be installed together; see the [compatibility contract](https://eigenwise.github.io/tesseron/protocol/compatibility/) for cross-language rules. `@tesseron/docs-mcp` releases separately, because it ships the docs snapshot rather than protocol code and a prose fix shouldn't bump the whole SDK.
+The seven TypeScript SDK packages, `@tesseron/{core,web,server,react,svelte,vue,vite}`, share one version and should be installed together. The hub packages `@tesseron/mcp`, `@tesseron/docs-mcp`, and `@tesseron/conformance` release independently. See the [compatibility contract](https://eigenwise.github.io/tesseron/protocol/compatibility/) for cross-language rules.
 
 The JS/TS SDKs are the reference implementation; the protocol spec is [CC BY 4.0](./docs/src/content/docs/protocol/LICENSE) so anyone can write a compatible client or server in any language. The [conformance fixtures](./conformance) are the executable half of that.
 
-Rust, Python, and C++ SDKs are shipped in the hub repository under [`sdks/rust/`](./sdks/rust), [`sdks/python/`](./sdks/python), and [`sdks/cpp/`](./sdks/cpp). All three are unpublished for now. Rust and Python are not on crates.io or PyPI, and C++ is consumed from source through CMake with pinned dependency hashes. They speak protocol 1.2.0 and pass the shared conformance suite apart from the fixtures their transports or claim flow do not support.
+### Language SDK repositories
 
-On the roadmap: a Streamable HTTP transport and bindings for desktop-native runtimes (Rust for Tauri, etc.).
+| Language | Source | Install |
+|---|---|---|
+| TypeScript | [tesseron-typescript](https://github.com/Eigenwise/tesseron-typescript) | npm scope `@tesseron`: `core`, `web`, `server`, `react`, `svelte`, `vue`, `vite` |
+| Rust | [tesseron-rust](https://github.com/Eigenwise/tesseron-rust) | crate `tesseron`: `cargo add tesseron` |
+| Python | [tesseron-python](https://github.com/Eigenwise/tesseron-python) | PyPI `tesseron`: `uv add tesseron` |
+| C++ | [tesseron-cpp](https://github.com/Eigenwise/tesseron-cpp) | CMake `FetchContent` from that repo, link `tesseron::tesseron` |
+
+All four speak protocol 1.2.0 and pass the shared conformance suite apart from fixtures their transports or claim flow do not support. SDK code and examples live in the language repositories; docs, protocol fixtures, and issues stay here.
+
+On the roadmap: a Streamable HTTP transport and more desktop-native integrations. The Rust SDK already includes a Tauri example.
 
 ## Development
 
 ```bash
-pnpm install
-pnpm typecheck
-pnpm test                            # vitest across core + mcp
-pnpm lint                            # biome
-pnpm sync-plugin-version --check     # CI guard: plugin manifests + Pi pin + skill mirror in lockstep
+pnpm install --frozen-lockfile
+pnpm gate
+pnpm build
+pnpm docs:build
 ```
 
 ## Contributing

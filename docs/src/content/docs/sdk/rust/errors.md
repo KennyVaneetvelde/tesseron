@@ -8,7 +8,7 @@ related:
   - protocol/errors
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+<!-- snippets from examples/todo -->
 
 The Rust SDK keeps three error types separate. `HostError` means the application could not start or shut down. `ActionError` is what a handler returns when an invocation fails. `ProtocolError` is the JSON-RPC error object that crosses the connection.
 

@@ -40,14 +40,13 @@ fix up history before merge.
 ## Getting started
 
 ```bash
-pnpm install
-pnpm typecheck
-pnpm test
+pnpm install --frozen-lockfile
+pnpm gate
 ```
 
 See [`README.md`](./README.md) for the package layout, and
-[`sdks/typescript/examples/`](./sdks/typescript/examples) for working example
-apps to develop against.
+[the TypeScript examples](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples) for working example
+apps to develop against. SDK source changes belong in the [language repositories](./AGENTS.md#language-sdk-repositories). An SDK release PR is complete only after its corresponding hub docs PR has merged.
 
 ## Where to file what
 
@@ -59,9 +58,9 @@ Use `area: spec` for the protocol, `area: gateway` for the MCP gateway, `area: c
    so design direction is aligned before you spend time on a patch.
 2. Keep pull requests focused — one logical change per PR.
 3. Include tests for protocol or dispatcher behavior changes. The existing
-   test suite in `sdks/typescript/core/test/` and `gateway/test/` is the
+   test suite in `gateway/test/` and `conformance/runner/test/` is the
    source of truth for expected behavior.
-4. Run `pnpm typecheck` and `pnpm test` locally before pushing.
+4. Run `pnpm gate` locally before pushing.
 5. Make sure every commit is `Signed-off-by:`.
 
 ## Code of conduct

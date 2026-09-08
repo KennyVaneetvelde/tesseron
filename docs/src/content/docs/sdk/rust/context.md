@@ -9,8 +9,8 @@ related:
   - protocol/elicitation
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
-<!-- snippets from sdks/rust/examples/prompts -->
+<!-- snippets from examples/todo -->
+<!-- snippets from examples/prompts -->
 
 Every handler receives an `ActionContext` after the gateway handshake. It identifies the action and invocation, exposes the negotiated `Capabilities`, and carries the connection used for requests and notifications. It is cheap to clone, and clones share the progress ceiling.
 

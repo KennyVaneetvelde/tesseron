@@ -8,9 +8,11 @@ related:
 
 **What it teaches:** how to expose the same backend operations via two channels at once - HTTP for human or programmatic clients, Tesseron for the agent (with `ctx.sample` and `ctx.elicit` layered on top). Both channels mutate the same state and fire the same resource subscribers.
 
-**Source:** [`sdks/typescript/examples/express-prompts`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/express-prompts)
+**Source:** [`examples/express-prompts`](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples/express-prompts)
 
 ## Run it
+
+From the `tesseron-typescript` repository root, after [installing its dependencies](/examples/#running-any-of-them):
 
 ```bash
 pnpm --filter express-prompts dev

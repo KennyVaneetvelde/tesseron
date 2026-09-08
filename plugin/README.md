@@ -4,7 +4,7 @@ Drops the [Tesseron](https://github.com/eigenwise/tesseron) MCP gateway into Cla
 
 ## What you get
 
-- **MCP gateway** — the [`@tesseron/mcp`](https://www.npmjs.com/package/@tesseron/mcp) gateway, launched on demand by Claude Code via `npx`. Any app speaking the Tesseron wire protocol over WebSocket — via [`@tesseron/web`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/web), [`@tesseron/server`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/server), or [`@tesseron/react`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/react) — can expose typed, prefixed actions as MCP tools that Claude can call.
+- **MCP gateway** — the [`@tesseron/mcp`](https://www.npmjs.com/package/@tesseron/mcp) gateway, launched on demand by Claude Code via `npx`. Any app speaking the Tesseron wire protocol over WebSocket — via [`@tesseron/web`](https://github.com/Eigenwise/tesseron-typescript/tree/main/web), [`@tesseron/server`](https://github.com/Eigenwise/tesseron-typescript/tree/main/server), or [`@tesseron/react`](https://github.com/Eigenwise/tesseron-typescript/tree/main/react) — can expose typed, prefixed actions as MCP tools that Claude can call.
 - **`framework` skill** — auto-triggered when Claude sees Tesseron code. The *cheat sheet*: core abstractions, canonical imports, and the minimum-viable-app template, plus eleven focused reference files (actions, resources, context, transports, react, protocol, schemas, errors, gateway, testing, project-structure). Progressive disclosure keeps the parent context lean. Load this for orientation and mental model questions.
 - **`tesseron-docs` skill** — auto-triggered when a Tesseron question needs a precise answer (exact wire format, error codes, handshake shape, resume flow). The *manual*: it calls [`@tesseron/docs-mcp`](https://www.npmjs.com/package/@tesseron/docs-mcp)'s `search_docs` and `read_doc` tools so the answer comes from the live docs, not training data.
 - **`tesseron-dev` skill** — auto-triggered when you ask to add Tesseron to a project (existing, or one you're creating). Picks the right `@tesseron/*` consumer package — `@tesseron/react` for React (hooks API), `@tesseron/server` for Node, `@tesseron/web` for any other browser context — installs it with the project's existing package manager, and inserts the canonical Tesseron API (`tesseron.app(...)` + one action + one resource + `tesseron.connect(...)`) at module scope of the entry point. Strictly Tesseron-scoped: does not create projects, scaffold build tooling, pick framework versions, or template framework-specific idioms. Creating projects is someone else's job.
@@ -88,7 +88,7 @@ A standalone `@tesseron/skills` npm package that vendors the same SKILL.md tree 
 
 4. **Drive your app from chat.** Each tool call runs the handler you declared — mutating whatever state your app owns. The browser (or service) updates in real time.
 
-For complete runnable walkthroughs, see the repo's [sdks/typescript/examples/](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples).
+For complete runnable walkthroughs, see the repo's [TypeScript examples/](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples).
 
 ## Typical flows
 
@@ -158,5 +158,5 @@ MIT © Kenny Vaneetvelde — see [`LICENSE`](./LICENSE).
 ## Links
 
 - Protocol + SDKs: https://github.com/eigenwise/tesseron
-- Examples: https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples
+- Examples: https://github.com/Eigenwise/tesseron-typescript/tree/main/examples
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)

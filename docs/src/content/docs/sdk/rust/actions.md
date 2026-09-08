@@ -8,7 +8,7 @@ related:
   - protocol/actions
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+<!-- snippets from examples/todo -->
 
 An action is a named handler the agent can invoke. The gateway projects each registration into an MCP tool.
 

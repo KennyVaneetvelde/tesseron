@@ -7,7 +7,7 @@ related:
   - protocol/resources
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+<!-- snippets from examples/todo -->
 
 A resource is named application state the agent can read, and optionally follow. Actions change things; resources report the current value.
 

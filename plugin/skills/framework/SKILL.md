@@ -85,7 +85,7 @@ const welcome = await tesseron.connect();
 console.log(`Claim code: ${welcome.claimCode}`);
 ```
 
-In Claude, the user then says `claim session <code>` and the app's `addTodo` action appears as a typed MCP tool. Full runnable versions live in `sdks/typescript/examples/` (vanilla, React, Svelte, Vue, Express, Node).
+In Claude, the user then says `claim session <code>` and the app's `addTodo` action appears as a typed MCP tool. Full runnable versions live in [the TypeScript examples](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples) (vanilla, React, Svelte, Vue, Express, Node).
 
 ## Decision routing
 

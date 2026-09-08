@@ -1,5 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Report a Rust SDK issue
-    url: https://github.com/Eigenwise/tesseron/issues/new/choose?labels=area%3A%20sdk-rust
-    about: Rust SDK issues are tracked in the Tesseron hub.

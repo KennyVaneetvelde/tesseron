@@ -9,7 +9,7 @@ The fixture corpus is licensed CC BY 4.0, like the protocol specification. See [
 Build your host adapter, then pass its command to the published CLI:
 
 ```bash
-npx @tesseron/conformance@1.2.0 --host "./build/tesseron-conformance-host"
+npx @tesseron/conformance@1.2.1 --host "./build/tesseron-conformance-host"
 ```
 
 Available options:
@@ -20,28 +20,22 @@ tesseron-conformance --host "<command>" [--fixtures <dir>] [--only <id glob>] [-
 
 `--fixtures` overrides the fixture corpus shipped inside the npm package. `--only` accepts `*` and `?` in a fixture ID glob. `--json` prints one report document and no human result lines.
 
-This repository runs its own hosts through `run-reference.mjs`, which builds the runner argument list, keeps `TESSERON_CONFORMANCE_UNSUPPORTED` in one place, and adds `uds` on Windows:
+SDK hosts live in the [language repositories](../AGENTS.md#language-sdk-repositories).
+To test a host against the hub's current fixtures, build the local runner and pass
+an explicit host command:
 
 ```bash
-pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build
-pnpm conformance:run
+pnpm --filter @tesseron/conformance build
+node conformance/run-reference.mjs --host "<host command>" --unsupported host-minted-claim,uds
 ```
 
-With no arguments it runs the TypeScript reference host. Two flags point it at another one:
-
-```text
-node conformance/run-reference.mjs [--host "<command>"] [--unsupported <tags>] [runner options]
-```
-
-`--host` takes a command line. A bare path is fine: the runner resolves it against the repository root and adds `.exe` on Windows. `--unsupported` takes the same comma-separated tags as the environment variable and replaces it, so each SDK names only what it still cannot serve. Anything else goes through to the runner, so `--only` and `--json` work as usual.
-
-The Rust host has its own script, and CI runs the same one:
-
-```bash
-cargo build --manifest-path sdks/rust/Cargo.toml --workspace
-pnpm -r --filter @tesseron/conformance build
-pnpm conformance:run:rust
-```
+`--host` is required. A bare executable path resolves against the hub root and
+gets an `.exe` suffix on Windows when needed. Use an absolute executable path for
+an SDK checkout elsewhere, or a command that sets its own project directory.
+`--unsupported` replaces `TESSERON_CONFORMANCE_UNSUPPORTED`; name only tags the
+host cannot serve. The helper adds `uds` on Windows and always reads the live
+`conformance/fixtures` directory instead of a cached build copy. Other runner
+options, including `--only` and `--json`, pass through unchanged.
 
 ## Host launch contract
 

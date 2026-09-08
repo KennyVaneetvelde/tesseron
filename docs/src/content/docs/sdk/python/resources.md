@@ -29,7 +29,7 @@ todos_resource = app.resource(
 )
 ```
 
-This is the resource from the canonical [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py).
+This is the resource from the canonical [`examples/todo/app.py`](https://github.com/Eigenwise/tesseron-python/blob/main/examples/todo/app.py).
 
 `app.resource` answers with the `Resource` handle, which is what you push updates through. The reader is `async` and runs on every `resources/read`, so it always reports the current value rather than a snapshot taken at registration.
 

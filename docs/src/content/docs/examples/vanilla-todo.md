@@ -8,9 +8,11 @@ related:
 
 **What it teaches:** the raw action / resource builder API with no framework in the way. Read this before any of the framework-specific examples.
 
-**Source:** [`sdks/typescript/examples/vanilla-todo`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples/vanilla-todo)
+**Source:** [`examples/vanilla-todo`](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples/vanilla-todo)
 
 ## Run it
+
+From the `tesseron-typescript` repository root, after [installing its dependencies](/examples/#running-any-of-them):
 
 ```bash
 pnpm --filter vanilla-todo dev

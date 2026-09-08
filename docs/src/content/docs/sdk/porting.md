@@ -11,7 +11,7 @@ related:
   - sdk/cpp/index
 ---
 
-Tesseron already has [Rust](/sdk/rust/), [Python](/sdk/python/), and [C++](/sdk/cpp/) SDKs in the hub repository. All three are unpublished and serve as working references for a new port.
+Tesseron already has [Rust](/sdk/rust/), [Python](/sdk/python/), and [C++](/sdk/cpp/) SDKs in their own language repositories. All three are working references for a new port.
 
 ## What you're actually building
 
@@ -126,10 +126,10 @@ Before you ship, make sure the SDK passes every line of this list. An SDK that f
 Part of this list is executable. Build a small host adapter that reads `TESSERON_CONFORMANCE_FIXTURE`, registers its canned actions and resources, and prints the readiness line described in the [fixture adapter contract](https://github.com/eigenwise/tesseron/blob/main/conformance/README.md). Then run the shipped protocol 1.2 suite:
 
 ```bash
-npx @tesseron/conformance@1.2.0 --host "./build/tesseron-conformance-host"
+pnpm dlx @tesseron/conformance@1.2.1 --host "./build/tesseron-conformance-host"
 ```
 
-Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domain sockets. The package carries the fixture corpus, reports skips separately, and runs each fixture against a fresh host process. The hub's Rust, Python, and C++ ports use the same runner through `pnpm conformance:run:rust`, `pnpm conformance:run:python`, and `pnpm conformance:run:cpp`; an extracted port runs the `npx @tesseron/conformance@1.2.0` command above with its own host adapter. The prose list below remains the wider implementation checklist.
+Use `TESSERON_CONFORMANCE_UNSUPPORTED=uds` on platforms without POSIX Unix domain sockets. The package carries the fixture corpus, reports skips separately, and runs each fixture against a fresh host process. Every language repository uses this published runner with its own host adapter. Docs and fixtures stay in the hub; an SDK release PR is complete only after its corresponding hub docs PR has merged. The prose list below remains the wider implementation checklist.
 
 **Handshake**
 - [ ] Sends `tesseron/hello` immediately after the binding's connection becomes ready.

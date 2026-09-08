@@ -6,9 +6,6 @@ const workspaceRoot = fileURLToPath(new URL('../', import.meta.url));
 const runnerPath = fileURLToPath(
   new URL('./runner/dist/tesseron-conformance.cjs', import.meta.url),
 );
-const referenceHostPath = fileURLToPath(
-  new URL('../sdks/typescript/conformance-host/dist/bin.js', import.meta.url),
-);
 // The runner ships a copy of the corpus in its dist for npx consumers, and turbo
 // does not know that copy depends on ../fixtures, so a hub run reads the live
 // corpus instead of whatever the cached build captured.
@@ -17,15 +14,19 @@ const fixturesPath = fileURLToPath(new URL('./fixtures', import.meta.url));
 const options = parseArguments(process.argv.slice(2));
 const unsupported =
   options.unsupported ?? splitTags(process.env['TESSERON_CONFORMANCE_UNSUPPORTED'] ?? '');
-// No host in this repo speaks a unix socket on Windows, so the tag is added
+// Conformance hosts do not use Unix domain sockets on Windows, so the tag is added
 // rather than left to every caller to remember.
 if (process.platform === 'win32' && !unsupported.includes('uds')) unsupported.push('uds');
 
-const hostCommand =
-  options.host ?? `${quoteForShell(process.execPath)} ${quoteForShell(referenceHostPath)}`;
+if (!options.host?.trim()) {
+  process.stderr.write(
+    '--host is required; conformance hosts live in the language SDK repositories.\n',
+  );
+  process.exit(2);
+}
 const child = spawn(
   process.execPath,
-  [runnerPath, '--host', hostCommand, '--fixtures', fixturesPath, ...options.forwarded],
+  [runnerPath, '--host', options.host, '--fixtures', fixturesPath, ...options.forwarded],
   {
     cwd: workspaceRoot,
     env: { ...process.env, TESSERON_CONFORMANCE_UNSUPPORTED: unsupported.join(',') },
@@ -82,9 +83,4 @@ function splitTags(value) {
     .split(',')
     .map((tag) => tag.trim())
     .filter(Boolean);
-}
-
-function quoteForShell(value) {
-  if (process.platform === 'win32') return `"${value.replaceAll('"', '""')}"`;
-  return `'${value.replaceAll("'", "'\\''")}'`;
 }

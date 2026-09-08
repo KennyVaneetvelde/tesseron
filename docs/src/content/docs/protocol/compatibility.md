@@ -18,8 +18,8 @@ A host speaking protocol `1.x` works with a gateway speaking protocol `1.y`, as 
 | Protocol version | Packages that speak it |
 | --- | --- |
 | `1.2.0` | `@tesseron/core`, `@tesseron/web`, `@tesseron/server`, `@tesseron/react`, `@tesseron/svelte`, `@tesseron/vue`, `@tesseron/vite`, and `@tesseron/mcp` `>=2.10.0` |
-| `1.2.0` | [`tesseron`](/sdk/python/) (Python) `>=0.1.0`. Not on PyPI yet. |
-| `1.2.0` | [`tesseron`](/sdk/rust/) (Rust) `0.1.x`. Not on crates.io yet. |
+| `1.2.0` | [`tesseron`](/sdk/python/) (Python) `>=0.1.0`. Published on PyPI. |
+| `1.2.0` | [`tesseron`](/sdk/rust/) (Rust) `0.1.x`. Published on crates.io. |
 | `1.2.0` | [`tesseron::tesseron`](/sdk/cpp/) (C++) `>=0.1.0`. Source-only, built through CMake `FetchContent`. |
 
 The table starts at `1.2.0`. The history checked for this page does not prove package boundaries for earlier protocol versions.
@@ -30,7 +30,7 @@ The C++ host does not mint its own claim code and does not speak a unix domain s
 
 ## TypeScript package versions
 
-The TypeScript packages are one fixed release group. They share a version and should be installed at the same version. Mixing them is an install footgun, not a protocol error. The [release section in `AGENTS.md`](https://github.com/eigenwise/tesseron/blob/main/AGENTS.md#releases) explains why the group moves together.
+The seven TypeScript SDK packages (`core`, `web`, `server`, `react`, `svelte`, `vue`, and `vite`) are one fixed release group in [tesseron-typescript](https://github.com/Eigenwise/tesseron-typescript). Install them at the same version. The hub packages `@tesseron/mcp`, `@tesseron/docs-mcp`, and `@tesseron/conformance` release independently. Gateway compatibility follows the protocol version rule above.
 
 ## When the handshake fails
 

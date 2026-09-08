@@ -48,12 +48,12 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@tesseron/core": "workspace:*",
+    "@tesseron/core": "^2.10.2",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@tesseron/server": "workspace:*",
+    "@tesseron/server": "^2.10.2",
     "@standard-schema/spec": "^1.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.13",

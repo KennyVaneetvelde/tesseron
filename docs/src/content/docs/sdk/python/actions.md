@@ -35,7 +35,7 @@ def create_app() -> TesseronApp:
     return app
 ```
 
-The `store`, `publish_todos`, and `todo_payload` names above come directly from the canonical [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py) host.
+The `store`, `publish_todos`, and `todo_payload` names above come directly from the canonical [`examples/todo/app.py`](https://github.com/Eigenwise/tesseron-python/blob/main/examples/todo/app.py) host.
 
 Every handler is `async def` and takes `(input_data, context)`. A handler that is not a coroutine function, or that does not take two parameters, raises `HostError` at registration. Registering one name twice raises `DuplicateNameError`, because the manifest has to stay unambiguous for the gateway to project it.
 
@@ -125,6 +125,6 @@ async def delete_todo(input_data: TodoIdentifierInput, context: ActionContext) -
     return {"id": input_data.id, "removed": True}
 ```
 
-This is the canonical `deleteTodo` shape from [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py).
+This is the canonical `deleteTodo` shape from [`examples/todo/app.py`](https://github.com/Eigenwise/tesseron-python/blob/main/examples/todo/app.py).
 
 `ActionError.handler` sends its message and data to the agent as `-32005`. `ActionError.protocol(code, message, data)` does the same under a code you pick. `ActionError.internal(cause)` keeps the cause on your side and answers with a bare `-32603 Internal error`, which is what an unhandled exception in a handler is turned into too. See [errors](/sdk/python/errors/).

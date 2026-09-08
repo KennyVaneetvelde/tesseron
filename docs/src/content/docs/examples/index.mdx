@@ -8,7 +8,7 @@ related:
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-All six examples live in [`sdks/typescript/examples/`](https://github.com/eigenwise/tesseron/tree/main/sdks/typescript/examples). Each is complete, runnable, and intentionally simple so the Tesseron-specific code is easy to read. Client-side examples share a **todo** domain; server-side examples share a sampling-heavy **prompt-library** domain.
+All six examples live in [`examples/`](https://github.com/Eigenwise/tesseron-typescript/tree/main/examples). Each is complete, runnable, and intentionally simple so the Tesseron-specific code is easy to read. Client-side examples share a **todo** domain; server-side examples share a sampling-heavy **prompt-library** domain.
 
 <CardGrid>
   <LinkCard title="vanilla-todo" href="./vanilla-todo/"
@@ -54,9 +54,9 @@ All six examples live in [`sdks/typescript/examples/`](https://github.com/eigenw
 ## Running any of them
 
 ```bash
-git clone https://github.com/eigenwise/tesseron
-cd tesseron
-pnpm install
+git clone https://github.com/Eigenwise/tesseron-typescript
+cd tesseron-typescript
+pnpm install --frozen-lockfile
 pnpm --filter <example-name> dev
 ```
 

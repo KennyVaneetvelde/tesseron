@@ -8,13 +8,17 @@ related:
   - protocol/compatibility
 ---
 
+Source: [github.com/Eigenwise/tesseron-python](https://github.com/Eigenwise/tesseron-python)
+
+[Report an issue](https://github.com/Eigenwise/tesseron/issues/new/choose?labels=area%3A%20sdk-python)
+
 `tesseron` is the Python host SDK. Your application listens on loopback, the MCP gateway dials in, and the agent gets typed actions and readable resources.
 
 It speaks protocol [**1.2.0**](/protocol/), the same version the TypeScript, Rust, and C++ SDKs speak. Compatibility is decided by protocol version, never by matching package numbers: see the [compatibility contract](/protocol/compatibility/).
 
 The host follows the protocol's envelope rules. A request with `id: null` is still a request and gets an answer with `id: null`; only an absent `id` makes a notification. A frame without `jsonrpc: "2.0"` gets `-32600 Invalid Request`, with its readable request id carried through or `null` when there is no usable id.
 
-Not on PyPI yet. It lives in the monorepo at [`sdks/python/`](https://github.com/eigenwise/tesseron/tree/main/sdks/python) and versions independently of the TypeScript group.
+The package is published on [PyPI](https://pypi.org/project/tesseron/) and versions independently of the TypeScript SDK. Install it with `uv add tesseron`. Source and examples live in the `tesseron-python` repository.
 
 ## Requirements
 
@@ -73,7 +77,7 @@ async def main() -> None:
         await host.shutdown()
 ```
 
-The `TodoStore` and `todo_payload` definitions in this excerpt are the ones in [`examples/todo/app.py`](https://github.com/eigenwise/tesseron/blob/main/sdks/python/examples/todo/app.py). The complete example also registers the other canonical actions.
+The `TodoStore` and `todo_payload` definitions in this excerpt are the ones in [`examples/todo/app.py`](https://github.com/Eigenwise/tesseron-python/blob/main/examples/todo/app.py). The complete example also registers the other canonical actions.
 
 `app.listen()` binds `127.0.0.1` on a port the OS picks, writes the instance manifest the gateway watches for, and answers with a `TesseronHost` carrying the URL and the manifest path. Nothing dials out.
 
@@ -120,17 +124,18 @@ app.add_event_listener(watch)
 
 ## Development
 
-Run everything from the repo root with uv, the way CI does:
+Run these checks from the `tesseron-python` repository root:
 
 ```bash
-uv sync --locked --directory sdks/python
-uv run --locked --directory sdks/python ruff check .
-uv run --locked --directory sdks/python ruff format --check .
-uv run --locked --directory sdks/python mypy --strict src tests
-uv run --locked --directory sdks/python pytest
-uv build --directory sdks/python
-pnpm conformance:run:python
+uv sync --locked
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy --strict src tests
+uv run --locked pytest
+uv build
 ```
+
+Run the [conformance check](/sdk/python/conformance/) after the unit suite.
 
 ## Next
 

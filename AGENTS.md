@@ -1,8 +1,8 @@
-# Agent guide for the Tesseron monorepo
+# Agent guide for the Tesseron hub
 
 Instructions for AI coding agents (Claude Code, Codex, OpenCode, Cursor, Copilot)
 working in this repo. Human contributors should start with
-[`CONTRIBUTING.md`](./CONTRIBUTING.md) — this file covers what an agent needs to
+[`CONTRIBUTING.md`](./CONTRIBUTING.md). This file covers what an agent needs to
 know on top of the human flow.
 
 ## Package manager
@@ -21,83 +21,36 @@ pnpm format    # writes Biome-formatted files in place
 Run `pnpm gate` before declaring a non-trivial change done. It is the CI floor:
 typecheck, test, lint, plugin version check, conformance fixture validation, docs
 changeset check.
-Lint with Biome (`pnpm lint`) — there is no ESLint or Prettier config in this
+Lint with Biome (`pnpm lint`). There is no ESLint or Prettier config in this
 repo; do not introduce one.
 
 ## Workspace layout
 
-- `sdks/typescript/core`: protocol types and the TypeScript SDK runtime. No bundler dependency.
-- `sdks/typescript/{web,server,react,svelte,vue,vite}`: consumer SDKs.
-- `sdks/typescript/examples/`: runnable TypeScript example apps. Treat them as live integration
-  fixtures.
-- `gateway/`: the gateway binary published as `@tesseron/mcp` (`bin: tesseron-mcp`).
+- `gateway/`: the gateway published as `@tesseron/mcp` (`tesseron-mcp` CLI). It
+  depends on the published `@tesseron/core` package.
 - `docs-mcp/`: the docs MCP server published as `@tesseron/docs-mcp`.
-- `conformance/`: language-neutral fixtures and the Node runner workspace.
-- `sdks/rust/`: the Rust SDK (`tesseron`) and `tesseron-conformance-host`. Its own
-  cargo workspace, invisible to pnpm and to Biome. In progress; see
-  [`sdks/rust/README.md`](./sdks/rust/README.md) for what it covers.
-- `sdks/python/`: the Python SDK (`tesseron`) plus the `conformance_host/` adapter that
-  sits outside the wheel. Its own uv project, invisible to pnpm and to Biome. In
-  progress; see [`sdks/python/README.md`](./sdks/python/README.md) for what it covers.
-- `sdks/cpp/`: the C++ SDK (`tesseron::tesseron`) and `tesseron-conformance-host`.
-  Its own CMake project, invisible to pnpm and to Biome. In progress; see
-  [`sdks/cpp/README.md`](./sdks/cpp/README.md) for what it covers.
-- `plugin/` — the Claude Code plugin (also accepted by Codex). Skills live in
-  `plugin/skills/`, the MCP wiring in `plugin/.mcp.json`, the manifest in
+- `conformance/`: language-neutral fixtures and the `conformance/runner` workspace,
+  published as `@tesseron/conformance`.
+- `docs/`: the Starlight site at https://eigenwise.github.io/tesseron/.
+- `plugin/`: the Claude Code and Codex plugin. Skills live in `plugin/skills/`,
+  MCP wiring in `plugin/.mcp.json`, and the manifest in
   `plugin/.claude-plugin/plugin.json`.
-- `.claude-plugin/marketplace.json` — Claude Code marketplace listing.
-- `.agents/plugins/marketplace.json` — Codex marketplace listing (same plugin
-  source, Codex-preferred path).
-- `docs/` — Starlight site at https://eigenwise.github.io/tesseron/.
+- `.claude-plugin/marketplace.json`: the Claude Code marketplace listing.
+- `.agents/plugins/marketplace.json`: the Codex marketplace listing for the same plugin.
 
-`sdks/rust/` does not move with pnpm. Run cargo from the repo root and point it
-at that manifest, the way CI does:
+## Language SDK repositories
 
-```bash
-cargo fmt --manifest-path sdks/rust/Cargo.toml --all --check
-cargo clippy --manifest-path sdks/rust/Cargo.toml --workspace --all-targets -- -D warnings
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace
-cargo build --manifest-path sdks/rust/Cargo.toml --workspace
-```
+| Language | Repository |
+|---|---|
+| TypeScript | [Eigenwise/tesseron-typescript](https://github.com/Eigenwise/tesseron-typescript) |
+| Rust | [Eigenwise/tesseron-rust](https://github.com/Eigenwise/tesseron-rust) |
+| Python | [Eigenwise/tesseron-python](https://github.com/Eigenwise/tesseron-python) |
+| C++ | [Eigenwise/tesseron-cpp](https://github.com/Eigenwise/tesseron-cpp) |
 
-House rules there: no `unwrap()` outside tests (`unwrap_used` is denied),
-`#![deny(missing_docs)]` on the library, no abbreviations in names. `Cargo.lock`
-is committed.
-
-`sdks/python/` does not move with pnpm either. Run uv from the repo root and point it
-at that project, the way CI does:
-
-```bash
-uv sync --locked --directory sdks/python
-uv run --locked --directory sdks/python ruff check .
-uv run --locked --directory sdks/python ruff format --check .
-uv run --locked --directory sdks/python mypy --strict src tests
-uv run --locked --directory sdks/python pytest
-uv build --directory sdks/python
-pnpm conformance:run:python
-```
-
-House rules there: no `Any`, no `cast()`, no bare `# type: ignore`, no abbreviations in
-names, and every public symbol carries a docstring. `uv.lock` is committed. The
-conformance host lives at `sdks/python/conformance_host/`, beside `src/tesseron` rather
-than inside it, so `uv build` produces a wheel with the SDK and nothing else.
-
-`sdks/cpp/` is the same story with CMake. Never change directory into it; point
-`-S` and `-B` at it from the repo root, the way CI does:
-
-```bash
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON \
-      -DTESSERON_BUILD_CONFORMANCE_HOST=ON
-cmake --build sdks/cpp/build
-ctest --test-dir sdks/cpp/build --output-on-failure
-pnpm conformance:run:cpp
-```
-
-House rules there: no abbreviations in names, nothing throws across a handler
-boundary (`Result<T>` is in every signature), and nothing under `sdks/cpp/`
-refers to a path above it, because the directory has to move to its own
-repository unchanged. Dependencies arrive through `FetchContent` at pinned
-hashes only: no vcpkg, no Conan, no system packages.
+SDK source, examples, tests, and conformance hosts live in those repositories.
+Follow each repository's contributor guide and run its own checks there.
+Protocol fixtures, all language docs, and issue tracking stay in this hub.
+An SDK release PR is complete only after its corresponding hub docs PR has merged.
 
 ## Plugin manifest is version-coupled
 
@@ -129,20 +82,19 @@ recreate them.
 ## Releases
 
 Releases are driven by Changesets. Add a changeset for any user-visible change
-under `sdks/typescript/`, `gateway/`, or `docs-mcp/`:
+under `gateway/`, `docs-mcp/`, or `conformance/runner/`:
 
 ```bash
 pnpm changeset
 ```
 
-`@tesseron/core`, `/mcp`, `/web`, `/server`, `/react`, `/svelte`, `/vue`,
-`/vite` ship in lockstep — bump them together. They are one `fixed` group in
-`.changeset/config.json`.
+`@tesseron/mcp`, `@tesseron/docs-mcp`, and `@tesseron/conformance` release
+independently. The hub has no Changesets fixed group. The seven TypeScript SDK
+packages keep their fixed group in `tesseron-typescript`.
 
-`@tesseron/docs-mcp` is **not** in that group. It ships the docs snapshot rather
-than protocol code, so a prose correction releases on its own instead of forcing
-a bump across every SDK package. Give it its own changeset. CI enforces that docs content changes
-carry a `@tesseron/docs-mcp` changeset.
+Docs content changes need their own `@tesseron/docs-mcp` changeset because that
+package ships the docs snapshot. CI enforces this. `@tesseron/docs` is private
+and stays in the Changesets ignore list.
 
 The release workflow at `.github/workflows/release.yml` opens a PR or publishes
 via `changesets/action@v1`.
@@ -158,7 +110,7 @@ refactors do not require doc updates.
 
 ## Commits
 
-Sign off every commit with `git commit -s` (DCO required — see
+Sign off every commit with `git commit -s` (DCO required, see
 `CONTRIBUTING.md`). Keep PRs focused on one logical change. Pre-commit hooks
 are not configured; rely on `pnpm gate`
 locally and on the CI workflow at `.github/workflows/ci.yml`.

@@ -8,13 +8,13 @@ related:
   - examples/vanilla-todo
 ---
 
-<!-- snippets from sdks/rust/examples/todo -->
+<!-- snippets from examples/todo -->
 
 The `tauri-todo` example uses the same Rust host as a headless app. `setup()` creates the application from `examples/todo`, stores the host in Tauri state, and forwards updates to the window.
 
 ## The setup pattern
 
-This is the setup closure from `sdks/rust/examples/tauri-todo/src/main.rs`:
+This is the setup closure from `examples/tauri-todo/src/main.rs`:
 
 ```rust
 fn main() {
@@ -43,7 +43,7 @@ fn main() {
 
 The full example keeps `Arc<TesseronHost>` inside `TesseronState`, wrapped in a `Mutex<Option<...>>`. Tauri commands read and mutate the shared `TodoList`. On `RunEvent::Exit`, the app takes the host from state and calls `host.shutdown()` so the accept loop stops and the manifest is removed.
 
-`todo_application(...)` comes from `sdks/rust/examples/todo/src/lib.rs`. It owns the action registrations, typed input and output shapes, and the `todos://all` resource. The headless and Tauri binaries import that same function, so their agent surface stays aligned.
+`todo_application(...)` comes from `examples/todo/src/lib.rs`. It owns the action registrations, typed input and output shapes, and the `todos://all` resource. The headless and Tauri binaries import that same function, so their agent surface stays aligned.
 
 ## Refreshing the window
 
