@@ -18,7 +18,9 @@ pnpm lint
 pnpm format    # writes Biome-formatted files in place
 ```
 
-Run `pnpm typecheck && pnpm test` before declaring a non-trivial change done.
+Run `pnpm gate` before declaring a non-trivial change done. It is the CI floor:
+typecheck, test, lint, plugin version check, conformance fixture validation, docs
+changeset check.
 Lint with Biome (`pnpm lint`) — there is no ESLint or Prettier config in this
 repo; do not introduce one.
 
@@ -158,5 +160,5 @@ refactors do not require doc updates.
 
 Sign off every commit with `git commit -s` (DCO required — see
 `CONTRIBUTING.md`). Keep PRs focused on one logical change. Pre-commit hooks
-are not configured; rely on `pnpm typecheck && pnpm test && pnpm lint`
+are not configured; rely on `pnpm gate`
 locally and on the CI workflow at `.github/workflows/ci.yml`.

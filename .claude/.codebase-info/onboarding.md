@@ -1,6 +1,6 @@
 # Onboarding
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-08*
 
 ## Setup
 
@@ -72,3 +72,5 @@ changeset bumps only that one. Never hand-edit a version field.
 - A docs edit does **not** invalidate `@tesseron/docs-mcp`'s turbo cache.
 - A stale `packages/` or `examples/` directory on disk is untracked leftovers. Delete it.
 - `sdks/typescript/examples/` is not linted or formatted by Biome.
+- `grep -r` over `sdks/` hangs on `sdks/cpp/build/_deps` and `sdks/python/.venv`. Use the Grep tool,
+  `rg`, or `git grep`; all three honor `.gitignore`.

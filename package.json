@@ -19,6 +19,7 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
+    "gate": "pnpm typecheck && pnpm test && pnpm lint && pnpm sync-plugin-version --check && pnpm conformance:validate && pnpm check-docs-changeset",
     "format": "biome format --write .",
     "split:sdk": "node scripts/split-sdk.mjs",
     "sync-plugin-version": "node scripts/sync-plugin-version.mjs",
