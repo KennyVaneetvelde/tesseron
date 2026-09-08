@@ -1,6 +1,6 @@
 {
   "name": "@tesseron/conformance",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Executable conformance suite for Tesseron protocol hosts.",
   "license": "BUSL-1.1",
   "author": {
