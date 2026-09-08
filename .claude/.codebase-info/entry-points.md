@@ -1,6 +1,6 @@
 # Entry points
 
-*Last Updated: 2026-09-04*
+*Last Updated: 2026-09-08*
 
 ## Binaries
 
@@ -9,20 +9,22 @@
 | `tesseron-mcp` | `@tesseron/mcp` | `gateway/src/cli.ts` | `dist/tesseron-mcp.cjs` |
 | `tesseron-docs-mcp` | `@tesseron/docs-mcp` | `docs-mcp/src/cli.ts` | `dist/tesseron-docs-mcp.cjs` |
 | `tesseron-conformance` | `@tesseron/conformance` | `conformance/runner/src/bin.ts` | `dist/tesseron-conformance.cjs` |
-| `tesseron-conformance-host` | `@tesseron/conformance-host` (private) | `sdks/typescript/conformance-host/src/bin.ts` | `dist/bin.js` |
-| `tesseron-conformance-host` (Rust) | `sdks/rust/conformance-host` crate (unpublished) | `sdks/rust/conformance-host/src/main.rs` | `sdks/rust/target/debug/tesseron-conformance-host` |
-| `python -m conformance_host` (Python) | `sdks/python/conformance_host` (not in the wheel) | `sdks/python/conformance_host/__main__.py` | run via `uv run --locked --directory sdks/python python -m conformance_host` |
-| `tesseron-conformance-host` (C++) | `sdks/cpp/conformance-host` target (private) | `sdks/cpp/conformance-host/main.cpp` | `sdks/cpp/build/conformance-host/tesseron-conformance-host` |
 
-Both declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled CJS via
+The conformance hosts the runner drives are not in this repo any more: TypeScript
+(`tesseron-typescript/conformance-host/src/bin.ts`), Rust (`tesseron-rust/conformance-host/src/main.rs`),
+Python (`tesseron-python/conformance_host/__main__.py`), and C++
+(`tesseron-cpp/conformance-host/main.cpp`) each run the published runner in their own CI.
+
+The two hub binaries declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled CJS via
 `publishConfig` (`gateway/package.json:40` vs `:76`).
 
 `tesseron-mcp` takes **no flags** — it is configured by `TESSERON_TOOL_SURFACE` and
-`TESSERON_RESUME_TTL_MS` only. `tesseron-docs-mcp` takes `--snapshot <path>`.
+`TESSERON_RESUME_TTL_MS` only (`--help` just starts the stdio bridge). `tesseron-docs-mcp` takes
+`--snapshot <path>`.
 
 ## Library entry points
 
-`@tesseron/core` has **five**, declared at `sdks/typescript/core/package.json:34-60` and built at
+`@tesseron/core` has **five**, declared at `tesseron-typescript/core/package.json:34-60` and built at
 `tsup.config.ts:4-10`:
 
 | Specifier | File | For |
@@ -33,8 +35,8 @@ Both declare `bin` at the raw `src/cli.ts` for repo use and swap to the bundled 
 | `@tesseron/core/internal` | `src/internal.ts` | **un-versioned**, sibling packages only |
 | `@tesseron/core/node` | `src/node.ts` | Node-only mint + fs helpers |
 
-Every consumer package has a single `src/index.ts`. `@tesseron/vite` is the exception with **no
-`exports` field at all** — only `main`/`module`/`types`.
+The gateway imports `@tesseron/core` and `@tesseron/core/internal` from the registry
+(`gateway/package.json:51`); `gateway/src/index.ts` re-exports all of core plus the gateway types.
 
 ## Where an app starts
 
@@ -57,8 +59,8 @@ await tesseron.connect();
 | Svelte / Vue | `@tesseron/svelte` / `@tesseron/vue` | same three primitives |
 | Node | `@tesseron/server` | binds a WS or UDS listener |
 
-Real examples: `sdks/typescript/examples/vanilla-todo/src/main.ts:46` (app) and `:425` (top-level await connect);
-`sdks/typescript/examples/react-todo/src/app.tsx:31`; `sdks/typescript/examples/node-prompts/src/prompt-lab.ts`.
+Real examples live in `tesseron-typescript/examples/` (`vanilla-todo/src/main.ts`, `react-todo/src/app.tsx`,
+`node-prompts/src/prompt-lab.ts`); the docs pages under `docs/src/content/docs/examples/` link them.
 
 ## Where execution begins internally
 
@@ -67,15 +69,16 @@ Real examples: `sdks/typescript/examples/vanilla-todo/src/main.ts:46` (app) and 
 | Agent invokes a tool | `gateway/src/mcp-bridge.ts:376` (`CallTool`) |
 | Gateway discovers an app | `gateway/src/gateway.ts:471` (`watchInstances`) |
 | Gateway dials an app | `gateway/src/dialer.ts:67` / `:162` |
-| App receives an invocation | `sdks/typescript/core/src/client.ts:546` (`handleInvoke`) |
-| App connects | `sdks/typescript/core/src/client.ts:257` → `:356` (`doConnect`) |
-| Browser tab attaches in dev | `sdks/typescript/vite/src/index.ts:500` (`upgrade` hook) |
-| Node app binds | `sdks/typescript/server/src/transport.ts:142` / `uds-transport.ts:112` |
+| App receives an invocation | `tesseron-typescript/core/src/client.ts:546` (`handleInvoke`) |
+| App connects | `tesseron-typescript/core/src/client.ts:257` → `:356` (`doConnect`) |
+| Browser tab attaches in dev | `tesseron-typescript/vite/src/index.ts:500` (`upgrade` hook) |
+| Node app binds | `tesseron-typescript/server/src/transport.ts:142` / `uds-transport.ts:112` |
 
 ## Scripts
 
-Root (`package.json:18-26`): `build`, `test`, `typecheck` all go through turbo. **`lint` does not** —
-it is `biome check .` directly. Plus `format`, `sync-plugin-version`, `version-packages`, `docs:dev`,
-`docs:build`, and `split:sdk <language>` (`scripts/split-sdk.mjs`: refuses a dirty tree, runs
-`git subtree split --prefix=sdks/<language> -b split/<language>`, gates the result in a temp worktree,
-and for TypeScript commits the `.split-root/` scaffold plus a regenerated lockfile onto the branch).
+Root (`package.json:17-30`): `build`, `test`, `typecheck` go through turbo. **`lint` does not** —
+it is `biome check .` directly. `gate` (`:22`) chains typecheck, test, lint, `sync-plugin-version
+--check`, `conformance:validate`, and `check-docs-changeset`: the one local CI floor. Plus `format`,
+`sync-labels`, `version-packages`, `docs:dev`, `docs:build`. The old `conformance:run*`,
+`example:*:e2e`, and `split:sdk` scripts left with the SDK trees; run `node conformance/run-reference.mjs
+--host <command>` by hand when you need the corpus against a locally built host.

@@ -1,36 +1,40 @@
 # Tech landscape
 
-*Last Updated: 2026-09-04*
+*Last Updated: 2026-09-08*
 
 | Concern | Choice | Source of truth |
 |---|---|---|
 | Language | TypeScript 5.7, ES2022 target | `tsconfig.base.json:3` |
-| Rust SDK | edition 2024, MSRV 1.85, tokio + tokio-tungstenite 0.30 + serde_json + schemars 1 | `sdks/rust/Cargo.toml` |
-| Python SDK | Python >= 3.11, pydantic >= 2.7 + websockets >= 14, uv-managed, Hatchling build, ruff + mypy --strict + pytest | `sdks/python/pyproject.toml` |
-| C++ SDK | CMake >= 3.24, C++20, Boost.Asio (public) + Boost.Beast (private) 1.89.0, nlohmann/json 3.12.0, Catch2 3.8.1, all via FetchContent | `sdks/cpp/CMakeLists.txt`, `sdks/cpp/cmake/TesseronDependencies.cmake` |
 | Runtime | Node >= 20 | `package.json:12` |
 | Package manager | **pnpm 9.15.4**, workspace | `package.json:14`, `pnpm-workspace.yaml` |
 | Task runner | turbo 2.3 | `turbo.json` |
 | Bundler | tsup 8.5, ESM+CJS, `dts: true` | per-package `tsup.config.ts` |
 | Lint **and** format | **Biome 1.9.4** | `biome.json` |
 | Tests | **Vitest 2.x** | per-package `test: "vitest run"` |
-| Release | Changesets | `.changeset/config.json` |
+| Release | Changesets, `fixed: []` | `.changeset/config.json` |
 | Docs site | Astro + Starlight | `docs/astro.config.mjs` |
 | Validation | Standard Schema (peer contract) | `@standard-schema/spec` |
-| License | BUSL-1.1; every SDK root and every publishing package dir ships a copy of the root `LICENSE` | `package.json:7`, `LICENSE` |
+| License | BUSL-1.1; `gateway/`, `docs-mcp/`, and `plugin/` ship a copy of the root `LICENSE` | `package.json:7`, `LICENSE` |
+
+The SDK toolchains (cargo, uv, CMake) left with the SDKs. Each repo's own `CONTRIBUTING.md` and
+`.github/workflows/ci.yml` state them: `tesseron-rust` (edition 2024, MSRV 1.85, tokio + tungstenite,
+`unwrap_used` denied), `tesseron-python` (>= 3.11, pydantic 2 + websockets, uv, ruff, mypy --strict),
+`tesseron-cpp` (CMake >= 3.24, C++20, Boost.Asio/Beast + nlohmann/json + Catch2 via FetchContent at
+pinned hashes).
 
 There is **no ESLint and no Prettier** in this repo. Do not add either. `pnpm lint` is Biome.
 
 ## Workspace
 
-`pnpm-workspace.yaml` lists `sdks/typescript/*`, `sdks/typescript/examples/*`, `gateway`,
-`docs-mcp`, `conformance/runner`, and `docs`. Cross-package resolution is pure pnpm linking — **there are no TypeScript path aliases anywhere**.
+`pnpm-workspace.yaml` lists `gateway`, `docs-mcp`, `conformance/runner`, and `docs`. Cross-package
+resolution is pure pnpm linking — **there are no TypeScript path aliases anywhere** — but no hub
+package depends on another hub package any more, so nothing is linked in practice.
 
 `conformance/fixtures/` stays outside the workspace on purpose: it is a JSON corpus meant to be
-vendored by other languages' SDK repos. `conformance/runner/` (the `@tesseron/conformance` CLI)
-is a workspace package that depends on `ws` alone, never on `@tesseron/core`, so a Python or Rust
-port's CI can `npx` it with nothing else from this repo installed. Its version is the protocol
-version (1.2.0), set by hand once at creation; it is outside the changesets fixed group.
+vendored or `npx`-run by the SDK repos. `conformance/runner/` (the `@tesseron/conformance` CLI)
+depends on `ws` alone, never on `@tesseron/core`, so an SDK repo's CI can `npx @tesseron/conformance`
+with nothing else from this repo installed. Its version (1.2.1) tracks the protocol version and moves
+through its own changesets.
 
 ## TypeScript strictness
 
@@ -40,75 +44,44 @@ version (1.2.0), set by hand once at creation; it is outside the changesets fixe
 import is split into `import type {…}` and `import {…}`.
 
 Per-package tsconfigs only `extends` the base and set `include: ["src"]`. **That means test
-directories are not typechecked** by `tsc --noEmit`. `sdks/typescript/vite/tsconfig.json` is the sole
-exception: it does not extend the base and hand-rolls `module: NodeNext`, dropping every extra
-strictness flag.
+directories are not typechecked** by `tsc --noEmit`.
 
 ## Dependencies that matter
 
 Runtime dependencies are deliberately thin:
 
-- `@tesseron/core` — `@standard-schema/spec` only.
-- `@tesseron/server`, `@tesseron/vite` — `ws`.
-- `@tesseron/mcp` — `@modelcontextprotocol/sdk`, plus core.
+- `@tesseron/mcp` — `@modelcontextprotocol/sdk`, `ws`, and **`@tesseron/core ^2.10.2` from npm**
+  (`gateway/package.json:51`). `@tesseron/server ^2.10.2` is a devDependency for the tests (`:56`).
 - `@tesseron/docs-mcp` — `@modelcontextprotocol/sdk`, `minisearch` ^7.1, `gray-matter`, `zod`.
-- `@tesseron/web` — core only, **no peer dependencies**.
+- `@tesseron/conformance` — `ws`.
 
-Framework packages carry peers, not deps: `react >=18`, `svelte >=4.0.0`, `vue >=3.0.0`,
-`vite >=4.0.0`, each alongside `@standard-schema/spec ^1.0.0`.
-
-Sibling packages always use `workspace:*`.
-
-The Rust crate (`sdks/rust/`) shares nothing with the pnpm workspace. Its lints are workspace-wide
-in `Cargo.toml`: `missing_docs = warn`, `unsafe_code = forbid`, `clippy::unwrap_used = deny`. It
-versions independently (0.1.0); compatibility is declared by protocol version, never by matching an
-npm number.
-
-The Python package (`sdks/python/`) is the same shape: a uv project with its own `uv.lock`, two
-runtime dependencies (Pydantic v2 for input validation and the validation-mode JSON Schema that goes
-onto the wire unchanged, `websockets` for the asyncio server), Hatchling as the build backend, and
-`[tool.hatch.build.targets.wheel] packages = ["src/tesseron"]` so the sibling `conformance_host/`
-never ships. It also versions independently (0.1.0, not on PyPI yet).
-
-The C++ library (`sdks/cpp/`) is a self-contained CMake project. Boost.Asio is a PUBLIC dependency
-because handlers return `boost::asio::awaitable<Result<Json>>`; Boost.Beast (the WebSocket layer) is
-private. `BOOST_INCLUDE_LIBRARIES` keeps the fetch to the libraries used. Nothing throws across a
-handler boundary (`Result<T>` in every signature), and nothing under `sdks/cpp/` refers to a path above
-it, so the directory can move to its own repository unchanged.
+The registry dependency is the seam between the two repos: a gateway feature that needs a core
+change waits for a `tesseron-typescript` release, then bumps the caret here. `pnpm install
+--frozen-lockfile` pulls core and server from the shared pnpm store, not from source.
 
 ## CI
 
 Four workflows in `.github/workflows/`:
 
-- **`ci.yml`** — PR and push to main, cancels in-flight PR runs. One job: pnpm 9.15.4 + Node 20,
-  `pnpm install --frozen-lockfile`, then `pnpm typecheck` → `pnpm test` → `pnpm lint` →
-  `pnpm sync-plugin-version --check` → `pnpm conformance:validate` → build every `@tesseron/*`
-  package → `pnpm conformance:run` → `pnpm check-docs-changeset` (`:29-62`). The conformance run
-  drives the runner against the TypeScript reference host; on Linux it must report zero skips. The conformance step lints the fixture corpus that out-of-repo SDK ports consume; see
-  [testing.md](testing.md). The last step (`scripts/check-docs-changeset.mjs`) fails a PR that edits
-  `docs/src/content/docs/` without a changeset naming `@tesseron/docs-mcp`, since the docs server
-  ships that prose.
-- **`ci.yml` `rust` job** (`:64-125`) — ubuntu + windows matrix: `cargo fmt --all --check`, clippy
-  with `-D warnings`, `cargo test --workspace`, build (all three `--exclude tauri-todo`, then
-  `cargo check -p tauri-todo` on Windows only because Tauri needs GTK and WebKit on Linux), then the
-  conformance runner against the Rust host through `pnpm conformance:run:rust`
-  (`--unsupported host-minted-claim,uds`; the Rust host is WS-only like the other ports). The runner
-  cross-checks that list against the hello flags, so a capability declared true while listed fails.
-- **`ci.yml` `python` job** (`:126-188`) — ubuntu + windows matrix: `uv sync --locked`, `ruff check`,
-  `ruff format --check`, `mypy --strict src tests`, `pytest`, `uv build`, then pnpm build and
-  `pnpm conformance:run:python` (`--unsupported host-minted-claim,uds`; the Python host is WS-only).
-- **`ci.yml` `cpp` job** (`:190-`) — ubuntu (clang) + windows (MSVC through ilammy/msvc-dev-cmd) matrix:
-  Ninja, a cache of `sdks/cpp/build/_deps` keyed on the dependency pins, `cmake -S sdks/cpp -B
-  sdks/cpp/build` with tests, the conformance host, and the examples on, build, `ctest`, then the conformance runner
-  through `pnpm conformance:run:cpp` (`--unsupported host-minted-claim,uds`; the C++ host is WS-only).
+- **`ci.yml`** — PR and push to main, cancels in-flight PR runs. One job, `test` (`:13`): pnpm
+  9.15.4 + Node 20, `pnpm install --frozen-lockfile`, then `pnpm typecheck` → `pnpm test` →
+  `pnpm lint` → `pnpm sync-plugin-version --check` → `pnpm conformance:validate` → build the hub
+  packages → `pnpm check-docs-changeset` (`:29-59`). No conformance *run* happens here any more; the
+  SDK repos run the published runner against their hosts. The last step
+  (`scripts/check-docs-changeset.mjs`) fails a PR that edits `docs/src/content/docs/` without a
+  changeset naming `@tesseron/docs-mcp`, since the docs server ships that prose. `pnpm gate` at the
+  root is the same sequence minus the build.
 - **`label-by-area.yml`** — on issue open, reads the `### Area` field the two issue templates
-  collect and applies the matching `area: *` label from `.github/labels.json`.
+  collect and applies the matching `area: *` label from `.github/labels.json` (`area: sdk-<language>`
+  labels route SDK issues, which the SDK repos' issue templates point back here).
   `pnpm sync-labels` pushes that file to GitHub.
 - **`docs.yml`** — push to main, manual, plus a weekly cron `0 6 * * 1`. Builds Starlight, deploys to
   GitHub Pages.
 - **`release.yml`** — push to main and manual. Upgrades to **`npm@^11.5.1`** because Node 20's npm 10
-  cannot do trusted-publish OIDC (`:38`), builds `@tesseron/*` excluding docs, re-runs typecheck and
-  test, then `changesets/action@v1`. The pin is deliberate: this step said `npm@latest` until
-  2026-08-21, and once npm 12 dropped Node 20 (`engines: ^22.22.2 || ^24.15.0 || >=26.0.0`) every
-  release died at EBADENGINE. It failed silently from 2026-06-10 because nothing tried to release. Publishes via **npm trusted publishing / OIDC** —
-  `NODE_AUTH_TOKEN` is deliberately unset and `NPM_CONFIG_PROVENANCE: "true"` (`:68`).
+  cannot do trusted-publish OIDC (`:49`), builds the hub packages, re-runs typecheck and test, then
+  `changesets/action@v1`. The pin is deliberate: this step said `npm@latest` until 2026-08-21, and
+  once npm 12 dropped Node 20 (`engines: ^22.22.2 || ^24.15.0 || >=26.0.0`) every release died at
+  EBADENGINE. It failed silently from 2026-06-10 because nothing tried to release. Publishes via
+  **npm trusted publishing / OIDC** — `NODE_AUTH_TOKEN` is deliberately unset and
+  `NPM_CONFIG_PROVENANCE: "true"` (`:81`). The seven `@tesseron/*` SDK packages publish from
+  `tesseron-typescript`'s own release workflow, not from here.

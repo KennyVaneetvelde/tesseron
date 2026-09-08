@@ -1,6 +1,6 @@
 # Architecture
 
-*Last Updated: 2026-09-03*
+*Last Updated: 2026-09-08*
 
 Tesseron is an accessibility layer for AI agents. An app declares typed actions and resources; an
 MCP gateway projects them to an agent as MCP tools. No browser automation, no scraping.
@@ -32,8 +32,8 @@ Who does the listening depends on the consumer package:
 
 | App side | Listener | Manifest written by |
 |---|---|---|
-| Browser in Vite dev | the Vite dev server, at `/@tesseron/ws` | `sdks/typescript/vite/src/index.ts:239` |
-| Node | `NodeWebSocketServerTransport` or `UnixSocketServerTransport` | `sdks/typescript/server/src/transport.ts:79`, `uds-transport.ts:24` |
+| Browser in Vite dev | the Vite dev server, at `/@tesseron/ws` | `tesseron-typescript/vite/src/index.ts:239` |
+| Node | `NodeWebSocketServerTransport` or `UnixSocketServerTransport` | `tesseron-typescript/server/src/transport.ts:79`, `uds-transport.ts:24` |
 | Browser, non-Vite | dials a gateway URL instead (`@tesseron/web`) | n/a |
 
 ## One action invocation, end to end
@@ -43,7 +43,7 @@ Who does the listening depends on the consumer package:
    (`gateway/src/mcp-bridge.ts:391`), which filters dead transports with `isClosed()` and
    picks the largest `claimedAt` (`:541`).
 3. Gateway sends JSON-RPC `actions/invoke` `{name, input, invocationId}` over the dialed transport.
-4. `TesseronClient.handleInvoke` (`sdks/typescript/core/src/client.ts:546`) looks up the action, validates
+4. `TesseronClient.handleInvoke` (`tesseron-typescript/core/src/client.ts:546`) looks up the action, validates
    input through Standard Schema, arms an `AbortController` plus a timeout, and builds the
    `ActionContext`.
 5. Your handler runs as `(input, ctx) => O`. It can call `ctx.progress`, `ctx.sample`,
@@ -69,7 +69,7 @@ A session starts unclaimed. Two paths get it claimed:
   in its manifest. The gateway does not auto-dial (`gateway.ts:540`); on claim it dials carrying the
   code as a `tesseron-bind.<code>` WS subprotocol or a `tesseron/bind` first frame
   (`gateway/src/dialer.ts:77`, `:247`). The constant-time compare happens **host-side**
-  (`sdks/typescript/server/src/transport.ts:174`, `sdks/typescript/vite/src/index.ts:838`).
+  (`tesseron-typescript/server/src/transport.ts:174`, `tesseron-typescript/vite/src/index.ts:838`).
 
 There is **no origin allowlist in `@tesseron/mcp`**. `handleConnection` takes an `origin` but only
 records it (`gateway.ts:1177`), and the sole in-package caller passes `undefined` (`gateway.ts:444`).

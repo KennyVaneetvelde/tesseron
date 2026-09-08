@@ -1,8 +1,8 @@
 # Protocol
 
-*Last Updated: 2026-09-04*
+*Last Updated: 2026-09-08*
 
-Source of truth: `sdks/typescript/core/src/protocol.ts`. `PROTOCOL_VERSION = '1.2.0'` (`:11`).
+Source of truth: `tesseron-typescript/core/src/protocol.ts`. `PROTOCOL_VERSION = '1.2.0'` (`:11`).
 
 The envelope is plain **JSON-RPC 2.0**. `JSONRPC_VERSION = '2.0'` (`:13`); request `:17`,
 notification `:24`, success `:30`, error `:36`, error payload `{code, message, data?}` `:44`.
@@ -53,13 +53,13 @@ Codes live in `protocol.ts:60-78`, not in `errors.ts`:
 | -32002 | Timeout | -32003 | ActionNotFound |
 | -32004 | InputValidation | | |
 
-Classes in `sdks/typescript/core/src/errors.ts`: `TesseronError` base `:20`, `SamplingNotAvailableError`
+Classes in `tesseron-typescript/core/src/errors.ts`: `TesseronError` base `:20`, `SamplingNotAvailableError`
 `:51`, `ElicitationNotAvailableError` `:78`, `SamplingDepthExceededError` `:97`, `CancelledError`
 `:109`, `TimeoutError` `:120`.
 
 Two traps: **there is no `ResumeFailedError` class** (ResumeFailed is code-only, thrown as a bare
 `TesseronError` at `gateway/src/gateway.ts:1386` and matched by code at
-`sdks/typescript/web/src/reactive-core.ts:369`), and **`TransportClosedError` lives in `transport.ts:50`**,
+`tesseron-typescript/web/src/reactive-core.ts:369`), and **`TransportClosedError` lives in `transport.ts:50`**,
 not `errors.ts`.
 
 ## Handshake and resume
@@ -83,7 +83,7 @@ live, and rotates the token. No new `claimCode` is issued on resume (`:1513`).
 
 ## Transport
 
-`Transport` (`sdks/typescript/core/src/transport.ts:21`): `send`, `onMessage`, `onClose`, `close`, optional
+`Transport` (`tesseron-typescript/core/src/transport.ts:21`): `send`, `onMessage`, `onClose`, `close`, optional
 `isClosed?()`. The optional probe is what lets the gateway skip dead sessions (tesseron#92).
 
 **`transport-spec.ts` is addressing, not a conformance suite** despite the name. It defines
@@ -98,9 +98,9 @@ as a header-injection signal (`:65`). Grammar: `[A-Za-z0-9_-]{1,64}` (`:87`).
 
 ## App ids
 
-`sdks/typescript/core/src/app-id.ts` — `APP_ID_RE = /^[a-z][a-z0-9_]*$/` (`:11`), reserved:
+`tesseron-typescript/core/src/app-id.ts` — `APP_ID_RE = /^[a-z][a-z0-9_]*$/` (`:11`), reserved:
 `tesseron`, `mcp`, `system` (`:10`). `validateAppId` throws a plain `Error`, not a `TesseronError`,
 and is **not called inside core**: hosts and the gateway apply it
-(`sdks/typescript/server/src/transport.ts:429`, `sdks/typescript/vite/src/index.ts:666`,
+(`tesseron-typescript/server/src/transport.ts:429`, `tesseron-typescript/vite/src/index.ts:666`,
 `gateway/src/gateway.ts:1158`, `:1412`). The payoff is that the id becomes the MCP tool prefix,
 `${app.id}__${action.name}` (`gateway/src/mcp-bridge.ts:828`).

@@ -1,42 +1,30 @@
 # Testing and verification
 
-*Last Updated: 2026-09-04*
+*Last Updated: 2026-09-08*
 
 Vitest 2.x everywhere. Every `test` script is literally `vitest run`. No Jest, no `node:test`.
 
 ## What `pnpm test` actually covers
 
-`pnpm test` → `turbo run test`, and **only six packages define a `test` script**:
+`pnpm test` → `turbo run test` over the three hub packages (152 tests, 5 skipped on Windows):
 
-| Package | Tests | Location |
-|---|---|---|
-| core | 8 files | `sdks/typescript/core/test/` |
-| mcp | 11 files | `gateway/test/` |
-| docs-mcp | 3 files | `docs-mcp/test/` |
-| vite | 3 files | `sdks/typescript/vite/test/` |
-| web | 1 file | `sdks/typescript/web/test/` |
-| react | 1 file | `sdks/typescript/react/test/` |
+| Package | Files | Tests | Location |
+|---|---|---|---|
+| mcp | 13 | 112 + 5 UDS skips on Windows | `gateway/test/` |
+| docs-mcp | 3 | 21 | `docs-mcp/test/` |
+| conformance | 4 | 19 | `conformance/runner/test/` |
 
-**`@tesseron/server`, `@tesseron/svelte`, and `@tesseron/vue` have no `test` script at all.** A green
-`pnpm test` says nothing about them. Worth knowing before you trust a passing suite on a change that
-touches those three.
+The SDK suites (core, web, react, vite, and the Rust, Python, and C++ ones) run in their own repos
+now. A green hub `pnpm test` says nothing about them; the gateway tests exercise the published
+`@tesseron/server` 2.10.2 from `node_modules`, not SDK source.
 
-Known coverage gaps beyond that:
-
-- `sdks/typescript/react/test/` covers **only `useTesseronConnection`**. `useTesseronAction` and
-  `useTesseronResource` are untested.
-- The Svelte and Vue registration primitives (`tesseronAction`, `tesseronResource`) have **zero
-  example coverage too** — `sdks/typescript/examples/svelte-todo` and `sdks/typescript/examples/vue-todo` reach past them to the raw
-  core builder (`sdks/typescript/examples/svelte-todo/src/app.svelte:57`, `sdks/typescript/examples/vue-todo/src/app.vue:53`). Only
-  `tesseronConnection` is exercised.
-- Per-package tsconfigs use `include: ["src"]`, so **test files are not typechecked**.
+Per-package tsconfigs use `include: ["src"]`, so **test files are not typechecked**.
 
 ## Config
 
-Only three `vitest.config.ts` files exist: `sdks/typescript/web` (jsdom), `sdks/typescript/react`
-(jsdom), and `docs-mcp` (node, 15 s timeout, `include: ['test/**/*.test.ts']`). `core`, `mcp`, and `vite`
-have no config and use Vitest's default include glob. `globals: false` everywhere, so tests import
-`describe`/`it`/`expect` explicitly.
+`docs-mcp/vitest.config.ts` (node, 15 s timeout, `include: ['test/**/*.test.ts']`) is the only
+config; `mcp` and `conformance` use Vitest's default include glob. `globals: false` everywhere, so
+tests import `describe`/`it`/`expect` explicitly.
 
 Tests always live in a `test/` dir at the package root. Never co-located, never `__tests__`.
 
@@ -47,104 +35,77 @@ gateway dials in.
 
 Worth reading before changing the corresponding area:
 
-- `sdks/typescript/core/test/client.test.ts` (736 lines) — handshake, claim code, invoke routing,
-  `ActionNotFound`, send-throws-closes-transport, `-32002` on a signal-deaf handler, and four
-  tesseron#88 connect re-entry regressions at `:300`, `:411`, `:515`, `:571`.
 - `gateway/test/integration.test.ts` (1408 lines) — the full resume matrix (issue, rotate, bad
   token, unknown id, cross-app reject), app-id validation, all four meta tools, tool-surface modes,
   pending-claim recovery (tesseron#69).
 - `gateway/test/phase3.test.ts` (750 lines) — progress monotonicity, cancellation, sampling,
   elicitation, `ctx.confirm`, signal-aborted elicit, resource subscribe.
 - `gateway/test/dead-session-tiebreak.test.ts` — the tesseron#92 liveness filter.
-- `sdks/typescript/web/test/auto-persist.test.ts` — every `resume` shape, URL-form dedup, transport-form
-  rejection.
-
-Two invariant tests scan source text rather than behavior: no `Math.random` in
-`sdks/typescript/core/test/claim-mint.test.ts:19` and `gateway/test/session-tokens.test.ts`. A
-statistical no-short-circuit timing check lives at `sdks/typescript/core/test/timing-safe.test.ts:65`.
+- `gateway/test/session-tokens.test.ts` — scans source text for `Math.random` (the SDK twin is
+  `tesseron-typescript/core/test/claim-mint.test.ts:19`).
+- `conformance/runner/test/run-reference.test.ts` — the launcher: rejects a missing or blank
+  `--host` with exit 2, forwards host, live fixtures, options, and unsupported tags, and passes the
+  runner's exit status through.
 
 Two manual e2e scripts are not part of the suite: `gateway/scripts/e2e-browser-claim.mjs` and
-`e2e-issue-69.mjs`. `sdks/typescript/examples/node-prompts` carries `validate:e2e`, and
-`sdks/rust/examples/validate-e2e.mjs` (`pnpm example:rust:e2e`) builds the two Rust examples, starts
-the gateway from `gateway/src/cli.ts`, claims with the printed code, and asserts 15 invariants
-(canonical action sets and schemas, one progress per imported item, resource read, a subscription
-update on delete, `not_found`, the sampling and confirm responders).
+`e2e-issue-69.mjs`. The example e2e drivers (`examples/validate-e2e.mjs` in each SDK repo, 15 PASS
+lines through the real gateway) run in the SDK repos.
 
 ## The conformance corpus is not part of `pnpm test`
 
 `conformance/fixtures/` holds 39 scripted JSON exchanges (6 actions, 9 bind, 13 elicitation, 6 handshake,
-3 resources, 1 resume, 1 uds) that pin protocol behavior for **other languages'** SDK ports. Plain JSON, no Vitest, no dependency on this workspace, deliberately outside
-every `pnpm-workspace.yaml` glob so a port can vendor the directory.
+3 resources, 1 resume, 1 uds) that pin protocol behavior for every SDK. Plain JSON, no Vitest, no
+dependency on this workspace, deliberately outside every `pnpm-workspace.yaml` glob so a repo can
+vendor the directory.
 
-`pnpm conformance:validate` (`conformance/validate.mjs`, zero deps, wired into `ci.yml`) only lints
+`pnpm conformance:validate` (`conformance/validate.mjs`, zero deps, wired into `ci.yml:51`) only lints
 the fixtures: id matches path, spec anchor present, matcher vocabulary valid, no `~ref` before its
 `~capture`. **It never opens a socket and never exercises any SDK.** A green run means the
 corpus is well-formed, not that anything conforms.
 
-`pnpm conformance:run` (`conformance/run-reference.mjs`) is the executable half: it launches the
-`@tesseron/conformance` runner (`conformance/runner/`, 7 unit tests for the matcher and step
-engine against an in-process fake host) with `--host` pointing at the private TypeScript reference
-host (`sdks/typescript/conformance-host/`, built on `@tesseron/server`). Per fixture the runner
+`node conformance/run-reference.mjs --host "<command>" [--unsupported tag,tag]` is the executable
+half: it launches the `@tesseron/conformance` runner (`conformance/runner/`, matcher and step engine
+tested against an in-process fake host) with `--host` pointing at a conformance host you built
+yourself, always with `--fixtures conformance/fixtures` so the live corpus runs. `--host` is
+required (`:22-27`, exit 2); there is no default host in the hub since SQ-52. Per fixture the runner
 spawns the host with `TESSERON_CONFORMANCE_FIXTURE`, reads the `tesseron-conformance-url=` line,
 dials, walks the steps, and prints PASS/FAIL/SKIP per fixture; exit 1 on any failure, 2 on a
-runner error. Fixtures whose `requires` the host lacks (declared via
-`TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped. On Windows the six `uds` fixtures skip because
-`run-reference.mjs` declares `uds` unsupported there; CI on Linux is the zero-skip check.
+runner error. Fixtures whose `requires` the host lacks (declared via `--unsupported` or
+`TESSERON_CONFORMANCE_UNSUPPORTED`) are skipped, and `uds` is added on Windows automatically (`:19`).
 
-The Rust host runs the same corpus: `pnpm conformance:run:rust`, which is `run-reference.mjs --host
-"sdks/rust/target/debug/tesseron-conformance-host" --unsupported host-minted-claim,uds` (the script
-takes `--host` and `--unsupported` since SQ-16; with no arguments it drives the TS host). The Rust
-host is WS-only, so `uds` is declared on every platform (until 895fefe it was only added on Windows
-by the helper, which would have failed `uds/file-mode` on the Linux leg). Expected
-on Windows: TS host 33 passed / 6 skipped, Rust host 29 passed / 10 skipped (9 `bind/*` plus
-`uds/file-mode`), 0 failed; on Linux Rust still skips 10 and TS skips nothing.
+Where the hosts run now:
 
-The Python host is the third: `pnpm conformance:run:python` runs
-`uv run --locked --directory sdks/python python -m conformance_host` with
-`--unsupported host-minted-claim,uds`, so it skips the same 10 on every platform (WS-only by
-design). Its own suite is `uv run --locked pytest` (106 tests), `mypy --strict src conformance_host
-tests`, and `ruff check .`, all from `sdks/python/`. A fixture added after a port's last run is the
-usual way a host goes red: rerun every host at HEAD after any corpus change (SQ-22, SQ-24, and SQ-43 each
-left a sibling host red that way). `pnpm example:python:e2e`
-(`sdks/python/examples/validate-e2e.mjs`) is the Python twin of the Rust e2e: 15 PASS lines through
-the real gateway.
+| Host | Repo and command | Expected |
+|---|---|---|
+| TypeScript | `tesseron-typescript` CI: `npx @tesseron/conformance@1.2.1 --host` its private `conformance-host` | 39 passed on Linux; 33 / 6 `uds` skips on Windows |
+| Rust | `tesseron-rust` CI, `TESSERON_CONFORMANCE_UNSUPPORTED=host-minted-claim,uds` | 29 passed / 10 skipped |
+| Python | `tesseron-python` CI, same tags | 29 / 10 |
+| C++ | `tesseron-cpp` CI, same tags | 29 / 10 |
 
-The C++ host is the fourth: `pnpm conformance:run:cpp` runs
-`sdks/cpp/build/conformance-host/tesseron-conformance-host` with the same `--unsupported
-host-minted-claim,uds`, so it also skips 10 everywhere (29 passed on the 39-fixture corpus). Its own suite is Catch2 (`ctest --test-dir
-sdks/cpp/build`, 36 cases, `gateway_double.cpp` plays the gateway over a real WebSocket), built with
-`-DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON`. `pnpm example:cpp:e2e`
-(`sdks/cpp/examples/validate-e2e.mjs`, needs `-DTESSERON_BUILD_EXAMPLES=ON`) is the C++ twin of the
-Rust and Python e2e: 15 PASS lines through the real gateway.
+The three ports are WS-only and gateway-minted-claim-only by design, so the nine `bind/*` fixtures
+(all require `host-minted-claim`) and `uds/file-mode` skip everywhere. A fixture added here reaches
+the SDK repos only through a `@tesseron/conformance` release (next paragraph), and a host that has
+not caught up is the usual way one goes red.
 
 A `send` step may carry `raw: true` to write a deliberately malformed envelope verbatim (no
 `jsonrpc` member, say); `validate.mjs` and the runner otherwise refuse a send without
-`jsonrpc: "2.0"`. `conformance/README.md` documents the step DSL.
+`jsonrpc: "2.0"`. `conformance/README.md` documents the step DSL and the runner contract.
 
 Trap: `conformance/runner/scripts/copy-fixtures.mjs` copies the corpus into `runner/dist/fixtures`
 at build time (that copy is what `npx @tesseron/conformance` ships), and turbo does not list
 `../fixtures` as a build input, so a cached build keeps an old copy. `run-reference.mjs` therefore
-passes `--fixtures conformance/fixtures` on every hub run; a bare `tesseron-conformance` invocation
-after a fixture-only change reads the stale copy until the runner is rebuilt. A `--host` that is only a path is resolved to its absolute native form
-(`conformance/runner/src/runner.ts` `resolveHostCommand`, 7 tests in `test/host-command.test.ts`),
-because cmd.exe otherwise splits a relative forward-slash path at the first slash. Every `bind/*`
-fixture requires `host-minted-claim`, which the Rust SDK skips by design (gateway-minted claims
-only). Both
-packages must be built first (`pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build`). The format and runner
-contract are in `conformance/README.md`.
+passes `--fixtures conformance/fixtures` on every hub run; the SDK repos see a fixture change only
+after a `@tesseron/conformance` release. A `--host` that is only a path is resolved to its absolute
+native form (`conformance/runner/src/runner.ts` `resolveHostCommand`, 7 tests in
+`test/host-command.test.ts`), because cmd.exe otherwise splits a relative forward-slash path at the
+first slash. Build the runner first (`pnpm -r --filter "@tesseron/*" --filter "!@tesseron/docs" build`).
 
 ## The command to run
 
 ```bash
-pnpm typecheck && pnpm test        # what CI gates on, minus lint
+pnpm gate                          # typecheck, test, lint, plugin sync check, fixture lint, docs-changeset check: the CI floor
+pnpm typecheck && pnpm test        # the two slow halves on their own
 pnpm lint                          # biome check . at the root, not via turbo
-pnpm sync-plugin-version --check   # CI runs this too; see release-and-plugin.md
 pnpm conformance:validate          # lints conformance/fixtures/, does not run them
-pnpm conformance:run               # runs them against the TS reference host (build first)
-cargo test --manifest-path sdks/rust/Cargo.toml --workspace   # Rust: 49 unit + 25 integration + 3 host + 2 doctests (README blocks)
-cd sdks/python && uv run --locked pytest -q                   # Python: 106 tests; mypy --strict and ruff check alongside
-pnpm conformance:run:python        # the Python host against the corpus (needs uv on PATH)
-cmake -S sdks/cpp -B sdks/cpp/build -G Ninja -DTESSERON_BUILD_TESTS=ON -DTESSERON_BUILD_CONFORMANCE_HOST=ON && cmake --build sdks/cpp/build && ctest --test-dir sdks/cpp/build   # C++: 36 Catch2 cases
-pnpm conformance:run:cpp           # the C++ host against the corpus (build first)
-pnpm conformance:run:rust          # the corpus against the Rust host
+node conformance/run-reference.mjs --host "<built host command>" --unsupported host-minted-claim,uds
 ```

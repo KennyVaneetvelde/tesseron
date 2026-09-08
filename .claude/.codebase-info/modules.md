@@ -1,12 +1,17 @@
 # Modules
 
-*Last Updated: 2026-09-04*
+*Last Updated: 2026-09-08*
 
-Nine published packages, all at **2.10.1**. Eight are in one changesets `fixed` group;
-`@tesseron/docs-mcp` releases on its own. See [release-and-plugin.md](release-and-plugin.md).
+Three packages publish from this hub, each on its own changeset (`fixed: []`): `@tesseron/mcp`
+2.10.2, `@tesseron/docs-mcp` 2.10.2, `@tesseron/conformance` 1.2.1. See
+[release-and-plugin.md](release-and-plugin.md). The seven SDK packages below (`@tesseron/core`,
+`/web`, `/server`, `/react`, `/svelte`, `/vue`, `/vite`, all 2.10.2) are described here because the
+gateway builds on them, but their source is in `tesseron-typescript`; paths under
+`tesseron-typescript/` point there. The gateway consumes `@tesseron/core` from npm
+(`gateway/package.json:51`).
 
-Every package points `types` at `./src/index.ts` for workspace resolution and swaps to
-`./dist/index.d.ts` via `publishConfig` on publish (e.g. `sdks/typescript/web/package.json:34` vs `:62`).
+Every SDK package points `types` at `./src/index.ts` for workspace resolution and swaps to
+`./dist/index.d.ts` via `publishConfig` on publish (e.g. `tesseron-typescript/web/package.json:34` vs `:62`).
 All build with tsup, ESM+CJS.
 
 ## `@tesseron/core` — the whole protocol
@@ -131,68 +136,34 @@ core, and its `tsconfig.json` is the only one that **does not extend `tsconfig.b
 See [gateway.md](gateway.md). `gateway/src/index.ts` re-exports all of core plus the gateway,
 bridge, and session types, so it is a superset of core's public surface.
 
-## `@tesseron/conformance` and the reference host
+## `@tesseron/conformance`
 
 `conformance/runner/` is the language-neutral suite runner (`ws` only, no core dependency; see
-[testing.md](testing.md)). `sdks/typescript/conformance-host/` is a private package that stands up
-`@tesseron/server` with the canned actions and resources a fixture asks for; it exists so the
-corpus is proven runnable before any port vendors it.
+[testing.md](testing.md)). The reference host it was proven against moved to
+`tesseron-typescript/conformance-host/`, a private package that stands up `@tesseron/server` with the
+canned actions and resources a fixture asks for. `conformance/run-reference.mjs` launches the runner
+against any host you name with `--host`.
 
-## `tesseron` (Rust, `sdks/rust/`)
+## The SDK repos
 
-The application half of the protocol in Rust, written from the spec pages with the TypeScript core
-as reference only where the spec is silent. `Tesseron::builder().application(..).action(..)
-.listen().await` binds a loopback WebSocket on port 0, writes the v2 instance manifest (`0600` in a
-`0700` dir, advisory on Windows), and the gateway dials in; `HostEvent::Welcome` carries the
-gateway-minted claim code. `error.rs` holds all 17 protocol codes as one enum. `Action::typed` inputs must derive an
-object-root schema (a struct, an empty one for no-input actions); scalars, enums, and `Vec<T>` are
-refused at `listen()` with `HostError::InvalidTypedActionInputSchema`. Output schemas are opt-in
-(`.output_schema_from_type::<T>()` or `.output_schema(Value)`). `README.md` is the crate doc via
-`include_str!`, so its code blocks run as doctests. Covers handshake,
-claiming, resume with in-memory token rotation, invoke with validation and cancel, `ActionContext`
-with `progress` (percent clamped to 0..=100 and never below the ceiling already sent), `confirm`,
-`elicit`/`elicit_as` (schema rejection matrix in `elicit_schema.rs`, checked before the wire),
-`sample`/`sample_as`, `log`, and resources with subscribe/unsubscribe and `resources/updated`
-pushes. Only host-minted claims are missing, by design. A per-connection handshake gate in
-`session.rs` holds invocations and claims that arrive before the welcome is applied.
-`conformance-host/` is the fixture adapter the runner drives. `examples/todo` and `examples/prompts` are
-the canonical example pair (same action names and schemas as the TypeScript `vanilla-todo` and
-`node-prompts`, minus the UI-only `setFilter`); `examples/validate-e2e.mjs` proves them through the
-real gateway. `examples/tauri-todo` is the desktop variant: `examples/todo/src/lib.rs` holds the store,
-the action registrations, and the `todos://all` resource, and both binaries import it, so the schemas
-cannot drift. The Tauri app holds the host in `tauri::State` and emits a Tauri event from the action
-handlers so the window re-renders after an agent mutation. Docs live at
-`docs/src/content/docs/sdk/rust/` (seven pages, tauri.md included).
+Each repo owns the application half of the protocol in its language, its conformance host, its
+canonical `examples/todo` and `examples/prompts` pair (same action names and schemas across all four,
+with `examples/validate-e2e.mjs` proving them through the real gateway), and its own CI and release
+workflow. The hub keeps their docs under `docs/src/content/docs/sdk/<language>/`, the fixture corpus
+they run, and their issue routing (`area: sdk-<language>` labels).
 
-## `tesseron` (Python, `sdks/python/`)
+| Repo | Ships | Notes |
+|---|---|---|
+| `tesseron-typescript` | the seven `@tesseron/*` packages, one changesets fixed group | `core/` is the protocol source of truth; `conformance-host/` and six `examples/` are private |
+| `tesseron-rust` | crate `tesseron` 0.1.0 | `Tesseron::builder()...listen().await`; gateway-minted claims only (no `bind/*`); `examples/tauri-todo` is the desktop variant |
+| `tesseron-python` | PyPI `tesseron` 0.1.0 | `TesseronApp` with `@app.action` decorators reading Pydantic input types; `conformance_host/` sits beside `src/tesseron` and stays out of the wheel |
+| `tesseron-cpp` | CMake `FetchContent`, target `tesseron::tesseron` | Boost.Asio coroutines, `Result<T>` in every signature, nothing throws across a handler boundary |
 
-The same application half in asyncio Python. `TesseronApp(id, name)` with `@app.action(name)`
-decorators that read the input type from the handler annotation (a Pydantic model; the
-validation-mode JSON Schema is published unchanged, no adapter, or pass `input_schema=` raw),
-`app.resource(name, read=...)` for reads and subscriptions, `await app.listen()` returning a
-`TesseronHost` bound on loopback port 0 with the v2 manifest written, and an `ActionContext` with the same progress, confirm, elicit, sample, and log surface as
-Rust. `jsonrpc.py` classifies frames, `session.py` runs the handshake gate and dispatch, `errors.py`
-carries the 17 codes. `conformance_host/` sits beside `src/tesseron`, drives the fixture DSL, and
-stays out of the wheel. `examples/todo` and `examples/prompts` are the canonical pair with the same
-action names and schemas as the Rust and TypeScript examples; `examples/validate-e2e.mjs` proves them
-through the real gateway. Docs live at `docs/src/content/docs/sdk/python/`.
-
-## `tesseron::tesseron` (C++, `sdks/cpp/`)
-
-The same application half in C++20 on Boost.Asio coroutines. `tesseron::Host::builder()` takes the
-application id and name, actions and resources, then `listen()` binds loopback port 0 on one owned
-`io_context` thread and writes the v2 manifest; handlers are `boost::asio::awaitable<Result<Json>>`
-and every failure is a `Result`, never an exception across the boundary. `include/tesseron/` is the
-public surface (one header per concern plus `tesseron.hpp` as the umbrella), `src/session.cpp` runs
-the handshake gate and dispatch, `src/jsonrpc.cpp` classifies frames, `error.cpp` maps the 17 codes.
-The `schema.hpp` builder covers the common JSON Schema shapes with a raw-JSON escape hatch.
-`conformance-host/` is the private fixture adapter the runner drives. `examples/todo` and
-`examples/prompts` are the canonical pair with the same action names and schemas as the Rust, Python,
-and TypeScript examples; `examples/validate-e2e.mjs` proves them through the real gateway. Docs live
-at `docs/src/content/docs/sdk/cpp/`.
+All three ports are WS-only and gateway-minted-claim-only by design, so they skip the nine `bind/*`
+fixtures and `uds/file-mode` (29 passed / 10 skipped on the 39-fixture corpus).
 
 ## Not packages
 
-`packages/` and `examples/` no longer exist in git. If they are on disk they are untracked
-`.turbo/` and `node_modules/` leftovers from before the 2026-09-03 move to `sdks/typescript/`,
-`gateway/`, and `docs-mcp/`. Delete them.
+`packages/`, `examples/`, and `sdks/` no longer exist in git. If any is on disk it is untracked
+build residue (`node_modules/`, `.turbo/`, `target/`, `build/`, `.venv/`) from before the
+2026-09-03 move or the 2026-09-08 split. Delete it; Biome walks `sdks/` residue and overflows.
