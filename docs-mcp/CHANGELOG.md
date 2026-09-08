@@ -1,5 +1,11 @@
 # @tesseron/docs-mcp
 
+## 2.10.3
+
+### Patch Changes
+
+- [`45a9e1b`](https://github.com/Eigenwise/tesseron/commit/45a9e1b951a027afba1b57da66c6ea6b3ff37e60) by @Eigenwise - Point SDK source, installation, example, and conformance documentation at the four language repositories. Keep protocol docs and SDK issue reporting in the hub.
+
 ## 2.10.2
 
 ### Patch Changes
