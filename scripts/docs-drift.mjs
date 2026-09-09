@@ -43,6 +43,10 @@ async function githubLatestTag(repository) {
   return { version: tags[0].name, publishedAt: new Date(commit.commit.committer.date) };
 }
 
+// Docs merge minutes before the tag-triggered publish lands on the registry;
+// only a release that outruns its docs by more than this counts as drift.
+const RELEASE_GRACE_MS = 60 * 60 * 1000;
+
 function hubDocsLastTouched(relativeDirectory) {
   const iso = execSync(`git log -1 --format=%cI -- ${docsRoot}/${relativeDirectory}`, {
     encoding: 'utf8',
@@ -95,7 +99,7 @@ for (const sdk of sdkReleases) {
     rows.push([sdk.language, 'no release yet', '-', docsAt?.toISOString() ?? '-', 'ok']);
     continue;
   }
-  const stale = docsAt === null || release.publishedAt > docsAt;
+  const stale = docsAt === null || release.publishedAt - docsAt > RELEASE_GRACE_MS;
   if (stale) drift += 1;
   rows.push([
     sdk.language,
