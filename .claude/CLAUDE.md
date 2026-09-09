@@ -15,7 +15,7 @@ Two files decide what loads, and they mean different things:
 **Project scope** carries `live-rules` and `codebase-mapper` from `eigenwise-toolshed`, because both
 write artifacts that are committed (`.claude/live-rules/`, `.claude/.codebase-info/`) and are
 useless to a contributor who can't load the plugin that reads them. Also here: `typescript-lsp`,
-`mcp-server-dev`, `skill-creator`, `plugin-dev`, `developer-kit-typescript`, `model-gateway` (wires
+`mcp-server-dev`, `skill-creator`, `plugin-dev`, `model-gateway` (wires
 `ANTHROPIC_BASE_URL` at `127.0.0.1:18764`; a contributor without the gateway running should disable it
 locally), and `ponytail`.
 
@@ -37,8 +37,8 @@ never appear in the session. Either add the marketplaces or drop the lines.
 
 `.claude/hooks/inject-docs-index.py` runs on `UserPromptSubmit`. It injects the docs index plus a
 mandatory instruction: read the relevant page under `docs/src/content/docs/` before answering
-protocol or SDK questions, and sync docs after any public-surface change under `sdks/typescript/`,
-`gateway/`, or `docs-mcp/`. That hook is why there is no live rule restating the docs contract.
+protocol or SDK questions, and sync docs after any public-surface change under `gateway/`,
+`docs-mcp/`, or SDK source in a language repository. That hook is why there is no live rule restating the docs contract.
 
 `codebase-mapper` injects `.claude/.codebase-info/INDEX.md` at session start once the map exists.
 It's already in context, so don't re-derive the layout with Glob and Grep before reading it.
@@ -50,9 +50,8 @@ Three, in `.claude/live-rules/rules/`, injected by scope rather than always:
 - `plugin-version-lockstep.md` fires on `plugin/**`, the two marketplace manifests, and `README.md`.
   Eight surfaces carry a version and they follow two different packages;
   `scripts/sync-plugin-version.mjs` owns all of them.
-- `release-lockstep.md` fires on `sdks/typescript/*/package.json`, `gateway/package.json`, and
-  `.changeset/**`. Eight packages are a changesets `fixed` group and bump as one;
-  `@tesseron/docs-mcp` sits outside it on purpose.
+- `release-lockstep.md` fires on the three hub `package.json` files and `.changeset/**`. The hub
+  has `fixed: []`; the seven SDK packages keep their fixed group in `tesseron-typescript`.
 - `self-improvement.md` is global.
 
 Rules restating pnpm-only, DCO sign-off, or docs-sync would duplicate `AGENTS.md` (always in
@@ -88,13 +87,6 @@ string and regex patterns.
 
 `workbench` also ships a `code-intel` MCP server with `definition`, `references`, and `diagnostics`.
 It overlaps typescript-lsp; either works.
-
-## developer-kit-typescript
-
-Its hooks need **Python 3 on PATH** or the whole enforcement layer is silently inert. `ts-quality-gate`
-runs on `Stop` and can block session exit on `tsc` or ESLint failures. Note this repo lints with
-Biome and has no ESLint config, so treat that gate's ESLint half as noise. Its rules are not
-auto-copied; they only apply if present in `.claude/rules/`, and they are not.
 
 ## Project skills
 

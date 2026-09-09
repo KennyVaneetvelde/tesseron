@@ -8,7 +8,7 @@ The plugin ships no bundled gateway. `plugin/.mcp.json` reaches `@tesseron/mcp` 
 ships a plugin that fetches the wrong server.
 
 Eight places carry a version, and they do **not** all carry the same one. The plugin's own version
-tracks `@tesseron/mcp` (which is in the changesets `fixed` group). The two surfaces that literally
+tracks `@tesseron/mcp`. The two surfaces that literally
 name `@tesseron/docs-mcp` track that package, which releases independently.
 
 Follows `@tesseron/mcp`:
