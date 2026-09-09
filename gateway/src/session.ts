@@ -38,7 +38,7 @@ export interface Session {
    * resume response goes back to the SDK.
    */
   resumeToken: string;
-  subscriptionCallbacks?: Map<string, (value: unknown) => void>;
+  subscriptionCallbacks?: Map<string, { resourceName: string; onUpdate: (value: unknown) => void }>;
   /**
    * Resolves once the cross-gateway claim breadcrumb at
    * `~/.tesseron/claims/<CODE>.json` has finished writing. The hello handler

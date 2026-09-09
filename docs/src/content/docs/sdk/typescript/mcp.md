@@ -89,7 +89,7 @@ When an MCP client spawns the gateway, the gateway exposes:
   - `tesseron__list_pending_claims` — lists every claim code the gateway can currently redeem (gateway-minted sessions waiting for claim, plus host-minted manifests with an unconsumed code). Recovery path when a previously-claimed session is invalidated mid-conversation (browser refresh, dev-server reload, resume failure) and a tools/call returns "No claimed session found" — call this, pick the entry whose `app_id` matches, then call `tesseron__claim_session({ code })` to re-pair without asking the user to read the new code from the app UI. See [tesseron#69](https://github.com/eigenwise/tesseron/issues/69).
 - Full MCP logging (`sendLoggingMessage`), progress (`notifications/progress`), sampling (`createMessage`), and elicitation (`elicitInput`).
 
-Whenever a session connects, claims, or drops, the gateway emits `notifications/tools/list_changed` and `notifications/resources/list_changed`. The agent refreshes automatically.
+Whenever a session connects, claims, or drops, or an app registers or removes an action or resource after hello, the gateway emits `notifications/tools/list_changed` and `notifications/resources/list_changed`. The agent refreshes automatically.
 
 ## Multiple sessions
 

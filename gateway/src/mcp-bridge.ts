@@ -251,6 +251,7 @@ export class McpAgentBridge {
     });
 
     this.gateway.on('sessions-changed', () => {
+      this.dropRemovedResourceSubscriptions();
       void this.notifyToolsChanged();
       void this.notifyResourcesChanged();
     });
@@ -314,6 +315,20 @@ export class McpAgentBridge {
       elicitation: caps?.elicitation !== undefined,
       clientName: info?.name,
     });
+  }
+
+  private dropRemovedResourceSubscriptions(): void {
+    const resources = new Set(
+      this.liveClaimedSessions().flatMap((session) =>
+        session.resources.map((resource) => `tesseron://${session.app.id}/${resource.name}`),
+      ),
+    );
+    for (const [uri, subscription] of this.mcpSubscriptions) {
+      if (!resources.has(uri)) {
+        this.mcpSubscriptions.delete(uri);
+        void subscription.unsubscribe();
+      }
+    }
   }
 
   /** Emits `notifications/tools/list_changed` to the MCP client. No-op when disconnected. */

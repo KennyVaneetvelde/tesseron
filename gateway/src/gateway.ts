@@ -1022,7 +1022,10 @@ export class TesseronGateway extends EventEmitter {
     const subscriptionId = generateInvocationId();
     const uri = `tesseron://${session.app.id}/${resourceName}`;
     session.subscriptionCallbacks ??= new Map();
-    session.subscriptionCallbacks.set(subscriptionId, options.onUpdate);
+    session.subscriptionCallbacks.set(subscriptionId, {
+      resourceName,
+      onUpdate: options.onUpdate,
+    });
     await session.dispatcher.request('resources/subscribe', {
       name: resourceName,
       subscriptionId,
@@ -1549,11 +1552,31 @@ export class TesseronGateway extends EventEmitter {
       }
     });
 
+    dispatcher.onNotification('actions/list_changed', (params) => {
+      if (!session) return;
+      const notification = params as Pick<Session, 'actions'>;
+      session.actions = notification.actions;
+      if (session.claimed) this.emit('sessions-changed');
+    });
+
+    dispatcher.onNotification('resources/list_changed', (params) => {
+      if (!session) return;
+      const notification = params as Pick<Session, 'resources'>;
+      session.resources = notification.resources;
+      const resourceNames = new Set(notification.resources.map((resource) => resource.name));
+      for (const [subscriptionId, subscription] of session.subscriptionCallbacks ?? []) {
+        if (!resourceNames.has(subscription.resourceName)) {
+          session.subscriptionCallbacks?.delete(subscriptionId);
+        }
+      }
+      if (session.claimed) this.emit('sessions-changed');
+    });
+
     dispatcher.onNotification('resources/updated', (params) => {
       if (!session) return;
       const p = params as { subscriptionId: string; value: unknown };
       const callback = session.subscriptionCallbacks?.get(p.subscriptionId);
-      callback?.(p.value);
+      callback?.onUpdate(p.value);
     });
 
     dispatcher.on('sampling/request', async (params) => {
