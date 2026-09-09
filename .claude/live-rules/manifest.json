@@ -3,8 +3,8 @@
   "rules": [
     {
       "path": "rules/plugin-version-lockstep.md",
-      "hash": "34ea3ac81eef56afdd2104f6694eef31b0077a18fe10de3259afcf8dd1bf298d",
-      "description": "Plugin version moves across eight surfaces, following two different packages",
+      "hash": "531b4013627b0d141d999ca3ad4ddbea289043e74d91468624ffc47a5684f168",
+      "description": "Plugin version moves across nine surfaces, following two different packages",
       "globs": [
         "plugin/**",
         ".claude-plugin/marketplace.json",
