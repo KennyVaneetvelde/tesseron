@@ -48,7 +48,7 @@ It's already in context, so don't re-derive the layout with Glob and Grep before
 Three, in `.claude/live-rules/rules/`, injected by scope rather than always:
 
 - `plugin-version-lockstep.md` fires on `plugin/**`, the two marketplace manifests, and `README.md`.
-  Eight surfaces carry a version and they follow two different packages;
+  Nine surfaces carry a version and they follow two different packages;
   `scripts/sync-plugin-version.mjs` owns all of them.
 - `release-lockstep.md` fires on the three hub `package.json` files and `.changeset/**`. The hub
   has `fixed: []`; the seven SDK packages keep their fixed group in `tesseron-typescript`.

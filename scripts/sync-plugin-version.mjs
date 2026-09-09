@@ -22,6 +22,7 @@
  *   - plugin/.mcp.json#mcpServers.tesseron-docs.args      → @tesseron/docs-mcp
  *   - README.md  (every literal `@tesseron/{mcp,docs-mcp}@<semver>`, each to its own package)
  *   - plugin/README.md  (same)
+ *   - docs/src/content/docs/sdk/typescript/mcp.md  (same)
  *
  * Bumping only one leaves the other surfaces stale and users running an older
  * gateway under a fresh manifest. That's issue #38.
@@ -44,7 +45,11 @@ const CODEX_MARKETPLACE_MANIFEST = resolve(repoRoot, '.agents/plugins/marketplac
 const PLUGIN_MCP_JSON = resolve(repoRoot, 'plugin/.mcp.json');
 // READMEs whose install snippets pin literal `@tesseron/{mcp,docs-mcp}@<semver>`
 // strings. These are not JSON, so the script rewrites them as text via regex.
-const README_TARGETS = [resolve(repoRoot, 'README.md'), resolve(repoRoot, 'plugin/README.md')];
+const README_TARGETS = [
+  resolve(repoRoot, 'README.md'),
+  resolve(repoRoot, 'plugin/README.md'),
+  resolve(repoRoot, 'docs/src/content/docs/sdk/typescript/mcp.md'),
+];
 
 // `<bin-package>@<version>` arg slots in plugin/.mcp.json. Each server pins the
 // package it actually runs, so the gateway follows the plugin version while the

@@ -22,7 +22,7 @@ broken: the SDK shipped and the hub docs never followed.
 **Pin table.** Every literal `@tesseron/<pkg>@<semver>` inside a fenced code block under
 `docs/src/content/docs/`, compared with the package's npm latest. Code blocks are what readers copy;
 prose pins ("default since `@tesseron/mcp@2.4.0`") are history and are skipped on purpose.
-`scripts/sync-plugin-version.mjs` only covers the two READMEs, so docs pins drift on their own.
+`scripts/sync-plugin-version.mjs` owns the pin on `sdk/typescript/mcp.md`; every other docs pin drifts on its own.
 
 **Blind spot.** It measures dates and version strings only. A docs commit that lands after a release but
 says nothing about it counts as ok. Prose drift still needs `update-docs`.

@@ -55,8 +55,7 @@ An SDK release PR is complete only after its corresponding hub docs PR has merge
 ## Plugin manifest is version-coupled
 
 The plugin no longer ships a pre-bundled gateway. `plugin/.mcp.json` invokes
-`@tesseron/mcp` and `@tesseron/docs-mcp` via `npx -y <pkg>@<version>`. Eight
-surfaces move on every release, but they no longer all carry the *same* number:
+`@tesseron/mcp` and `@tesseron/docs-mcp` via `npx -y <pkg>@<version>`. Nine surfaces move on every release, but they no longer all carry the *same* number:
 the plugin's own version tracks `@tesseron/mcp`, while the two surfaces that
 literally name `@tesseron/docs-mcp` track that package, which releases
 independently.
@@ -71,6 +70,7 @@ independently.
 | `plugin/.mcp.json#mcpServers.tesseron-docs.args` | `@tesseron/docs-mcp` |
 | `README.md` (every literal `@tesseron/{mcp,docs-mcp}@<semver>`) | each pin's own package |
 | `plugin/README.md` (same) | each pin's own package |
+| `docs/src/content/docs/sdk/typescript/mcp.md` (same) | each pin's own package |
 
 `scripts/sync-plugin-version.mjs` is the contract. Run `pnpm sync-plugin-version`
 to fix drift, or `pnpm sync-plugin-version --check` (CI does this) to fail fast.

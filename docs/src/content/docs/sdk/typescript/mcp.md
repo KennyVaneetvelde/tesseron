@@ -115,12 +115,12 @@ The Claude Code plugin at `plugin/` in the Tesseron repo ships no bundled gatewa
 ```json
 {
   "mcpServers": {
-    "tesseron": { "type": "stdio", "command": "npx", "args": ["-y", "@tesseron/mcp@2.10.1"] }
+    "tesseron": { "type": "stdio", "command": "npx", "args": ["-y", "@tesseron/mcp@2.10.3"] }
   }
 }
 ```
 
-That pin is one of eight surfaces carrying the plugin version, all owned by `scripts/sync-plugin-version.mjs`. Run `pnpm sync-plugin-version` to fix drift; CI runs `--check`.
+That pin, and the copy of it on this page, are two of nine surfaces carrying the plugin version, all owned by `scripts/sync-plugin-version.mjs`. Run `pnpm sync-plugin-version` to fix drift; CI runs `--check`.
 
 If you're hacking on the gateway, point the plugin at your checkout rather than editing the pin.
 
