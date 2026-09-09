@@ -106,6 +106,21 @@ builder.action("query")
 
 The validator is required. A schema nothing enforces is a promise to the agent that the handler does not keep, and the failure surfaces inside the handler instead of as a `-32004` the agent can act on.
 
+## Registering at runtime
+
+`Host::listen()` returns a `Host` whose action registry can change from any thread. Build an `Action` value with the standalone `ActionDefinition` chain, then register it after listening; a same-name registration replaces the previous action, while `HostBuilder` still rejects duplicate names when `listen()` runs.
+
+```cpp
+auto action = tesseron::ActionDefinition("refresh")
+    .description("Refresh cached data")
+    .input(tesseron::schema::object({}))
+    .handler(refresh);
+
+host.register_action(action);
+```
+
+`host.remove_action(name)` returns `bool`, with `false` when no action has that name, and a removal only notifies when it changes the registry. A live session receives `actions/list_changed` with the full current list after each registry change; without a live session, the next hello or resume announces the current registry.
+
 ## Failing
 
 `ActionError` has three factory methods. The difference between them is what reaches the agent.

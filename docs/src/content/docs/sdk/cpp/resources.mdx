@@ -62,6 +62,20 @@ One emitter belongs to one `resources/subscribe`, so the subscription id is alre
 
 The teardown runs on `resources/unsubscribe` and when the transport closes, whichever comes first. Write it so it is safe when nothing is listening any more, and let it own everything the subscriber registered.
 
+## Registering at runtime
+
+`Host::listen()` returns a `Host` whose resource registry can change from any thread. Build a `Resource` value with the standalone `ResourceDefinition` chain, then register it after listening; a same-name registration replaces the previous resource, while `HostBuilder` still rejects duplicate names when `listen()` runs.
+
+```cpp
+auto resource = tesseron::ResourceDefinition("todos://all")
+    .subscribe(start_todo_updates)
+    .reader(read_todos);
+
+host.register_resource(resource);
+```
+
+`host.remove_resource(name)` returns `bool`, with `false` when no resource has that name, and a removal only notifies when it changes the registry. A live session receives `resources/list_changed` with the full current list after each registry change; without a live session, the next hello or resume announces the current registry, and removing a resource drops its active subscriptions and runs their teardowns.
+
 ## Reading it back
 
 ```json

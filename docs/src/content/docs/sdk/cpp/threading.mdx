@@ -12,7 +12,7 @@ A `Host` owns one `boost::asio::io_context` and one thread that runs it. `HostBu
 
 Handlers return `boost::asio::awaitable<Result<Json>>`. `co_await` yields the host thread while a sampling or elicitation request is in flight. Blocking that thread blocks the session and every other handler on the host.
 
-`ResourceEmitter::emit` is the exception to the caller's thread rule. It is safe to call from any thread and posts the update onto the host's `io_context`; values emitted after unsubscribe or transport close are dropped.
+`ResourceEmitter::emit` is the exception to the caller's thread rule. It is safe to call from any thread and posts the update onto the host's `io_context`; values emitted after unsubscribe or transport close are dropped. `Host::register_action`, `Host::register_resource`, and the removal methods follow the same rule, and registry notifications are posted onto the host's I/O thread.
 
 ## Application dispatcher
 
