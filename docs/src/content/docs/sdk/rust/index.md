@@ -87,8 +87,8 @@ Claims are gateway-minted and transport is WebSocket only in this release. Host-
 
 ## Next
 
-- [Actions](/sdk/rust/actions/): typed and raw handlers, schemas, timeouts, and fixed registrations.
-- [Resources](/sdk/rust/resources/): reads, subscriptions, emitters, and cleanup.
+- [Actions](/sdk/rust/actions/): typed and raw handlers, schemas, timeouts, and runtime registration.
+- [Resources](/sdk/rust/resources/): reads, subscriptions, emitters, cleanup, and runtime registration.
 - [Context](/sdk/rust/context/): progress, confirmation, elicitation, sampling, logs, and cancellation.
 - [Errors](/sdk/rust/errors/): `HostError`, `ActionError`, `ProtocolError`, and the 17 codes.
 - [Conformance](/sdk/rust/conformance/): build the private host and run the shared corpus.

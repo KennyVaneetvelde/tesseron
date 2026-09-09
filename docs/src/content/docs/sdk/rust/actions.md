@@ -101,11 +101,31 @@ The validator returns `Ok(())` for accepted input or `Err(Vec<ValidationIssue>)`
 
 Output schema publication is opt-in. Nothing is published unless you call `.output_schema_from_type::<Output>()` or `.output_schema(Value)`. The schema describes the result for the agent; the crate does not validate handler output against it.
 
-## Registration lifetime
+## Registering after listen
 
-Actions are fixed once `listen()` runs. Runtime add and remove with list-change notifications is SQ-42 and is not shipped. Build every action on the `TesseronHostBuilder` before calling `listen()`.
+Clone the host handle into a spawned task when an action needs to be added or removed after `listen()`:
 
-A duplicate action name returns `HostError::DuplicateName`. The application id is checked before the listener starts, and `bind_address(SocketAddr)` accepts loopback addresses only. `listen()` returns `HostError::NonLoopbackBindAddress` for anything else.
+```rust
+use serde_json::json;
+use tesseron::{Action, TesseronHost};
+
+let host = builder.listen().await?;
+let host_clone: TesseronHost = host.clone();
+let action = Action::json("refresh", |_input, _context| async {
+    Ok(json!({ "ok": true }))
+});
+
+tokio::spawn(async move {
+    host_clone.register_action(action);
+    host_clone.remove_action("refresh");
+});
+```
+
+`register_action(&self, action)` upserts by name, replacing the descriptor, validator, and handler while keeping the existing manifest slot. `remove_action(&self, name)` returns `true` when an action was removed and `false` for an unknown name.
+
+After the session is welcomed, each call that changes the registry sends `actions/list_changed` with `{ "actions": [full manifest] }`. Before welcome, or without a connected gateway, changes are silent and the next `tesseron/hello` or resume carries the new manifest. Notifications are sent for each change without coalescing.
+
+A duplicate action name on the builder returns `HostError::DuplicateName`. The application id is checked before the listener starts, and `bind_address(SocketAddr)` accepts loopback addresses only. `listen()` returns `HostError::NonLoopbackBindAddress` for anything else.
 
 ## Handler failures
 

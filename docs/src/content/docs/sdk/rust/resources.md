@@ -61,6 +61,24 @@ Reading an undeclared resource returns `TesseronErrorCode::ActionNotFound` with 
 
 A reader can return `ActionError` for a domain failure. An unexpected reader error is reported as `-32603 Internal error`.
 
-## Registration lifetime
+## Registering after listen
 
-Resource registrations are fixed once `listen()` runs. Runtime add and remove with list-change notifications is SQ-42 and is not shipped. Register every `Resource` on `TesseronHostBuilder` before starting the host.
+Clone the host handle into a spawned task when a resource needs to be added or removed after `listen()`:
+
+```rust
+use serde_json::json;
+use tesseron::{Resource, TesseronHost};
+
+let host = builder.listen().await?;
+let host_clone: TesseronHost = host.clone();
+let resource = Resource::new("todos://all", || async { Ok(json!([])) });
+
+tokio::spawn(async move {
+    host_clone.register_resource(resource);
+    host_clone.remove_resource("todos://all");
+});
+```
+
+`register_resource(&self, resource)` upserts by name, replacing the descriptor, reader, and subscription handler while keeping the existing manifest slot. Replacing a resource stops its live subscriptions. `remove_resource(&self, name)` returns `true` when a resource was removed and `false` for an unknown name; removing a resource also stops its subscriptions.
+
+After the session is welcomed, each call that changes the registry sends `resources/list_changed` with `{ "resources": [full manifest] }`. Before welcome, or without a connected gateway, changes are silent and the next `tesseron/hello` or resume carries the new manifest. Notifications are sent for each change without coalescing.
