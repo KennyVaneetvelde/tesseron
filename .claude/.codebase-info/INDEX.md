@@ -1,6 +1,6 @@
 # Tesseron codebase map
 
-*Last Updated: 2026-09-08*
+*Last Updated: 2026-09-09*
 
 Tesseron exposes typed app actions to MCP-compatible AI agents over WebSocket. No browser
 automation, no scraping. This repo is the **hub** (pnpm + turbo): the gateway at `gateway/`
@@ -11,7 +11,7 @@ Three published packages, each released on its own; `.changeset/config.json` has
 
 The SDKs left the hub on 2026-09-08 (SQ-52). Each lives in its own repo under the Eigenwise org:
 `tesseron-typescript` (the seven `@tesseron/*` packages at 2.10.2, one changesets fixed group
-there), `tesseron-rust` (crate `tesseron` 0.1.0), `tesseron-python` (PyPI `tesseron` 0.1.0), and
+there), `tesseron-rust` (crate `tesseron` 0.2.0), `tesseron-python` (PyPI `tesseron` 0.1.0), and
 `tesseron-cpp` (CMake `FetchContent`, target `tesseron::tesseron`). The gateway depends on
 `@tesseron/core` from the registry (`gateway/package.json:51`), not on a workspace link.
 

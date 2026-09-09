@@ -1,6 +1,6 @@
 # Modules
 
-*Last Updated: 2026-09-08*
+*Last Updated: 2026-09-09*
 
 Three packages publish from this hub, each on its own changeset (`fixed: []`): `@tesseron/mcp`
 2.10.2, `@tesseron/docs-mcp` 2.10.2, `@tesseron/conformance` 1.2.1. See
@@ -155,7 +155,7 @@ they run, and their issue routing (`area: sdk-<language>` labels).
 | Repo | Ships | Notes |
 |---|---|---|
 | `tesseron-typescript` | the seven `@tesseron/*` packages, one changesets fixed group | `core/` is the protocol source of truth; `conformance-host/` and six `examples/` are private |
-| `tesseron-rust` | crate `tesseron` 0.1.0 | `Tesseron::builder()...listen().await`; gateway-minted claims only (no `bind/*`); `examples/tauri-todo` is the desktop variant |
+| `tesseron-rust` | crate `tesseron` 0.2.0 | `Tesseron::builder()...listen().await`; `register_action`/`remove_action` and the resource pair work after listen and emit `list_changed` (0.2.0); gateway-minted claims only (no `bind/*`); `examples/tauri-todo` is the desktop variant |
 | `tesseron-python` | PyPI `tesseron` 0.1.0 | `TesseronApp` with `@app.action` decorators reading Pydantic input types; `conformance_host/` sits beside `src/tesseron` and stays out of the wheel |
 | `tesseron-cpp` | CMake `FetchContent`, target `tesseron::tesseron` | Boost.Asio coroutines, `Result<T>` in every signature, nothing throws across a handler boundary |
 
