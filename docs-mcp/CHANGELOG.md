@@ -1,5 +1,11 @@
 # @tesseron/docs-mcp
 
+## 2.10.5
+
+### Patch Changes
+
+- [`51cdfbf`](https://github.com/Eigenwise/tesseron/commit/51cdfbf1c183c2a771dfc060e68d99f89c1d8b24) by @Eigenwise - Docs: add Python runtime action and resource registration after `listen()`, including list-change notifications and resource subscription cleanup.
+
 ## 2.10.4
 
 ### Patch Changes

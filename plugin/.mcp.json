@@ -8,7 +8,7 @@
     "tesseron-docs": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@tesseron/docs-mcp@2.10.4"]
+      "args": ["-y", "@tesseron/docs-mcp@2.10.5"]
     }
   }
 }
