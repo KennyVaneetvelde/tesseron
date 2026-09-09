@@ -3,7 +3,7 @@
 *Last Updated: 2026-09-09*
 
 Three packages publish from this hub, each on its own changeset (`fixed: []`): `@tesseron/mcp`
-2.10.2, `@tesseron/docs-mcp` 2.10.2, `@tesseron/conformance` 1.2.1. See
+2.10.4, `@tesseron/docs-mcp` 2.10.5, `@tesseron/conformance` 1.2.1. See
 [release-and-plugin.md](release-and-plugin.md). The seven SDK packages below (`@tesseron/core`,
 `/web`, `/server`, `/react`, `/svelte`, `/vue`, `/vite`, all 2.10.2) are described here because the
 gateway builds on them, but their source is in `tesseron-typescript`; paths under
@@ -156,8 +156,8 @@ they run, and their issue routing (`area: sdk-<language>` labels).
 |---|---|---|
 | `tesseron-typescript` | the seven `@tesseron/*` packages, one changesets fixed group | `core/` is the protocol source of truth; `conformance-host/` and six `examples/` are private |
 | `tesseron-rust` | crate `tesseron` 0.2.0 | `Tesseron::builder()...listen().await`; `register_action`/`remove_action` and the resource pair work after listen and emit `list_changed` (0.2.0); gateway-minted claims only (no `bind/*`); `examples/tauri-todo` is the desktop variant |
-| `tesseron-python` | PyPI `tesseron` 0.1.0 | `TesseronApp` with `@app.action` decorators reading Pydantic input types; `conformance_host/` sits beside `src/tesseron` and stays out of the wheel |
-| `tesseron-cpp` | CMake `FetchContent`, target `tesseron::tesseron` | Boost.Asio coroutines, `Result<T>` in every signature, nothing throws across a handler boundary |
+| `tesseron-python` | PyPI `tesseron` 0.2.0 | `TesseronApp` with `@app.action` decorators reading Pydantic input types; `host.action(...)`/`.resource(...)` upsert and `remove_action`/`remove_resource` work after listen and emit `list_changed` (0.2.0); `conformance_host/` sits beside `src/tesseron` and stays out of the wheel |
+| `tesseron-cpp` | v0.2.0, CMake `FetchContent`, target `tesseron::tesseron` | Boost.Asio coroutines, `Result<T>` in every signature, nothing throws across a handler boundary; `Host::register_action`/`register_resource`/`remove_*` take `ActionDefinition`/`ResourceDefinition` values after listen and emit `list_changed` (0.2.0) |
 
 All three ports are WS-only and gateway-minted-claim-only by design, so they skip the nine `bind/*`
 fixtures and `uds/file-mode` (29 passed / 10 skipped on the 39-fixture corpus).
