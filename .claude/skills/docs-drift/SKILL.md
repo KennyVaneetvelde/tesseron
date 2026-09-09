@@ -16,8 +16,9 @@ pnpm docs:drift
 **SDK table.** One row per language. "released" is the latest version on the registry that owns the SDK
 (npm `@tesseron/core` for TypeScript, crates.io `tesseron` for Rust, PyPI `tesseron` for Python, the latest
 GitHub tag for C++). "hub docs last touched" is the last commit under `docs/src/content/docs/sdk/<lang>/`.
-A release published after that commit is `DRIFT: release newer than docs`, meaning the AGENTS.md rule was
-broken: the SDK shipped and the hub docs never followed.
+A release published more than an hour after that commit is `DRIFT: release newer than docs`, meaning the
+AGENTS.md rule was broken: the SDK shipped and the hub docs never followed. The hour absorbs the normal
+gap between merging docs and the tag-triggered publish landing on the registry.
 
 **Pin table.** Every literal `@tesseron/<pkg>@<semver>` inside a fenced code block under
 `docs/src/content/docs/`, compared with the package's npm latest. Code blocks are what readers copy;
