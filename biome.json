@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
-    "ignore": ["dist", "node_modules", ".turbo", "**/.astro/**", "assets/diagrams/**", ".claude/**"]
+    "ignore": [
+      "dist",
+      "node_modules",
+      ".turbo",
+      "**/.astro/**",
+      "assets/diagrams/**",
+      ".claude/**",
+      "tesseron-*/**"
+    ]
   },
   "formatter": {
     "enabled": true,

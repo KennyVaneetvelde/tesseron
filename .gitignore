@@ -65,3 +65,10 @@ yarn-error.log*
 /MERGE_LOG.md
 /repo-cleanup/
 /PLAN.md
+
+# Local clones of the language SDK repositories, nested here for convenience.
+# Each is its own git repository; the hub never tracks them.
+/tesseron-typescript/
+/tesseron-rust/
+/tesseron-python/
+/tesseron-cpp/
