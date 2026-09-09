@@ -98,7 +98,7 @@ Then add Tesseron to `.mcp.json` in your project root (or `~/.config/mcp/mcp.jso
 {
   "mcpServers": {
     "tesseron": { "command": "npx", "args": ["-y", "@tesseron/mcp@2.10.4"] },
-    "tesseron-docs": { "command": "npx", "args": ["-y", "@tesseron/docs-mcp@2.10.5"] }
+    "tesseron-docs": { "command": "npx", "args": ["-y", "@tesseron/docs-mcp@2.10.6"] }
   }
 }
 ```
@@ -116,7 +116,7 @@ OpenCode reads MCP servers from `opencode.json` rather than a plugin manifest. S
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "tesseron": { "type": "local", "command": ["npx", "-y", "@tesseron/mcp@2.10.4"], "enabled": true },
-    "tesseron-docs": { "type": "local", "command": ["npx", "-y", "@tesseron/docs-mcp@2.10.5"], "enabled": true }
+    "tesseron-docs": { "type": "local", "command": ["npx", "-y", "@tesseron/docs-mcp@2.10.6"], "enabled": true }
   }
 }
 ```

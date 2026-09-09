@@ -1,5 +1,11 @@
 # @tesseron/docs-mcp
 
+## 2.10.6
+
+### Patch Changes
+
+- [`977df82`](https://github.com/Eigenwise/tesseron/commit/977df821856fd87339df305410fed79b060acf5e) by @Eigenwise - Document runtime action and resource registration for the C++ SDK.
+
 ## 2.10.5
 
 ### Patch Changes

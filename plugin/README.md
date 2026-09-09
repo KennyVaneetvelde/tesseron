@@ -59,7 +59,7 @@ OpenCode does not consume Claude/Codex plugin manifests, but it does natively re
     },
     "tesseron-docs": {
       "type": "local",
-      "command": ["npx", "-y", "@tesseron/docs-mcp@2.10.5"],
+      "command": ["npx", "-y", "@tesseron/docs-mcp@2.10.6"],
       "enabled": true
     }
   }
