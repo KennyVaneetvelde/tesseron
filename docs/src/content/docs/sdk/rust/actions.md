@@ -123,6 +123,8 @@ tokio::spawn(async move {
 
 `register_action(&self, action)` upserts by name, replacing the descriptor, validator, and handler while keeping the existing manifest slot. `remove_action(&self, name)` returns `true` when an action was removed and `false` for an unknown name.
 
+`register_action` checks a typed action's input schema the same way `listen()` does: the schema must describe an object, and `properties`, when present, must be an object. `listen()` reports a bad schema as a `HostError`. `register_action` returns nothing, so it panics instead, before the registry changes.
+
 After the session is welcomed, each call that changes the registry sends `actions/list_changed` with `{ "actions": [full manifest] }`. Before welcome, or without a connected gateway, changes are silent and the next `tesseron/hello` or resume carries the new manifest. Notifications are sent for each change without coalescing.
 
 A duplicate action name on the builder returns `HostError::DuplicateName`. The application id is checked before the listener starts, and `bind_address(SocketAddr)` accepts loopback addresses only. `listen()` returns `HostError::NonLoopbackBindAddress` for anything else.
