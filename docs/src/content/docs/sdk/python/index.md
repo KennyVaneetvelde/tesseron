@@ -79,7 +79,7 @@ async def main() -> None:
 
 The `TodoStore` and `todo_payload` definitions in this excerpt are the ones in [`examples/todo/app.py`](https://github.com/Eigenwise/tesseron-python/blob/main/examples/todo/app.py). The complete example also registers the other canonical actions.
 
-`app.listen()` binds `127.0.0.1` on a port the OS picks, writes the instance manifest the gateway watches for, and answers with a `TesseronHost` carrying the URL and the manifest path. Nothing dials out.
+`app.listen()` binds `127.0.0.1` on a port the OS picks, writes the instance manifest the gateway watches for, and answers with a `TesseronHost` carrying the URL and the manifest path. Nothing dials out. The `app.action` and `app.resource` registrations in this example are made before `listen()`; the returned host can register, replace, and remove actions and resources at runtime.
 
 The application id has to match `^[a-z][a-z0-9_]*$` and cannot be `tesseron`, `mcp`, or `system`: the gateway uses it as an MCP tool prefix. An id that fails either rule raises `InvalidApplicationIdError` from `listen()` rather than binding a socket nobody can use.
 

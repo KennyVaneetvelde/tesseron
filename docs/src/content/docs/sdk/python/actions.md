@@ -95,6 +95,26 @@ A non-empty issue list becomes the same `-32004` failure, with the same `data` s
 | `timeout_ms` | Per-action deadline. Past it the invocation answers [`-32002 Timeout`](/protocol/errors/) and the handler task is cancelled. The default is 60 seconds. |
 | `validate` | Extra input check for a raw handler. Ignored when the input type comes from a model. |
 
+## Registering after listen
+
+`await app.listen()` returns a `TesseronHost`. Its `action` decorator has the same arguments as `app.action` and can register an action after the host starts:
+
+```python
+host = await app.listen()
+
+
+@host.action("refresh", description="Refresh cached data")
+async def refresh(raw_input: JsonObject, context: ActionContext) -> JsonObject:
+    del raw_input, context
+    return {"ok": True}
+```
+
+Host registration upserts by name. Registering an existing name replaces its descriptor and handler while keeping its position in the manifest. `host.remove_action(name)` returns `True` when an action was removed and `False` when the name was unknown. The app-level decorator still raises `DuplicateNameError` for a duplicate.
+
+After the gateway welcomes the session, each registry change sends `actions/list_changed` with `{ "actions": [full manifest] }`. Changes before welcome, or with no gateway connected, are silent; the next hello or resume carries the updated manifest. Each change sends one notification, with no coalescing.
+
+These calls are synchronous and must run on the event loop thread, like the rest of the SDK.
+
 ## What a handler may return
 
 Output is converted to JSON before it leaves. Pydantic models go through `model_dump(mode="json")`, enums through their value, mappings and sequences recursively, and `None`, `bool`, `int`, `float`, `str` as they are.

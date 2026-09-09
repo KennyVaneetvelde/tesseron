@@ -35,6 +35,27 @@ This is the resource from the canonical [`examples/todo/app.py`](https://github.
 
 Registering one name twice raises `DuplicateNameError`.
 
+## Registering after listen
+
+`await app.listen()` returns a `TesseronHost`. Its `resource` method has the same arguments as `app.resource` and can register a resource after the host starts:
+
+```python
+host = await app.listen()
+
+host.resource(
+    "todos://all",
+    description="The complete todo list.",
+    read=read_todos,
+    subscribable=True,
+)
+```
+
+Host registration upserts by name. Registering an existing name replaces its descriptor, reader, and subscription handler while keeping its position in the manifest. `host.remove_resource(name)` returns `True` when a resource was removed and `False` when the name was unknown. Replacing or removing a resource stops its live subscriptions, and the agent resubscribes as needed. The app-level method still raises `DuplicateNameError` for a duplicate.
+
+After the gateway welcomes the session, each registry change sends `resources/list_changed` with `{ "resources": [...] }`. Changes before welcome, or with no gateway connected, are silent; the next hello or resume carries the updated manifest. Each change sends one notification, with no coalescing.
+
+These calls are synchronous and must run on the event loop thread, like the rest of the SDK.
+
 ## Pushing updates
 
 ```python
