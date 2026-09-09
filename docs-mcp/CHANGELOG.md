@@ -1,5 +1,15 @@
 # @tesseron/docs-mcp
 
+## 2.10.4
+
+### Patch Changes
+
+- [`12093df`](https://github.com/Eigenwise/tesseron/commit/12093df7da78f3d095dde3036a599cc29ee59ac2) by @Eigenwise - Docs: the `@tesseron/mcp` pin on the gateway page now follows releases through `sync-plugin-version`, and the C++ installation page fetches the `v0.1.0` tag instead of `main`.
+
+- [`ecd2c3b`](https://github.com/Eigenwise/tesseron/commit/ecd2c3b764f442e045a264f2bc11b8ccac25c4ef) by @Eigenwise - Forward actions/list_changed and resources/list_changed from apps to the agent.
+
+- [`adebdc0`](https://github.com/Eigenwise/tesseron/commit/adebdc0c70d4f563e7af0a7a1170062ee81dd0cf) by @Eigenwise - Docs: add Rust runtime action and resource registration after `listen()`, including list-change notifications and resource subscription cleanup.
+
 ## 2.10.3
 
 ### Patch Changes

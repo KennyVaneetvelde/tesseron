@@ -1,5 +1,11 @@
 # @tesseron/mcp
 
+## 2.10.4
+
+### Patch Changes
+
+- [`ecd2c3b`](https://github.com/Eigenwise/tesseron/commit/ecd2c3b764f442e045a264f2bc11b8ccac25c4ef) by @Eigenwise - Forward actions/list_changed and resources/list_changed from apps to the agent.
+
 ## 2.10.3
 
 ### Patch Changes

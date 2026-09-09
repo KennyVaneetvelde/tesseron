@@ -115,7 +115,7 @@ The Claude Code plugin at `plugin/` in the Tesseron repo ships no bundled gatewa
 ```json
 {
   "mcpServers": {
-    "tesseron": { "type": "stdio", "command": "npx", "args": ["-y", "@tesseron/mcp@2.10.3"] }
+    "tesseron": { "type": "stdio", "command": "npx", "args": ["-y", "@tesseron/mcp@2.10.4"] }
   }
 }
 ```
